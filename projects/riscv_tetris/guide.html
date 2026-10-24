@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RISC-V Tetris: user guide</title>
+<meta name="description" content="How to build and load the RISC-V SoC on the DE10-Lite, play Tetris, write your own C or assembly program for it, run it on the simulator, load it over JTAG in seconds, test it in lock-step with the RTL, and fix what goes wrong.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">RISC-V Tetris</a> / User guide</nav>
+<h1>RISC-V Tetris: user guide</h1>
+<p class="lead">From the repo to Tetris on your board, then to your own program on the soft CPU. Every command runs from the repo's
+root folder in the <code>env</code> virtualenv (the project's own commands from the project folder); the chat does them for you if you ask.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a class="here" href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#need">What you need</a></li>
+  <li><a href="#build">Build and load it</a></li>
+  <li><a href="#play">Play</a></li>
+  <li><a href="#usb">Play and test over USB</a></li>
+  <li><a href="#program">Write your own program</a></li>
+  <li><a href="#sim">Run it on the simulator</a></li>
+  <li><a href="#load">Load it into the board in six seconds</a></li>
+  <li><a href="#rtl">Run it on the RTL, in lock-step</a></li>
+  <li><a href="#flash">Keep it after power-off</a></li>
+  <li><a href="#change">Change the hardware</a></li>
+  <li><a href="#trouble">When something looks wrong</a></li>
+</ol>
+
+<h2 id="need">What you need</h2>
+<ul>
+  <li>A DE10-Lite with the LCD / game-pad shield (the screen and the joystick).</li>
+  <li>Quartus Prime Lite 17.1 installed as in stage 1 of the BKM (<code>python scripts/doctor.py</code> shows no FAIL).</li>
+  <li>The repo cloned and <code>env</code> created. The toolchain needs nothing else: it is Python in <code>projects/riscv_tetris/tools/</code>.</li>
+  <li>For the RTL tests on your PC: Icarus Verilog (the OSS CAD Suite the BKM installs).</li>
+</ul>
+
+<h2 id="build">Build and load it</h2>
+<pre><code>python scripts/de10.py build   projects/riscv_tetris      # about 3 minutes; the RAM is initialised with Tetris
+python scripts/de10.py program projects/riscv_tetris      # loads it over the USB-Blaster; runs until power-off</code></pre>
+<p>From the archive instead: Quartus <i>Project → Restore Archived Project</i> → <code>riscv_tetris.qar</code>, compile, program.
+What you should see: the title screen, RISC-V TETRIS, the empty well with a grey frame, a green START in the middle,
+<code>000000</code> on the digits. LEDR9 dark (it blinks only while the CPU is held or halted).</p>
+
+<h2 id="play">Play</h2>
+<div class="tablewrap"><table>
+<tr><th>Control</th><th>Does</th></tr>
+<tr><td>Start (shield) or KEY0</td><td>starts a game; after GAME OVER, the next one</td></tr>
+<tr><td>Joystick left / right</td><td>moves the piece; held, it repeats after a short delay</td></tr>
+<tr><td>Up or A</td><td>rotates (with a sideways kick if the wall is in the way)</td></tr>
+<tr><td>Down</td><td>soft drop, one point per cell</td></tr>
+<tr><td>B</td><td>hard drop, two points per cell</td></tr>
+<tr><td>Start during play</td><td>pause / resume</td></tr>
+<tr><td>7-segment, LEDs</td><td>the score; one LED per level</td></tr>
+<tr><td>Buzzer</td><td>a click per piece, a chirp per rotation, a note per cleared line (lower for four), a long one at game over</td></tr>
+</table></div>
+<p>Lines score 40 / 100 / 300 / 1200 × (level + 1); every ten lines a level; the fall gets faster each level.</p>
+
+<h2 id="usb">Play and test over USB</h2>
+<pre><code>python scripts/de10.py send s        # Start; also a b e(Select) u d l r, and k = KEY0
+python scripts/de10.py send l        # each letter holds the key for 6 frames
+python scripts/de10.py screen x.png  # the screen as the board shows it (320 x 240)
+python scripts/de10.py log 5         # what the program prints on its UART (puts / putnum in lib.h)
+python scripts/de10.py send "?"      # the debug link's status line</code></pre>
+
+<h2 id="program">Write your own program</h2>
+<p>Copy <code>sw/tetris.c</code> or start from this, in <code>projects/riscv_tetris/sw/hello.c</code>:</p>
+<pre><code>#include "soc.h"
+#include "lib.h"
+
+int main(void)
+{
+    int n = 0;
+    cls(1);                                     /* blue background */
+    put_str(2, 30, "HELLO FROM RISC-V", 14, 1);
+    puts("hello over the UART/n");
+    while (1) {
+        wait_frame();
+        keys_poll();
+        if (keys_pressed &amp; BTN_A)
+            n++;
+        put_num(4, 30, n, 6, 15, 1);
+        IO_HEX = to_bcd(n);
+        IO_LEDS = keys_now;
+    }
+    return 0;
+}</code></pre>
+<p>What the compiler accepts is listed at the top of <code>tools/cc.py</code> and in the <a href="spec.html#abi">spec</a>: int,
+char, unsigned, pointers, arrays, globals with initialisers, functions, all control flow, all operators but the comma,
+#define and #include. Not structs, typedef, float. It tells you with a line number. The helpers in <code>sw/lib.h</code>:
+<code>putc puts putnum puthex</code> (UART), <code>cls put_cell put_str put_num</code> (screen), <code>keys_poll</code> (<code>keys_now</code>,
+<code>keys_pressed</code>), <code>to_bcd</code>, <code>wait_frame</code>. The registers and macros are in the generated <code>sw/soc.h</code>:
+<code>IO_FRAME</code>, <code>IO_RANDOM</code>, <code>IO_BUZZER</code>, <code>TEXT_AT(row, col) = CELL(ch, fg, bg)</code>, <code>BLOCK_FULL</code>...</p>
+<pre><code>cd projects/riscv_tetris
+python tools/build.py sw/hello.c              # -> build/hello.hex .mif .s .sym (the .s is readable: look at it)</code></pre>
+<p>Assembly works too: <code>python tools\build.py sw\my.s</code> (no runtime; start at address 0; <code>sw/test_isa.s</code> is the model).</p>
+
+<h2 id="sim">Run it on the simulator</h2>
+<pre><code>python tools/rv32sim.py build/hello.hex --frames 120 --keys "10:a,20:a,30:a" --screen out.txt --uart
+type out.txt                                  # the 80 x 60 screen as text (block glyphs as # + : [)</code></pre>
+<p>It stops at EXIT, after <code>--frames</code>, or after <code>--max</code> instructions, and prints the instruction count, the
+digits and the UART text. <code>--trace x.trc</code> writes every register write and store (and turns off the idle skip);
+<code>--seed</code> sets the RANDOM register.</p>
+
+<h2 id="load">Load it into the board in six seconds</h2>
+<pre><code>python tools/load.py build/hello.mif          # 'H', write the RAM over JTAG, 'R': the new program runs</code></pre>
+<p>The FPGA stays as it is; only the RAM content changes. (The board must be running this project's bitstream; at the
+next power-up the RAM holds Tetris again, unless you rebuild with your image in <code>assets/</code>: <code>tools\build.py sw\hello.c --assets</code>
+then edit <code>PROG_FILE</code> in <code>src/riscv_tetris_top.sv</code>, or just replace <code>assets/tetris.mif</code>.)</p>
+
+<h2 id="rtl">Run it on the RTL, in lock-step</h2>
+<pre><code>python tools/rv32sim.py build/hello.hex --max 300000 --trace build/hello.trc
+cd ../..
+python scripts/sim.py projects/riscv_tetris/sim/tb_soc.sv -D PROG="../build/hello.hex" -D TRACE="../build/hello_rtl.trc" -D MAXCYCLES=1200000
+python projects/riscv_tetris/tools/trace_compare.py projects/riscv_tetris/build/hello.trc projects/riscv_tetris/build/hello_rtl.trc</code></pre>
+<p>The testbench also writes <code>hello_rtl.trc.uart</code> and <code>hello_rtl.trc.screen</code>. Icarus runs about 1 million clocks
+in a minute, so give the RTL a short program or a <code>--max</code> that matches. The repo's tests do this for the ISA test
+and the C suite: <code>python -m pytest tests/test_riscv_tetris.py</code>.</p>
+
+<h2 id="flash">Keep it after power-off</h2>
+<pre><code>python scripts/de10.py flash projects/riscv_tetris     # writes and verifies the .pof, about 15 s; the chat asks first</code></pre>
+
+<h2 id="change">Change the hardware</h2>
+<div class="tablewrap"><table>
+<tr><th>You want</th><th>Where</th></tr>
+<tr><td>a new I/O register</td><td>add it to <code>tools/memmap.py</code> (run it: it rewrites <code>sw/soc.h</code>), decode it in <code>rv32_soc.sv</code> (one case line for write, one for read), model it in <code>rv32sim.py</code>'s <code>io_read</code> / <code>io_write</code>; <code>pytest</code> checks the three agree</td></tr>
+<tr><td>a different screen size or font</td><td><code>text_screen.sv</code> (cell = pixel &gt;&gt; 3), <code>memmap.py</code> (TEXT_COLS / ROWS), the text RAM depth in <code>rv32_soc.sv</code></td></tr>
+<tr><td>a faster CPU</td><td>pipeline FETCH with EXEC (the ir register is already the boundary), or add an M extension: a <code>mul</code> on the MAX 10's multipliers and the compiler emits <code>mul</code> instead of <code>call __mul</code></td></tr>
+<tr><td>more RAM</td><td>drop the debug capture (<code>debug_link</code>) and double <code>soc_ram</code>: numwords 16384, widthad 14, <code>RAM_SIZE</code> in memmap.py, the stack top in crt0.s</td></tr>
+<tr><td>interrupts</td><td>a pending bit from FRAME, a vector at 0x10, a save of pc into a register on entry: about 40 lines in the CPU and <code>mret</code></td></tr>
+</table></div>
+<p>After any hardware change: <code>pytest tests/test_riscv_tetris.py</code> (the lock-step suites), then the Quartus build.</p>
+
+<h2 id="trouble">When something looks wrong</h2>
+<div class="tablewrap"><table>
+<tr><th>You see</th><th>Likely</th><th>Do</th></tr>
+<tr><td>LEDR9 blinking, nothing moves</td><td>the CPU is halted: an illegal instruction (a jump into data), or held by 'H'</td><td><code>de10.py send R</code>; in the simulator the same program reports "illegal instruction at pc": look it up in <code>build/x.sym</code></td></tr>
+<tr><td>The simulator says "fetch from 0x...6e" or an odd address</td><td>a corrupt return address: a local array overrun, a pointer gone wrong</td><td>run with <code>--trace</code>, find the last write of register 1 (ra) and its pc in the .sym file</td></tr>
+<tr><td>"error: file.c:N: ..." from the compiler</td><td>a construct outside the subset</td><td>the message says what; the spec lists the alternatives (no struct: parallel arrays; no local array initialiser: assign in a loop)</td></tr>
+<tr><td>The screen is right in the simulator, wrong on the board</td><td>a value read from FRAME / RANDOM / CYCLES differs, or the program wrote beyond the 4,800 cells</td><td>run the RTL testbench with the same image and compare the <code>.screen</code> dump</td></tr>
+<tr><td><code>load.py</code> says the memory write did not report OK</td><td>the board is not running this bitstream, or Quartus' JTAG server is busy (another terminal)</td><td><code>de10.py program</code> first; close other JTAG users</td></tr>
+<tr><td>No sound</td><td>the program writes BUZZER 0, or the shield's buzzer is on another line</td><td>check <code>ARDUINO_IO[12]</code> in the top against your shield</td></tr>
+<tr><td>The game is too fast or too slow</td><td>frames_per_drop in <code>tetris.c</code></td><td>change it, <code>build.py</code>, <code>load.py</code>: ten seconds</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="spec.html">architecture spec</a>.</footer>
+</main>
+</body>
+</html>

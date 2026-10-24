@@ -5,6 +5,10 @@ They come from real sessions; most of them came from something going wrong.
 
 ## 2026-10-24
 
+- **A soft RISC-V CPU with its own toolchain: RISC-V Tetris.** An RV32I SoC, a Python assembler, C compiler and
+  simulator, programs loaded over JTAG in seconds, the RTL proven in lock-step against the simulator (294,803 identical
+  steps). The recipe is a skill. [build-soft-cpu](../.claude/skills/build-soft-cpu/SKILL.md)
+- **The signed trap of `>>>` in a `?:`, `cell` is reserved, shells share a cwd.** [gotchas 20-22](gotchas.md)
 - **Projects have a standard public folder** (overview with block diagram and review log, architecture spec, user guide,
   .qar, no bitstreams) and a portal; a test keeps every project complete. [make-project](../.claude/skills/make-project/SKILL.md)
 - **A whole arcade game from scratch: Pac-Man** (maze, 4 ghosts with the arcade AI, sound, levels), tested in

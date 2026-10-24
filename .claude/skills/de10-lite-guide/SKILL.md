@@ -77,6 +77,7 @@ and a verified example in `examples/` (index: `examples/index.html`): reuse its 
 | fast multiply, MAC, filters | `use-dsp-multipliers` | 12 |
 | the design to stay after power-off | `flash-design` | 13 |
 | a game (Pac-Man, Snake, Breakout...) | `build-arcade-game` | `projects/pacman` |
+| a CPU, run C / assembly on the FPGA, a text screen, MMIO | `build-soft-cpu` | `projects/riscv_tetris` |
 | a whole design, published with pages and a .qar | `make-project` | `projects/` (portal `projects/index.html`) |
 
 The loop for every request: `scripts/new_project.py` -> `scripts/sim.py` (unit test) -> `scripts/de10.py build` ->

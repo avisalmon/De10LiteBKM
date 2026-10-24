@@ -39,3 +39,9 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     width; assign each product to a wide wire first (`build-arcade-game`).
 19. **White bars at the sides of the LCD.** The panel is 800 x 480; the 640 x 480 picture fills the middle and
     the side strips are never written. Not a design bug (`read-screen`).
+20. **`>>>` shifted logically.** `alt ? $signed(x) >>> n : x >> n`: the unsigned branch makes the whole `?:` unsigned
+    and that context reaches the `>>>`. Put the arithmetic shift on its own `wire signed` (`build-soft-cpu`).
+21. **Syntax error on `cell`.** Reserved in Verilog (config blocks), with `design`, `instance`, `library`, `use`.
+    Icarus also rejects a declaration inside an unnamed `begin ... end` of a loop: declare at module scope.
+22. **Parallel shell calls share the working directory.** Two commands run at once, one `cd` moved the other:
+    absolute paths in every command (`make-project`).

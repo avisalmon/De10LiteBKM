@@ -72,6 +72,7 @@ The name is lower-case, no digits prefix (`pacman`, `snake`, `oscilloscope`); th
 
 ## Process notes
 
+* Parallel shell calls share one working directory: a `cd` in one moves the other. Absolute paths in every command.
 * On Windows `mv` of a folder fails with "Device or resource busy" while any shell has it as its working directory:
   run the move from the repo root.
 * `de10.py program <dir>` finds `output_files/<rev>.sof` (or `_time_limited`); the pages say "build, then program the

@@ -33,6 +33,8 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * A whole design to publish: a new project, its pages (overview, spec, guide), its review, the portal -> `make-project`
   (`projects/`, standard folder; Pac-Man is the model).
 * A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (`projects/pacman`).
+* A CPU, a processor, RISC-V, running C or assembly on the FPGA, a text screen, memory-mapped I/O, an assembler or
+  compiler -> `build-soft-cpu` (`projects/riscv_tetris`).
 
 The map of all documentation is [docs/README.md](docs/README.md).
 

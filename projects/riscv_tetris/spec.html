@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RISC-V Tetris: architecture spec</title>
+<meta name="description" content="Architecture specification of the RISC-V Tetris SoC: the RV32I CPU and its bus, the memory map, the text screen, the I/O registers, the toolchain's calling convention and C subset, the lock-step test method, budgets.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">RISC-V Tetris</a> / Architecture spec</nav>
+<h1>RISC-V Tetris: architecture spec</h1>
+<p class="lead">The contract between the hardware, the toolchain and the programs: the bus, the memory map, every register, the
+CPU's states, the calling convention, what the compiler accepts, and the budgets. For someone who will add a peripheral,
+extend the compiler, or build the next computer on this one.</p>
+<nav class="pages"><a href="index.html">Overview</a><a class="here" href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#req">Requirements</a></li>
+  <li><a href="#modules">Modules and hierarchy</a></li>
+  <li><a href="#bus">The bus</a></li>
+  <li><a href="#cpu">The CPU</a></li>
+  <li><a href="#mem">Memory map and memories</a></li>
+  <li><a href="#io">I/O registers</a></li>
+  <li><a href="#screen">The text screen</a></li>
+  <li><a href="#clocks">Clock domains and crossings</a></li>
+  <li><a href="#abi">Software: calling convention, runtime, the C subset</a></li>
+  <li><a href="#usb">USB protocol and program loading</a></li>
+  <li><a href="#test">The lock-step test method</a></li>
+  <li><a href="#budget">Budgets</a></li>
+  <li><a href="#decisions">Design decisions</a></li>
+</ol>
+
+<h2 id="req">Requirements</h2>
+<ul>
+  <li>An RV32I CPU complete enough to run compiled C: all base integer instructions, byte / half / word memory access, a flat
+  32-bit address space. No privileged mode, no interrupts, no CSRs, no M extension.</li>
+  <li>32 KB of RAM for code and data, initialised at power-up with a program, rewritable over JTAG while running.</li>
+  <li>A text screen of 80 × 60 cells with foreground and background colours, drawn by hardware from a RAM the CPU writes.</li>
+  <li>Memory-mapped input (the pad, keys, switches, time, randomness) and output (digits, LEDs, buzzer, UART, exit).</li>
+  <li>A toolchain in the repo, Python only: assembler, C compiler, simulator; one command from C to an image.</li>
+  <li>Every program runs identically on the simulator and on the RTL (lock-step traces), and the board is testable over USB.</li>
+  <li>Tetris, playable with the shield's pad, at 60 frames per second.</li>
+</ul>
+
+<h2 id="modules">Modules and hierarchy</h2>
+<pre><code>riscv_tetris_top                   board level, 25 / 50 / 100 MHz
+├─ pll25, Screens_dispaly (lib)    clocks; VGA timing and the LCD copy
+├─ gamepad + adc, debounce (lib)   the pad at 50 MHz, two flip-flops into 25 MHz
+├─ rv32_soc                        the computer
+│  ├─ rv32_cpu                     RV32I, multi-cycle
+│  ├─ soc_ram                      8192 × 32, byte enables (IP: altsyncram PROG; SIM: array)
+│  ├─ ram_dp (lib) "text"          4800 × 16, CPU write port, screen read port
+│  └─ I/O registers                in rv32_soc itself
+├─ text_screen                     cells → pixels, font8x8 (lib), block glyphs, palette
+├─ USB letters, hold / reset       in the top
+├─ seven_segment ×6 (lib)          HEX register → digits
+└─ debug_link, tx_mux, jtag_uart (lib)   USB: status, capture, the program's UART, the letters in</code></pre>
+
+<h2 id="bus">The bus</h2>
+<div class="tablewrap"><table>
+<tr><th>Signal</th><th>Dir (CPU)</th><th>Meaning</th></tr>
+<tr><td>bus_req</td><td>out</td><td>an access is wanted; held until bus_ack</td></tr>
+<tr><td>bus_we, bus_addr[31:0], bus_wdata[31:0], bus_be[3:0]</td><td>out</td><td>write / read, the word address (bits 1:0 are 0), the data (a byte or half is replicated across the word), the byte enables</td></tr>
+<tr><td>bus_rdata[31:0]</td><td>in</td><td>read data, valid in the ack clock</td></tr>
+<tr><td>bus_ack</td><td>in</td><td>one clock after the first req clock (<code>ack &lt;= req &amp;&amp; !ack</code>)</td></tr>
+</table></div>
+<p>A write is performed by the slave in the first req clock (<code>first = req &amp;&amp; !ack</code>); a read is issued then and
+answered in the ack clock. The CPU drops req after the ack, so a slave never sees a second access before it finished
+the first. A slower slave may delay its ack; nothing else changes. Addresses are decoded on <code>addr[31:28]</code>:
+0 = RAM, 1 = TEXT, 2 = I/O; anything else reads 0 and ignores writes.</p>
+
+<h2 id="cpu">The CPU</h2>
+<div class="tablewrap"><table>
+<tr><th>State</th><th>Clocks</th><th>Does</th></tr>
+<tr><td>S_FETCH</td><td>2</td><td>req with pc; on ack <code>ir &lt;= rdata</code></td></tr>
+<tr><td>S_EXEC</td><td>1</td><td>decode ir combinationally: immediates (I S B U J), rs1v / rs2v, the ALU (add sub sll slt sltu xor srl sra or and; the I forms use the immediate), the branch condition, pc_next. LUI AUIPC JAL JALR OP OP-IMM: write rd (if not x0), pc &lt;= pc_next, back to FETCH. LOAD / STORE: to S_MEM. ecall / ebreak: S_HALT. Illegal opcode: S_HALT with fault.</td></tr>
+<tr><td>S_MEM</td><td>2</td><td>req with rs1 + imm (word-aligned on the bus, be by size and addr[1:0]); on ack a load's byte / half is selected by addr[1:0] and extended by funct3; pc &lt;= pc + 4</td></tr>
+<tr><td>S_HALT</td><td>-</td><td>halted = 1 until reset; the top blinks LEDR9</td></tr>
+</table></div>
+<p>Register file: <code>regs[1:31]</code> as flip-flops, read combinationally, reset to 0. x0 reads 0. Trace port: a pulse with
+pc, rd and the value for each register write (the testbench writes it to the trace file). No misaligned access
+support: the compiler and the runtime never produce one; a misaligned load reads the aligned word (documented, not
+trapped). <code>fence</code> is a no-op.</p>
+
+<h2 id="mem">Memory map and memories</h2>
+<div class="tablewrap"><table>
+<tr><th>Range</th><th>What</th><th>Access</th></tr>
+<tr><td>0x0000_0000 .. 0x0000_7FFF</td><td>RAM, 32 KB: code from 0, data after it, .bss after that, the stack from 0x8000 down</td><td>byte / half / word read and write</td></tr>
+<tr><td>0x1000_0000 + (row × 80 + col) × 4</td><td>TEXT: 4,800 cells; bits [7:0] character, [11:8] foreground, [15:12] background</td><td>word write; reads give 0</td></tr>
+<tr><td>0x2000_0000 .. 0x2000_0027</td><td>I/O registers, below</td><td>word</td></tr>
+</table></div>
+<div class="tablewrap"><table>
+<tr><th>Memory</th><th>Size</th><th>Implementation</th><th>Ports</th></tr>
+<tr><td>soc_ram</td><td>8,192 × 32 (262,144 bits)</td><td>altsyncram SINGLE_PORT, width_byteena 4, <code>lpm_hint ENABLE_RUNTIME_MOD=YES, INSTANCE_NAME=PROG</code>, init_file <code>assets/tetris.mif</code>; a behavioural array with <code>$readmemh</code> for Icarus</td><td>one, the CPU's; read latency 1</td></tr>
+<tr><td>text</td><td>4,800 × 16 (76,800 bits)</td><td>lib <code>ram_dp</code></td><td>A: CPU writes; B: the screen reads, latency 1</td></tr>
+<tr><td>debug capture</td><td>320 × 240 × 12 (921,600 bits)</td><td>lib debug_link</td><td>not part of the computer; drop it to free 55 % of the memory</td></tr>
+</table></div>
+<p>The map lives in <code>tools/memmap.py</code>, which writes <code>sw/soc.h</code>; the simulator imports it; the Verilog repeats the
+numbers in <code>rv32_soc.sv</code>, and <code>tests/test_riscv_tetris.py</code> checks the three agree.</p>
+
+<h2 id="io">I/O registers (0x2000_0000 + offset)</h2>
+<div class="tablewrap"><table>
+<tr><th>Offset</th><th>Name</th><th>R/W</th><th>Meaning</th></tr>
+<tr><td>0x00</td><td>BUTTONS</td><td>r</td><td>bit 0 A, 1 B, 2 Select, 3 Start, 4 Down, 5 Up, 6 Right, 7 Left, 8 KEY0, 9 KEY1; 1 = held (the pad, OR the USB-injected keys)</td></tr>
+<tr><td>0x04</td><td>FRAME</td><td>r</td><td>+1 at every vertical sync (60 Hz); <code>wait_frame()</code> spins on it</td></tr>
+<tr><td>0x08</td><td>RANDOM</td><td>r</td><td>a 32-bit xorshift, stepped every clock on the board, every read in the simulator (seedable)</td></tr>
+<tr><td>0x0C</td><td>HEX</td><td>w</td><td>24 bits = six hex digits on HEX5..0; write BCD (<code>to_bcd()</code>) for decimal</td></tr>
+<tr><td>0x10</td><td>LEDS</td><td>w</td><td>LEDR8..0 (LEDR9 is the CPU status)</td></tr>
+<tr><td>0x14</td><td>BUZZER</td><td>w</td><td>half period of the buzzer square wave in 25 MHz clocks (f = 12.5 MHz / value); 0 = silent</td></tr>
+<tr><td>0x18</td><td>UART</td><td>w / r</td><td>write a byte to the PC; read bit 0 = busy (poll before writing)</td></tr>
+<tr><td>0x1C</td><td>SWITCHES</td><td>r</td><td>SW9..0</td></tr>
+<tr><td>0x20</td><td>CYCLES</td><td>r</td><td>a free-running 25 MHz counter, for timing code</td></tr>
+<tr><td>0x24</td><td>EXIT</td><td>w</td><td>stops the simulation / testbench with the value as the exit code; on the board sets a status flag (the program keeps running)</td></tr>
+</table></div>
+
+<h2 id="screen">The text screen</h2>
+<p>For the scan pixel (pxl_x, pxl_y) the cell is (pxl_x &gt;&gt; 3, pxl_y &gt;&gt; 3); the address of the <b>next</b> pixel's cell
+(<code>row × 80 + col</code>, computed as <code>row × 64 + row × 16 + col</code>) goes to the text RAM, whose answer arrives for the
+current pixel. The glyph row comes from <code>font8x8</code> (ASCII 0x20..0x5F; lower case folds up) for characters below
+0x80; for 0x80..0x83 it is made in logic: full block, inner 6 × 6 block, checkerboard shade, 1-pixel frame. The pixel
+is the foreground colour where the glyph bit is set, else the background; both through the 16-entry CGA palette
+(RGB444). Outside 640 × 480 the output is black.</p>
+
+<h2 id="clocks">Clock domains and crossings</h2>
+<div class="tablewrap"><table>
+<tr><th>Domain</th><th>What</th><th>Crossing</th></tr>
+<tr><td>50 MHz</td><td>ADC IP, gamepad, debounce</td><td>buttons into 25 MHz through two flip-flops (slow levels)</td></tr>
+<tr><td>25 MHz</td><td>the SoC, the text screen, the VGA timing, the USB link, the tone generator</td><td>none inside</td></tr>
+<tr><td>100 MHz</td><td>lcd_ctrl (library)</td><td>the library's own</td></tr>
+<tr><td>JTAG (TCK)</td><td>the memory editor writing PROG</td><td>inside altsyncram's runtime-mod logic; the CPU is held in reset meanwhile ('H')</td></tr>
+</table></div>
+<p>The CPU reset is asynchronous (the PLL lock) but released synchronously through two flip-flops; 'H' holds it, 'R'
+pulses it for 32 clocks.</p>
+
+<h2 id="abi">Software: calling convention, runtime, the C subset</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Registers</td><td>a0..a7 arguments and a0 the result; ra the return address; s0 the frame pointer; sp the stack (16-byte aligned frames); t0..t6 scratch (the runtime uses them); s1..s11 unused by the compiler</td></tr>
+<tr><td>Frame</td><td><code>sp -= size; ra at size-4(sp); s0 at size-8(sp); s0 = sp + size</code>; parameters are spilled to the frame; locals at s0-12 and below (4-byte slots, arrays in place)</td></tr>
+<tr><td>Expressions</td><td>every expression leaves its value in a0; binary operators push the left value, evaluate the right, pop the left into a1; a constant right operand uses the immediate forms; literal-literal is folded</td></tr>
+<tr><td>Runtime (crt0.s)</td><td><code>_start</code> at 0: sp = 0x8000, zero .bss, call main, write EXIT with its return value. <code>__mul</code> (shift-add), <code>__udivmod</code> (restoring), <code>__div</code> / <code>__mod</code> (signs like C), <code>__udiv</code> / <code>__umod</code></td></tr>
+<tr><td>Types</td><td>int / unsigned int 32-bit, char / unsigned char 8-bit (lb / lbu), pointers 32-bit, arrays of one or two dimensions; char promotes to int on load; casts to char truncate and extend</td></tr>
+<tr><td>Accepted</td><td>globals with constant initialisers (arrays, strings, string pointers), functions (up to 8 parameters, prototypes), if / else, while, do, for (declaration in init), switch / case / default, break, continue, return; all operators but the comma; sizeof; #include, #define (with arguments), #ifdef / #ifndef / #else / #endif, #undef</td></tr>
+<tr><td>Refused</td><td>struct, union, enum, typedef, float, long, goto, function pointers, variadic functions, local array initialisers, the comma operator (an error with the line)</td></tr>
+<tr><td>Image</td><td>one segment: crt0, then the C code, then .data, then .bss between <code>__bss_start</code> / <code>__bss_end</code>; the assembler writes 8,192 words</td></tr>
+</table></div>
+
+<h2 id="usb">USB protocol and program loading</h2>
+<div class="tablewrap"><table>
+<tr><th>Letter (PC → board)</th><th>Effect</th></tr>
+<tr><td>a b e s u d l r k</td><td>press A, B, Select, Start, Up, Down, Left, Right, KEY0 for 6 frames (OR-ed into BUTTONS)</td></tr>
+<tr><td>H</td><td>hold the CPU in reset (LEDR9 blinks)</td></tr>
+<tr><td>R</td><td>release and reset: run from address 0</td></tr>
+<tr><td>? F</td><td>the library debug link: a status line; the 320 × 240 screen capture</td></tr>
+</table></div>
+<p><code>tools/load.py x.mif</code> = 'H', <code>quartus_stp -t scripts/mem_edit.tcl write PROG x.mif</code>, 'R'. The board → PC
+direction carries the program's UART bytes and the debug link's answers through <code>tx_mux</code> (whole lines at a time).</p>
+
+<h2 id="test">The lock-step test method</h2>
+<p>Trace lines: <code>pc rd value</code> for a register write (the simulator adds <code>~</code> when the value came from FRAME,
+CYCLES, RANDOM or BUTTONS) and <code>pc W addr value be</code> for a store. The simulator writes it per instruction; the
+testbench from the CPU's trace port and the bus. <code>trace_compare.py</code> demands identical lines, except: a <code>~</code> line
+needs only the same pc and rd; a store needs equality on the enabled bytes. Any divergence prints both traces around
+it with line numbers; the <code>.sym</code> file maps the pc to a function. The method found the CPU's only bug and three
+compiler bugs; it is the project's regression test (<code>tests/test_riscv_tetris.py</code>, Icarus in CI).</p>
+
+<h2 id="budget">Budgets</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Logic</td><td>10,658 / 49,760 LEs (21 %); 6,435 registers</td></tr>
+<tr><td>Memory</td><td>1,277,696 / 1,677,312 bits (76 %); without the debug capture 21 %</td></tr>
+<tr><td>CPU time per frame</td><td>416,667 clocks ≈ 125,000 instructions; Tetris uses a few thousand per frame, a full well redraw about 60,000</td></tr>
+<tr><td>Timing</td><td>met at 25 MHz; the CPU's critical path is the ALU through the register write; a pipelined version could go well beyond 50 MHz</td></tr>
+<tr><td>Headroom</td><td>interrupts and a timer (one register and a vector), an M extension (the MAX 10 has 144 multipliers), a second program in the UFM, a bigger RAM if the capture buffer goes</td></tr>
+</table></div>
+
+<h2 id="decisions">Design decisions</h2>
+<ul>
+  <li><b>Multi-cycle, not pipelined.</b> Three states, no hazards, no forwarding, one bus port: the CPU is 300 lines you can
+  single-step in a waveform, and it is fast enough by a factor of fifty for a game. Speed was not the goal; proof was.</li>
+  <li><b>One bus protocol for everything.</b> RAM, text and I/O all look the same to the CPU; a new peripheral is a case
+  line in <code>rv32_soc.sv</code> and a line in <code>memmap.py</code>.</li>
+  <li><b>The toolchain in Python, in the project.</b> A gcc cross-compiler is 300 MB and a black box; the user of this BKM
+  learns more from a 1,300-line compiler whose output they can read, and the AI can extend it when a program needs
+  something. The price: a C subset and slow code; both are documented and tested.</li>
+  <li><b>Lock-step traces as the definition of correct.</b> The simulator is the specification the RTL must match; the trace
+  format is the simplest thing that catches every register and memory effect.</li>
+  <li><b>Programs over JTAG.</b> <code>ENABLE_RUNTIME_MOD</code> on the RAM plus two letters make the edit-compile-run loop ten
+  seconds; the FPGA is rebuilt only when the hardware changes.</li>
+  <li><b>A text screen, not pixels.</b> 76,800 bits of RAM, a few lines of logic, and a C program draws with a store.</li>
+</ul>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="guide.html">user guide</a>.</footer>
+</main>
+</body>
+</html>

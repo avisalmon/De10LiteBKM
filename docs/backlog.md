@@ -8,7 +8,11 @@
 - [ ] Examples 03 and 06 with SW0 down: errors must stay 0 on the board.
 - [ ] Example 13: unplug and replug the USB cable; the flashed game-pad tester must start by itself.
 - [ ] Example 08 count mode (SW9 down, KEY0 / KEY1) by hand.
+- [ ] Projects, by a person: Pac-Man and RISC-V Tetris with the joystick (feel, auto-repeat), the sounds, the pace;
+      Pac-Man is in the flash: a power cycle must bring it back.
+- [ ] RISC-V Tetris, not built by choice: interrupts and a timer, the M extension on the MAX 10 multipliers, structs /
+      typedef in the compiler, a bigger RAM without the debug capture.
 - [ ] Example 07 / 10 in 3-wire SPI mode (the driver supports it, not tested).
-- [ ] Extras proposed, not built: Nios II with C, sound / melodies, sprites from images, the MAX 10 temperature sensor,
-      UART / I2C masters, a fundamentals page (reset, clock crossing, timing reports).
+- [ ] Extras proposed, not built: Nios II with C (the RISC-V project is the free alternative), sound / melodies, sprites
+      from images, the MAX 10 temperature sensor, UART / I2C masters, a fundamentals page (reset, clock crossing, timing).
 - [ ] The course: lessons after lesson 0 (see stage2_lessons.md).

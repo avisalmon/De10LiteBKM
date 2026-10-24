@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RISC-V Tetris on the DE10-Lite</title>
+<meta name="description" content="A small RISC-V CPU in Verilog on the DE10-Lite, a 32 KB RAM, an 80x60 text screen, and Tetris written in C for it with the project's own Python assembler, C compiler and simulator; the hardware proven against the simulator instruction by instruction.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / RISC-V Tetris</nav>
+<h1>RISC-V Tetris</h1>
+<p class="lead">A computer inside the FPGA: a small RISC-V (RV32I) CPU written in Verilog, 32 KB of RAM, an 80 × 60 colour text
+screen and ten I/O registers. Then a toolchain for it, three Python files: an assembler, a small C compiler and an
+instruction-set simulator. Then Tetris, written in C, compiled by that compiler, running on that CPU on the board. The
+hardware was proven by running the same programs on the simulator and on the RTL and comparing every register write:
+identical over hundreds of thousands of instructions. New programs load over JTAG in six seconds, no rebuild.</p>
+<nav class="pages"><a class="here" href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+<div class="badges">
+  <span class="badge ok">Runs on the board</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">Shield required (screen, joystick)</span>
+  <span class="badge">10,658 logic elements (21 %)</span>
+  <span class="badge">RV32I, 3.3 clocks per instruction</span>
+  <span class="badge">Skill: build-soft-cpu</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="riscv_tetris.qar" download>Download riscv_tetris.qar (full Quartus project)</a>
+  <a class="btn alt" href="guide.html#build">Build and load it</a>
+</div>
+<p class="note">No bitstream in the repo (a <code>.sof</code> is 3 MB per project): restore the <code>.qar</code> or use the sources here,
+one build makes it in about three minutes. The RAM is initialised with the Tetris program (<code>assets/tetris.mif</code>), so the
+board plays right after loading. The <a href="guide.html">user guide</a> has every command, including how to write and run your own program.</p>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#see">What you will see</a></li>
+  <li><a href="#diagram">Block diagram</a></li>
+  <li><a href="#tool">The toolchain</a></li>
+  <li><a href="#flow">How an instruction flows</a></li>
+  <li><a href="#game">The game</a></li>
+  <li><a href="#numbers">Numbers</a></li>
+  <li><a href="#tests">How it was tested</a></li>
+  <li><a href="#review">Review log</a></li>
+  <li><a href="#status">Status and what is next</a></li>
+  <li><a href="#files">Files</a></li>
+</ol>
+
+<h2 id="see">What you will see</h2>
+<div class="two">
+  <figure><img src="media/screen_play.png" alt="The screen read back over USB: the Tetris well with an L and a T piece at the bottom, a cyan I piece falling, score 30, the next piece shown on the right, the controls listed on the left."><figcaption>The screen read back over USB mid-game: the well, the falling I, the NEXT preview, SCORE / LEVEL / LINES, the controls. Every character is a cell the C program wrote into the text RAM.</figcaption></figure>
+  <figure><img src="media/board.jpg" alt="Webcam photo of the DE10-Lite with the shield: the game on the LCD and 000030 on the 7-segment display."><figcaption>The same moment on the board: the LCD, and the score on the 7-segment digits (the program writes it in BCD to a register).</figcaption></figure>
+</div>
+<p>Power up: the title screen, PUSH START. Press <b>Start</b> (or KEY0): pieces fall into the 10 × 20 well. The joystick
+moves (held: auto-repeat), Up or A rotates, Down drops softly, B slams the piece down, Start pauses. Lines clear, the
+level rises every ten lines and the pieces fall faster; the buzzer clicks and chirps. All of it is C code running on
+the soft CPU at about 7 million instructions per second, updating once per video frame.</p>
+<figure><img src="media/screen_title.png" alt="The title screen read back over USB: RISC-V TETRIS, the empty well with a solid grey frame, START in the middle, the SoC facts on the right." class="hero"><figcaption>The title screen. The frame is drawn with the screen's own block glyph; the small print on the right is the CPU describing itself.</figcaption></figure>
+
+<h2 id="diagram">Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 960 470" role="img" aria-label="Block diagram of the SoC: the RV32I CPU talks over one bus (request, acknowledge) to the 32 KB RAM, the text RAM and the I/O registers. The text screen reads the text RAM's second port and drives the library display chain. The game pad comes through the ADC and debounce at 50 MHz. The USB link carries the program's UART, the debug capture, key letters, and the hold/reset letters used by the JTAG program loader.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <text class="small" x="12" y="18">25 MHz: the SoC and the screen</text>
+  <rect class="blk" x="20" y="40" width="200" height="110" rx="8"/><text x="32" y="64">rv32_cpu</text><text class="small" x="32" y="82">RV32I, multi-cycle</text><text class="small" x="32" y="98">FETCH → EXEC → MEM</text><text class="small" x="32" y="114">32 registers in flip-flops</text><text class="small" x="32" y="130">trace port for the testbench</text>
+  <rect class="blk" x="270" y="40" width="130" height="110" rx="8"/><text x="282" y="64">bus decode</text><text class="small" x="282" y="82">req / ack</text><text class="small" x="282" y="98">0x0: RAM</text><text class="small" x="282" y="114">0x1: TEXT</text><text class="small" x="282" y="130">0x2: I/O</text>
+  <path class="wire" d="M220,80 H270" marker-end="url(#a)"/><path class="wire" d="M270,110 H220" marker-end="url(#a)"/>
+  <rect class="ip" x="450" y="30" width="200" height="56" rx="8"/><text x="462" y="52">soc_ram 32 KB</text><text class="small" x="462" y="70">altsyncram, editable over JTAG</text>
+  <rect class="blk" x="450" y="100" width="200" height="56" rx="8"/><text x="462" y="122">text RAM 4800 × 16</text><text class="small" x="462" y="140">ram_dp: CPU writes, screen reads</text>
+  <rect class="blk" x="450" y="170" width="200" height="86" rx="8"/><text x="462" y="192">I/O registers</text><text class="small" x="462" y="210">BUTTONS FRAME RANDOM</text><text class="small" x="462" y="226">SWITCHES HEX LEDS BUZZER</text><text class="small" x="462" y="242">UART CYCLES EXIT</text>
+  <path class="wire" d="M400,60 H450" marker-end="url(#a)"/><path class="wire" d="M400,128 H450" marker-end="url(#a)"/><path class="wire" d="M400,150 V213 H450" marker-end="url(#a)"/>
+  <rect class="blk" x="700" y="100" width="240" height="56" rx="8"/><text x="712" y="122">text_screen</text><text class="small" x="712" y="140">font8x8 + block glyphs, 16 colours</text>
+  <path class="wire" d="M650,128 H700" marker-end="url(#a)"/>
+  <rect class="ip" x="700" y="30" width="240" height="56" rx="8"/><text x="712" y="52">Screens_dispaly (lib)</text><text class="small" x="712" y="70">pxl_x / pxl_y; LCD + VGA out</text>
+  <path class="wire" d="M820,100 V86" marker-end="url(#a)"/><text class="small" x="826" y="96">rgb</text>
+  <rect class="pin" x="700" y="170" width="240" height="40" rx="6"/><text x="712" y="195">HEX5..0, LEDR, buzzer</text>
+  <path class="wire" d="M650,195 H700" marker-end="url(#a)"/>
+
+  <text class="small" x="12" y="300">50 MHz</text>
+  <rect class="pin" x="20" y="310" width="110" height="50" rx="6"/><text x="32" y="332">shield pad</text><text class="small" x="32" y="350">joystick, A B Start</text>
+  <rect class="ip" x="160" y="310" width="110" height="50" rx="8"/><text x="172" y="332">ADC IP</text><text class="small" x="172" y="350">+ gamepad</text>
+  <rect class="blk" x="300" y="310" width="100" height="50" rx="8"/><text x="312" y="332">debounce</text><text class="small" x="312" y="350">2 FF sync</text>
+  <path class="wire" d="M130,335 H160" marker-end="url(#a)"/><path class="wire" d="M270,335 H300" marker-end="url(#a)"/>
+  <path class="wire" d="M400,335 H425 V256" marker-end="url(#a)"/><text class="small" x="405" y="300">buttons</text>
+
+  <rect class="blk" x="450" y="300" width="200" height="70" rx="8"/><text x="462" y="322">USB letters (top)</text><text class="small" x="462" y="340">a b e s u d l r k → keys for 6 frames</text><text class="small" x="462" y="356">H hold CPU, R reset and run</text>
+  <rect class="blk" x="700" y="300" width="240" height="70" rx="8"/><text x="712" y="322">debug_link + tx_mux + jtag_uart</text><text class="small" x="712" y="340">'?' status, 'F' screen capture</text><text class="small" x="712" y="356">the program's UART text</text>
+  <rect class="pin" x="700" y="400" width="240" height="40" rx="6"/><text x="712" y="425">USB-Blaster → your PC (tools/load.py, de10.py)</text>
+  <path class="wire" d="M700,335 H650" marker-end="url(#a)"/><text class="small" x="655" y="328">rx</text>
+  <path class="wire" d="M550,300 V256" marker-end="url(#a)"/><text class="small" x="556" y="282">keys</text>
+  <path class="wire" d="M650,235 H680 V320 H700" stroke-dasharray="4 3"/><text class="small" x="658" y="290">UART tx</text>
+  <path class="wire" d="M820,370 V400" marker-end="url(#a)"/><path class="wire" d="M840,400 V370" marker-end="url(#a)"/>
+  <path class="wire" d="M450,335 H440 V420 H700" stroke-dasharray="4 3"/><text class="small" x="300" y="414">JTAG: In-System Memory Content Editor writes the RAM (PROG)</text>
+  <path class="wire" d="M440,420 V56 H450" stroke-dasharray="4 3"/>
+  <path class="wire" d="M120,150 V300" stroke-dasharray="4 3"/><text class="small" x="126" y="230">hold / reset</text>
+</svg>
+</div>
+
+<h2 id="tool">The toolchain</h2>
+<div class="diagram">
+<svg viewBox="0 0 960 200" role="img" aria-label="The toolchain: a C file goes through cc.py to assembly, crt0.s is prepended, asm.py makes a hex and a mif image. The hex image runs on the Python simulator and on the RTL testbench, whose traces are compared; the mif image initialises the FPGA RAM at build time or is loaded into the running board over JTAG by load.py.">
+  <defs><marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="pin" x="10" y="20" width="120" height="50" rx="6"/><text x="22" y="42">tetris.c</text><text class="small" x="22" y="60">+ lib.h, soc.h</text>
+  <rect class="blk" x="170" y="20" width="120" height="50" rx="8"/><text x="182" y="42">tools/cc.py</text><text class="small" x="182" y="60">C subset → RV32I asm</text>
+  <rect class="pin" x="170" y="100" width="120" height="50" rx="6"/><text x="182" y="122">sw/crt0.s</text><text class="small" x="182" y="140">_start, __mul, __div</text>
+  <rect class="blk" x="330" y="20" width="120" height="50" rx="8"/><text x="342" y="42">tools/asm.py</text><text class="small" x="342" y="60">labels, pseudo-ops</text>
+  <rect class="pin" x="490" y="20" width="120" height="50" rx="6"/><text x="502" y="42">build/x.hex</text><text class="small" x="502" y="60">+ x.mif, x.sym</text>
+  <rect class="blk" x="650" y="0" width="140" height="44" rx="8"/><text x="662" y="20">tools/rv32sim.py</text><text class="small" x="662" y="36">the simulator: 10 s a game</text>
+  <rect class="blk" x="650" y="56" width="140" height="44" rx="8"/><text x="662" y="76">sim/tb_soc.sv</text><text class="small" x="662" y="92">the RTL in Icarus</text>
+  <rect class="blk" x="830" y="28" width="120" height="44" rx="8"/><text x="842" y="48">trace_compare</text><text class="small" x="842" y="64">identical?</text>
+  <rect class="blk" x="650" y="112" width="140" height="44" rx="8"/><text x="662" y="132">tools/load.py</text><text class="small" x="662" y="148">JTAG, 6 s, no rebuild</text>
+  <rect class="ip" x="650" y="166" width="140" height="30" rx="8"/><text class="small" x="662" y="186">assets/tetris.mif → Quartus build</text>
+  <rect class="pin" x="830" y="112" width="120" height="44" rx="6"/><text x="842" y="132">the board</text><text class="small" x="842" y="148">de10.py send / screen</text>
+  <path class="wire" d="M130,45 H170" marker-end="url(#c)"/><path class="wire" d="M290,45 H330" marker-end="url(#c)"/><path class="wire" d="M290,125 H310 V45" marker-end="url(#c)"/>
+  <path class="wire" d="M450,45 H490" marker-end="url(#c)"/><path class="wire" d="M610,45 H630 V22 H650" marker-end="url(#c)"/><path class="wire" d="M630,45 V78 H650" marker-end="url(#c)"/>
+  <path class="wire" d="M630,78 V134 H650" marker-end="url(#c)"/><path class="wire" d="M630,134 V181 H650" marker-end="url(#c)"/>
+  <path class="wire" d="M790,22 H810 V50 H830" marker-end="url(#c)"/><path class="wire" d="M790,78 H810 V50"/>
+  <path class="wire" d="M790,134 H830" marker-end="url(#c)"/>
+</svg>
+</div>
+<p>Everything a user needs is in the project folder and runs in the repo's <code>env</code>: no cross-compiler to download,
+nothing to install. The compiler accepts a C subset that is enough for games and drivers (its docstring lists exactly
+what, and it refuses the rest with a line number); the generated assembly is plain enough to read next to the C, which is
+the point of the course this BKM belongs to.</p>
+
+<h2 id="flow">How an instruction flows</h2>
+<ol>
+  <li><b>FETCH.</b> The CPU puts <code>pc</code> on the bus with <code>req</code>. The RAM answers one clock later with
+  <code>ack</code> and the word; it becomes <code>ir</code>.</li>
+  <li><b>EXEC.</b> Everything is decoded from <code>ir</code> at once: the immediate, the two source registers, the ALU result,
+  the branch condition, the next pc. ALU, branch and jump instructions finish here: the register is written (and a
+  trace pulse tells the testbench), <code>pc</code> moves on, back to FETCH. Three clocks.</li>
+  <li><b>MEM</b> for loads and stores: the data address goes on the bus (with byte enables for <code>sb</code> / <code>sh</code>);
+  at the ack a load's byte or half is picked and sign- or zero-extended into the register. Five clocks.</li>
+  <li><b>The slaves.</b> RAM, text RAM and I/O all answer in the same way (<code>ack</code> one clock after the request), so the
+  decode is one case on <code>addr[31:28]</code>. The text RAM's second port is read by the screen 25 million times a second,
+  independently.</li>
+  <li><b>The program</b> waits for the frame counter to change, polls the buttons, updates the game, writes the cells that
+  changed. Tetris uses a few per cent of the CPU; the rest is spent spinning on <code>IO_FRAME</code>.</li>
+</ol>
+
+<h2 id="game">The game</h2>
+<p><code>sw/tetris.c</code> is 420 lines of the C subset: the seven pieces as 4 × 4 bit masks with four rotations, a 7-bag
+randomiser fed by the <code>RANDOM</code> register, collision tests, delayed auto-shift for held moves, soft and hard drop,
+line clearing with the classic 40 / 100 / 300 / 1200 points, a level every ten lines, speed from the level, the NEXT
+preview, pause, game over. Each well cell is 2 × 2 characters (16 × 16 pixels) drawn with the screen's block glyph in
+the piece's colour, with a darker quarter for a bevel; the well is redrawn only when something moved. The score goes
+to the 7-segment digits in BCD, the level to the LEDs, sounds to the buzzer as half-periods.</p>
+
+<h2 id="numbers">Numbers</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Device</td><td>MAX 10 10M50DAF484C7G, Quartus Prime Lite 17.1</td></tr>
+<tr><td>Logic</td><td>10,658 logic elements (21 %), 6,435 registers, no multipliers (RV32I has none; the CPU is about 2,900 LEs of it, 1,024 of them the register file)</td></tr>
+<tr><td>Memory</td><td>1,277,696 bits (76 %): the 32 KB RAM (262,144), the text RAM (76,800), the debug screen capture (921,600; not needed to play), the LCD command ROM and the ADC store</td></tr>
+<tr><td>CPU</td><td>RV32I, multi-cycle: 3.10 clocks per instruction on the ISA test, 3.31 on the C suite, 3.37 on Tetris; about 7.5 MIPS at 25 MHz</td></tr>
+<tr><td>Program</td><td>Tetris: 20,352 bytes (62 % of the RAM) including the runtime; the C suite 12.7 KB; the compiler emits about 12 instructions per C line</td></tr>
+<tr><td>Toolchain</td><td>cc.py 1,320 lines, asm.py 440, rv32sim.py 340; all Python, standard library only</td></tr>
+<tr><td>Clocks</td><td>25 MHz SoC and VGA, 50 MHz ADC, 100 MHz LCD; timing met with the generated .sdc</td></tr>
+<tr><td>Build</td><td>about 3 minutes; 83 warnings, all from the library IP and unused pins</td></tr>
+<tr><td>Program load</td><td>6 s over JTAG (<code>tools/load.py</code>), versus a 3-minute rebuild</td></tr>
+</table></div>
+
+<h2 id="tests">How it was tested</h2>
+<h3>The toolchain, on the simulator</h3>
+<ul>
+  <li><code>sw/test_isa.s</code>: every instruction class, every load and store size, jumps, the screen and I/O registers, a
+  loop; ends with EXIT 0 and prints OK on the UART.</li>
+  <li><code>sw/test_c.c</code>: 19 checks of the compiler: arithmetic with signs, the runtime multiply / divide / modulo,
+  unsigned math, shifts, comparisons, casts, globals with initialisers, 2-D arrays, pointer arithmetic, recursion, eight
+  arguments, every loop and <code>switch</code>, compound assignment, <code>++</code> / <code>--</code>, char wrap-around, macros, the
+  screen and I/O macros. Each prints its number and ok / FAIL; the exit code is the number of failures: 0.</li>
+  <li><code>tools/play_test.py</code>: plays Tetris blind (random moves, a rotate, a hard drop per piece) for 60 pieces and checks
+  the score grows, LINES counts a cleared row (seed 0x1d481499 clears one), LEVEL = LINES / 10, the digits hold the score in
+  BCD, GAME OVER arrives. 10 s.</li>
+</ul>
+<h3>The hardware, in lock-step with the simulator</h3>
+<p><code>sim/tb_soc.sv</code> runs the same images on the RTL CPU in Icarus and writes the same trace (every register write,
+every store). <code>tools/trace_compare.py</code>: ISA test identical, C suite identical, Tetris <b>294,803 lines identical</b>.
+This is how the one real CPU bug was found in minutes: the arithmetic shift coming out logical. The testbench also
+dumps the UART text and the text screen, so a program's output can be read without a board.</p>
+<h3>On the board</h3>
+<p>Programmed, the title appeared (read back over USB). <code>tools/load.py</code> replaced the program in 6 s. Keys sent as
+USB letters started a game, moved and dropped pieces; the capture shows the well, the score (30) and the NEXT preview; the
+webcam shows the LCD and 000030 on the 7-segment digits.</p>
+<h3>Only a person can check</h3>
+<p>The joystick feel and the auto-repeat speed, the sounds, the pace of the levels, and the power cycle after a flash.</p>
+
+<h2 id="review">Review log</h2>
+<div class="tablewrap"><table>
+<tr><th>Found</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>A function returned to address 0x6E (the letter 'o')</td><td>the compiler put locals at s0-4, where the prologue saves ra</td><td>locals start below the saved ra / s0; seen in the simulator's trace</td></tr>
+<tr><td><code>i &gt; 0</code> loops never ran; comparisons with constants inverted</td><td>the constant-operand shortcut loaded the constant into the register meant for the left value</td><td>operand order fixed; the C suite now covers every comparison form</td></tr>
+<tr><td><code>10 + 20 * 2</code> did not parse</td><td>the shortcut accepted a constant followed by a tighter operator</td><td>only operators of the same or looser precedence end a constant operand</td></tr>
+<tr><td><code>4000000000u % 7</code> folded as signed</td><td>constant folding ignored the <code>u</code> suffix</td><td>unsigned folding for / % &gt;&gt; and comparisons</td></tr>
+<tr><td><code>srai</code> gave a logical shift on the RTL (simulator right)</td><td><code>?:</code> with an unsigned branch made <code>&gt;&gt;&gt;</code> logical</td><td>the arithmetic shift on its own signed wire (gotcha 20)</td></tr>
+<tr><td><code>cls</code> took 300k instructions</td><td><code>80 * 60</code> recomputed with a 32-step software multiply every iteration</td><td>constant folding; multiplies by small constants as shifts and adds: 10 software multiplies left in the game</td></tr>
+<tr><td>Testbench syntax errors</td><td><code>cell</code> is a Verilog keyword; a declaration inside an unnamed block</td><td>renamed; declared at module scope (gotcha 21)</td></tr>
+<tr><td>First store of s0 traced as xxxxxxxx</td><td>the register file had no reset</td><td>registers reset to 0, like the simulator</td></tr>
+<tr><td>The well's frame invisible in captures</td><td>the checkerboard glyph vanishes at half resolution</td><td>frames drawn with the full block</td></tr>
+<tr><td>A scripted game took 4.5 minutes to simulate</td><td>95 % of the instructions were the wait-for-frame spin</td><td>the simulator skips a short backward loop that read FRAME (off while tracing): 10 s</td></tr>
+</table></div>
+
+<h2 id="status">Status and what is next</h2>
+<div class="tablewrap"><table>
+<tr><th>Item</th><th>Status</th></tr>
+<tr><td>CPU: every RV32I instruction, loads / stores of all sizes, traps on illegal</td><td><span class="status done">verified: lock-step with the simulator, on the board</span></td></tr>
+<tr><td>Assembler, C compiler, simulator, build and load scripts</td><td><span class="status done">verified: test suites, CI</span></td></tr>
+<tr><td>Text screen, I/O registers, UART, JTAG program load</td><td><span class="status done">verified on the board</span></td></tr>
+<tr><td>Tetris: pieces, rotation, drops, lines, levels, score, pause, game over</td><td><span class="status done">verified: simulation (scripted) and board (USB keys)</span></td></tr>
+<tr><td>Joystick feel, sounds, the pace</td><td><span class="status todo">to do by a person</span></td></tr>
+<tr><td>Interrupts, a timer, CSRs, the M extension, structs and typedef in the compiler</td><td><span class="status todo">not built, by choice</span></td></tr>
+</table></div>
+
+<h2 id="files">Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What it is</th></tr>
+<tr><td><code>index.html</code>, <code>spec.html</code>, <code>guide.html</code></td><td>this overview, the <a href="spec.html">architecture spec</a>, the <a href="guide.html">user guide</a></td></tr>
+<tr><td><code>riscv_tetris.qar</code></td><td>the whole Quartus project (sources, settings, the program image)</td></tr>
+<tr><td><code>src/rv32_cpu.sv</code></td><td>the CPU</td></tr>
+<tr><td><code>src/rv32_soc.sv</code>, <code>src/soc_ram.sv</code></td><td>the bus decode, the I/O registers, the text RAM port, the UART; the editable 32 KB RAM</td></tr>
+<tr><td><code>src/text_screen.sv</code></td><td>80 × 60 cells to pixels</td></tr>
+<tr><td><code>src/riscv_tetris_top.sv</code></td><td>the board: clocks, display chain, pad, USB letters, hold / reset, 7-segment, buzzer</td></tr>
+<tr><td><code>tools/memmap.py</code></td><td>the memory map; writes <code>sw/soc.h</code></td></tr>
+<tr><td><code>tools/asm.py</code>, <code>tools/cc.py</code>, <code>tools/rv32sim.py</code></td><td>assembler, C compiler, instruction-set simulator</td></tr>
+<tr><td><code>tools/build.py</code>, <code>tools/load.py</code>, <code>tools/trace_compare.py</code>, <code>tools/play_test.py</code></td><td>build an image; load it over JTAG; compare traces; play a scripted game</td></tr>
+<tr><td><code>sw/tetris.c</code>, <code>sw/lib.h</code>, <code>sw/soc.h</code>, <code>sw/crt0.s</code></td><td>the game, the little library, the generated header, the runtime</td></tr>
+<tr><td><code>sw/test_isa.s</code>, <code>sw/test_c.c</code></td><td>the ISA test, the compiler's test suite</td></tr>
+<tr><td><code>sim/tb_soc.sv</code></td><td>runs any image on the RTL: trace, UART text, screen dump</td></tr>
+<tr><td><code>assets/tetris.mif</code>, <code>assets/tetris.hex</code></td><td>the program image the FPGA build and the simulator use</td></tr>
+<tr><td><code>media/</code></td><td>the pictures on these pages</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Built with the <code>build-soft-cpu</code> skill; the standard
+project layout is the <code>make-project</code> skill. Tetris is a trademark of The Tetris Company; this is a from-scratch educational
+implementation.</footer>
+</main>
+</body>
+</html>
