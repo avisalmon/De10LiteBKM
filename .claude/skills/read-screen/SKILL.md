@@ -42,3 +42,5 @@ Template: `examples/05_screen_readback/test_screen.py`.
 * 17.1 has no juart-terminal; scripts fall back to nios2-terminal (Windows pipes give \r\r\n: parsers drop empty lines).
 * Pillow scales a PPM (maxval 15) to 0..255 by itself; frame dumps (hex) need x17.
 * Read values on screen are latched once per frame (vsync) or digits tear.
+* The LCD panel is 800 x 480: the 640 x 480 picture fills the middle and the 80-column strips at each side are never
+  written, so they show white on the real LCD (`de10.py cam`). The capture shows only the picture.

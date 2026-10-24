@@ -30,6 +30,8 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).
 * A spectrum, an FFT -> `compute-fft` (11). Multiply, MAC, filters, Fmax -> `use-dsp-multipliers` (12).
 * Keep the design after power-off, write the flash -> `flash-design` (13).
+* A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (Pac-Man,
+  built in the user's `my_designs/`).
 
 The map of all documentation is [docs/README.md](docs/README.md).
 

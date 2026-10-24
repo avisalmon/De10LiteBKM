@@ -31,3 +31,11 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
 14. **`multstyle` ignored.** On a wire inside `generate` it was; put it on a module (examples/12).
 15. **Capture looks garbled on Windows.** Pipes from the JTAG terminal turn `\r\n` into `\r\r\n`; parsers skip empty
     lines. Pillow scales PPM (max 15) to 0..255 itself: do not multiply again.
+16. **61,000 warnings from one ROM.** A 2-bit ROM filled by `$readmemh`: every hex digit is 4 bits, one warning
+    (10230) per line. Write binary and use `$readmemb` (`build-rom`).
+17. **Syntax error on a plain wire name.** `inside` is a SystemVerilog keyword (set membership). So are `type`,
+    `bit`, `byte`, `int`, `final`, `ref`, `do` and `break`: never use them as signal names in a `.sv` file.
+18. **A comparison of two products is wrong for big values.** `(a * b) > (c * d)` is computed at the operands'
+    width; assign each product to a wide wire first (`build-arcade-game`).
+19. **White bars at the sides of the LCD.** The panel is 800 x 480; the 640 x 480 picture fills the middle and
+    the side strips are never written. Not a design bug (`read-screen`).

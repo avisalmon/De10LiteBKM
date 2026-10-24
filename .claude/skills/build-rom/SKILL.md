@@ -27,6 +27,9 @@ initial $readmemh("assets/table.hex", rom);      // path from the Quartus projec
 always @(posedge clk) q <= rom[addr];             // MUST be clocked, or it becomes logic, not M9K
 ```
 In a testbench that runs from `sim/`, pass the path as a parameter (`"../assets/table.hex"`).
+**Width not a multiple of 4** (a 2-bit picture): write the file in binary, one entry per line (`01`), and load it
+with `$readmemb`. Hex into a 2-bit ROM works but Quartus warns (10230, truncated value) once per line: 61,440
+warnings for a 240 x 256 picture, burying the real ones.
 Quartus rounds the depth up to a power of two (Critical Warning 127005 about depth: harmless).
 
 ## IP ROM (editable live)
