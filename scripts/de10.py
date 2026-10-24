@@ -3,7 +3,7 @@
   python scripts/de10.py build   <project_dir>        compile (quartus_sh --flow compile), log in <dir>/logs/build.log
   python scripts/de10.py program <project_dir|.sof>   load the .sof over JTAG (volatile: gone at power-off)
   python scripts/de10.py flash   <project_dir|.pof>   write the design into the MAX 10's flash (stays after power-off)
-  python scripts/de10.py pack    <project_dir>        <name>.qar (sources) + <name>.sof next to the example's page
+  python scripts/de10.py pack    <project_dir>        <name>.qar (sources) next to the example's page (no .sof in git)
   python scripts/de10.py report  <project_dir>        resources + timing summary of the last build
   python scripts/de10.py jtag                         list the JTAG chain and the debug nodes in the design
   python scripts/de10.py log     [seconds]            show + save the board's JTAG UART log (logs/uart_*.log)
@@ -17,7 +17,6 @@ Tools: DE10_QUARTUS, then C:\\intelFPGA_lite\\17.1\\quartus, then QUARTUS_ROOTDI
 import glob
 import os
 import re
-import shutil
 import subprocess
 import sys
 import threading
@@ -99,6 +98,8 @@ def report(project_dir):
 
 def program(target):
     sof = target if target.endswith(".sof") else os.path.join(target, "output_files", revision(target) + ".sof")
+    if not os.path.exists(sof) and not target.endswith(".sof"):	# evaluation (OpenCore Plus) IP: time-limited only
+        sof = sof[:-4] + "_time_limited.sof"
     if not os.path.exists(sof):
         sys.exit(f"FAIL: {sof} not found, run build first")
     rc = run([tool("quartus_pgm"), "-m", "jtag", "-o", f"p;{sof}"], show=lambda l: "rror" in l or "successful" in l)
@@ -119,18 +120,13 @@ def flash(target):
 
 
 def pack(project_dir):
-    """<rev>.qar (all sources, from Quartus' own archiver) and <rev>.sof copied next to index.html."""
+    """<rev>.qar (all sources, from Quartus' own archiver) next to index.html. The repo keeps no .sof (too big):
+    a user builds it in a few minutes."""
     rev = revision(project_dir)
-    sof = os.path.join(project_dir, "output_files", rev + ".sof")
-    if not os.path.exists(sof):		# a design with evaluation (OpenCore Plus) IP only makes <rev>_time_limited.sof
-        sof = os.path.join(project_dir, "output_files", rev + "_time_limited.sof")
-    if not os.path.exists(sof):
-        sys.exit(f"FAIL: no .sof in {project_dir}/output_files, run build first")
     qar = os.path.join(project_dir, rev + ".qar")
     rc = run([tool("quartus_sh", need_compile=True), "--archive", rev, "-output", rev + ".qar"], cwd=project_dir,
              show=lambda l: l.lstrip().startswith("Error"))
-    shutil.copy2(sof, os.path.join(project_dir, os.path.basename(sof)))
-    print(f"{'OK' if rc == 0 and os.path.exists(qar) else 'FAIL'}: {rev}.qar + {os.path.basename(sof)} in {project_dir}")
+    print(f"{'OK' if rc == 0 and os.path.exists(qar) else 'FAIL'}: {rev}.qar in {project_dir}")
     return rc
 
 

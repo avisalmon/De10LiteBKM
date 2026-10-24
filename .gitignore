@@ -52,6 +52,10 @@ vsim.wlf
 # Run logs, captures and photos made by the scripts
 logs/
 
+# Bitstreams: built locally, never committed (the .qar and the sources rebuild them)
+*.sof
+*.pof
+
 # Debug leftovers from Signal Tap sessions and simulation dumps
 examples/*/debug.stp
 examples/*/sim/*_dump.txt

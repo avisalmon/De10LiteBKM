@@ -20,9 +20,9 @@ once in them and once in ordinary logic, checks both against Python, and measure
   <span class="badge">Skill: use-dsp-multipliers</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="dsp_multipliers.sof" download>Download dsp_multipliers.sof</a>
-  <a class="btn alt" href="dsp_multipliers.qar" download>Download dsp_multipliers.qar (full project)</a>
+  <a class="btn" href="dsp_multipliers.qar" download>Download dsp_multipliers.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>The result</h2>
 <div class="tablewrap"><table>
@@ -87,7 +87,8 @@ It is safe because the value is not changing when it is read; say so in the <cod
 </ul>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/12_dsp_multipliers/dsp_multipliers.sof
+<pre><code>python scripts/de10.py build examples/12_dsp_multipliers
+python scripts/de10.py program examples/12_dsp_multipliers
 python scripts/de10.py log 2</code></pre>
 <h3>Build it yourself</h3>
 <pre><code>python scripts/new_project.py examples/12_dsp_multipliers mult_top --lib pll print seg7

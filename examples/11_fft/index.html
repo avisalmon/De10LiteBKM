@@ -20,9 +20,9 @@ Both run here on the same 256-point signal, and the PC checks both against numpy
   <span class="badge">Skills: use-ip-library, compute-fft</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="fft_time_limited.sof" download>Download fft_time_limited.sof</a>
-  <a class="btn alt" href="fft.qar" download>Download fft.qar (full project, with the generated IP)</a>
+  <a class="btn" href="fft.qar" download>Download fft.qar (full project, with the generated IP)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 <p class="note">The FFT IP is a licensed Altera core. Quartus Prime Lite compiles it in <b>OpenCore Plus evaluation</b> mode: the
 build makes <code>fft_time_limited.sof</code> instead of <code>fft.sof</code>, and the design runs only while the programmer stays
 connected ("tethered": <code>quartus_pgm</code> keeps running) or for a limited time. Our own FFT has no such limit.</p>
@@ -98,7 +98,8 @@ the RAM into 8,192 flip-flops.</li>
 </ul>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/11_fft/fft_time_limited.sof    (keeps running: tethered; stop it with Ctrl+C)
+<pre><code>python scripts/de10.py build examples/11_fft
+python scripts/de10.py program examples/11_fft    (keeps running: tethered; stop it with Ctrl+C)
 python scripts/de10.py send R 8 > logs/fft_dump.txt                    (in a second terminal)
 python examples/11_fft/sim/fft_data.py check logs/fft_dump.txt</code></pre>
 <h3>Build it yourself</h3>

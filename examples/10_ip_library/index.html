@@ -20,9 +20,9 @@ files, no license. Put to work measuring gravity with the on-board accelerometer
   <span class="badge">Skill: use-ip-library</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="ip_library.sof" download>Download ip_library.sof</a>
-  <a class="btn alt" href="ip_library.qar" download>Download ip_library.qar (full project)</a>
+  <a class="btn" href="ip_library.qar" download>Download ip_library.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>Two kinds of IP</h2>
 <div class="tablewrap"><table>
@@ -84,7 +84,8 @@ sides. <code>lib/rtl/byte_cdc.sv</code> (example 04) does the same job for bytes
 wide words or deep buffers.</p>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/10_ip_library/ip_library.sof
+<pre><code>python scripts/de10.py build examples/10_ip_library
+python scripts/de10.py program examples/10_ip_library
 python scripts/de10.py log 3</code></pre>
 <h3>Build it yourself</h3>
 <pre><code>python scripts/new_project.py examples/10_ip_library ip_lib_top --lib pll accel print bcd seg7

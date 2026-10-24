@@ -39,7 +39,7 @@ Read the Error lines: they say which parameter combination is not allowed.
 * Megafunctions and basic IP: free.
 * MegaCore IP (FFT, FIR II, NCO, ...): **OpenCore Plus evaluation**. The build makes `<rev>_time_limited.sof` (no
   `<rev>.sof`), and `quartus_pgm` keeps running after programming: the design works while it stays connected
-  ("tethered"), or for a limited time untethered. `scripts/de10.py pack` copies the time-limited .sof.
+  ("tethered"), or for a limited time untethered. `scripts/de10.py program <dir>` finds the time-limited .sof.
 * Check before choosing an IP: if the result must run stand-alone or from flash, write your own or use a free core.
 
 ## 4. Measure what you got

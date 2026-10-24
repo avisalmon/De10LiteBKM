@@ -20,9 +20,9 @@ This example drives it with a small controller written here, and tests every one
   <span class="badge">Skill: use-sdram</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="sdram.sof" download>Download sdram.sof</a>
-  <a class="btn alt" href="sdram.qar" download>Download sdram.qar (full project)</a>
+  <a class="btn" href="sdram.qar" download>Download sdram.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>Yes, it is DRAM</h2>
 <p>SDRAM = synchronous dynamic RAM: every bit is a tiny capacitor that leaks, so each row must be refreshed every 64 ms
@@ -102,7 +102,8 @@ datasheet's valid window) passed all along: it fails with read delay 3 or 5, so 
 bugs that lived in how the test talked to the controller. The board and Signal Tap could.</p>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/06_sdram/sdram.sof
+<pre><code>python scripts/de10.py build examples/06_sdram
+python scripts/de10.py program examples/06_sdram
 python scripts/de10.py log 40</code></pre>
 <h3>Build it yourself</h3>
 <pre><code>python scripts/new_project.py examples/06_sdram sdram_top --lib pll sdram print bcd seg7

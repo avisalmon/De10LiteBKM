@@ -20,9 +20,9 @@ is a frame buffer: written at 50 MHz by a little paint program, read at 25 MHz b
   <span class="badge">Skill: build-ram</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="ram.sof" download>Download ram.sof</a>
-  <a class="btn alt" href="ram.qar" download>Download ram.qar (full project)</a>
+  <a class="btn" href="ram.qar" download>Download ram.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>What you will see</h2>
 <p><img src="media/screen.png" alt="Screen read back from the board: a colour gradient test picture with a dark grid every 20 pixels and a white frame." style="width:100%;border-radius:8px;border:1px solid var(--line)"></p>
@@ -97,7 +97,8 @@ the board run with SW0 down is still to do.</p>
 memory 78 % (screen read-back buffer 56 %, frame buffer 14 %, BIST RAM 8 %). Timing: no negative slack.</p>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/03_ram/ram.sof
+<pre><code>python scripts/de10.py build examples/03_ram
+python scripts/de10.py program examples/03_ram
 python scripts/de10.py log 3
 python scripts/de10.py screen logs/paint.png</code></pre>
 <h3>Build it yourself</h3>

@@ -20,9 +20,9 @@ programs it. That makes graphics testable: this example moves a box from the PC 
   <span class="badge">Skill: read-screen</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="screen_readback.sof" download>Download screen_readback.sof</a>
-  <a class="btn alt" href="screen_readback.qar" download>Download screen_readback.qar (full project)</a>
+  <a class="btn" href="screen_readback.qar" download>Download screen_readback.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>The result</h2>
 <p><img src="media/board_vs_sim.png" alt="Two identical test cards side by side: left, the picture read back from the board; right, the frame rendered by the simulation. Colour bars, the title 05 SCREEN READBACK, a grey ramp, a grid and a white box." style="width:100%;border-radius:8px;border:1px solid var(--line)"></p>
@@ -71,7 +71,8 @@ reported 65 % of pixels different, all on the PC side).</li>
 </ul>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/05_screen_readback/screen_readback.sof
+<pre><code>python scripts/de10.py build examples/05_screen_readback
+python scripts/de10.py program examples/05_screen_readback
 python examples/05_screen_readback/test_screen.py        # moves the box, captures 3 times, compares
 python scripts/de10.py send R 1; python scripts/de10.py screen logs/now.png     # by hand</code></pre>
 <h3>Build it yourself</h3>

@@ -20,9 +20,9 @@ both in the same design, and one of them rewritten from the PC while the design 
   <span class="badge">Skill: build-rom</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="rom.sof" download>Download rom.sof</a>
-  <a class="btn alt" href="rom.qar" download>Download rom.qar (full project)</a>
+  <a class="btn" href="rom.qar" download>Download rom.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>What you will see</h2>
 <p>The screen read back from the board over USB, before and after rewriting ROM B from the PC:</p>
@@ -106,7 +106,8 @@ lookup tables without a 2-minute build.</p>
 </ul>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/02_rom/rom.sof
+<pre><code>python scripts/de10.py build examples/02_rom
+python scripts/de10.py program examples/02_rom
 python scripts/de10.py screen logs/rom.png            # the screen, read back over USB</code></pre>
 <h3>Build it yourself</h3>
 <pre><code>python scripts/new_project.py examples/02_rom rom_top --lib display debug font rom

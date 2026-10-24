@@ -20,9 +20,9 @@
   <span class="badge">Skill: read-accelerometer</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="accelerometer.sof" download>Download accelerometer.sof</a>
-  <a class="btn alt" href="accelerometer.qar" download>Download accelerometer.qar (full project)</a>
+  <a class="btn" href="accelerometer.qar" download>Download accelerometer.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>What you will see</h2>
 <div class="tablewrap"><table>
@@ -90,7 +90,8 @@ converter (<code>lib/rtl/bin2bcd_seq.sv</code>); and the chip keeps its register
 bad experiment it may be in a mode you did not set: always write every register you depend on.</p>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/07_accelerometer/accelerometer.sof
+<pre><code>python scripts/de10.py build examples/07_accelerometer
+python scripts/de10.py program examples/07_accelerometer
 python scripts/de10.py log 3</code></pre>
 <h3>Build it yourself</h3>
 <pre><code>python scripts/new_project.py examples/07_accelerometer accel_top --lib accel print bcd bcdseq seg7

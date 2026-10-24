@@ -20,9 +20,9 @@ shows them all on the screen, beeps on B, and reports every change to your PC wi
   <span class="badge">Skill: read-gamepad</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="gamepad.sof" download>Download gamepad.sof</a>
-  <a class="btn alt" href="gamepad.qar" download>Download gamepad.qar (full project)</a>
+  <a class="btn" href="gamepad.qar" download>Download gamepad.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>What you will see</h2>
 <p><img src="media/screen.png" alt="Screen read back from the board: the title 04 GAME PAD, boxes for each control, raw ADC values A0 to A5 in hex, a wheel bar almost full, and all ten switches up." style="width:100%;border-radius:8px;border:1px solid var(--line)"></p>
@@ -94,7 +94,8 @@ timing. If you use the original template's files you will see Critical Warning 1
 </ul>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/04_gamepad/gamepad.sof
+<pre><code>python scripts/de10.py build examples/04_gamepad
+python scripts/de10.py program examples/04_gamepad
 python scripts/de10.py log 60          # press each control once
 python scripts/de10.py send "?"        # a full status line
 python scripts/de10.py screen logs/pad.png</code></pre>

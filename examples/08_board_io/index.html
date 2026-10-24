@@ -20,9 +20,9 @@ decimal, and text scrolling across the six digits.</p>
   <span class="badge">Skill: use-board-io</span>
 </div>
 <div class="downloads">
-  <a class="btn" href="board_io.sof" download>Download board_io.sof</a>
-  <a class="btn alt" href="board_io.qar" download>Download board_io.qar (full project)</a>
+  <a class="btn" href="board_io.qar" download>Download board_io.qar (full project)</a>
 </div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
 
 <h2>What you will see</h2>
 <p><img src="media/scroll.png" alt="Two photos of the 7-segment display a second apart, showing 'o dE10' and then 'E10-LI': the message scrolling." style="width:100%;max-width:600px;border-radius:8px;border:1px solid var(--line)"></p>
@@ -82,7 +82,8 @@ wire [1:0] press = key_down &amp; ~key_d;     // one clock per press</code></pre
 <p class="note">Count mode (SW9 down, KEY0 / KEY1) needs someone at the board; it is still to be checked by hand.</p>
 
 <h2>Run it</h2>
-<pre><code>python scripts/de10.py program examples/08_board_io/board_io.sof
+<pre><code>python scripts/de10.py build examples/08_board_io
+python scripts/de10.py program examples/08_board_io
 python scripts/de10.py log 30</code></pre>
 <h3>Build it yourself</h3>
 <pre><code>python scripts/new_project.py examples/08_board_io board_io_top --lib print debounce bcd seg7

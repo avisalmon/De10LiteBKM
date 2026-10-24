@@ -80,7 +80,7 @@ The map of all documentation is [docs/README.md](docs/README.md).
 `index.html` the public start page (GitHub Pages, Hebrew + English) · `docs/` journey, gotchas, lessons ·
 `scripts/` doctor, check_updates, sync_skills · `my_designs/` the user's work (git-ignored) · `tests/` ·
 `.claude/skills/` your playbooks.
-Domain toolkit: `examples/NN_name/` (one verified example per capability: page, src, sim, .qar, .sof) ·
+Domain toolkit: `examples/NN_name/` (one verified example per capability: page, src, sim, .qar; no prebuilt .sof: build it) ·
 `lib/rtl/` shared tested Verilog · `lib/sim/` its unit tests and models · `lib/board/de10_lite_pins.csv` the pins ·
 `scripts/new_project.py` (Quartus project from a top module) · `scripts/de10.py` (build, program, flash, pack, log,
 send, screen, cam) · `scripts/sim.py` (Icarus or ModelSim) · `scripts/make_stp.py` + `stp_capture.tcl` +

@@ -10,7 +10,7 @@ description: >
 
 # Set the PLL and clocks
 
-Proven on the board: `examples/01_pll_clocks` (page `index.html`, `pll_clocks.sof`, `pll_clocks.qar`).
+Proven on the board: `examples/01_pll_clocks` (page `index.html`, `pll_clocks.qar`).
 
 ## The board's clocks
 
@@ -58,7 +58,8 @@ Run `python scripts/de10.py report <dir>`: timing must say `OK (no negative slac
 `lib/rtl/freq_counter.sv` measures any clock against 50 MHz (1 ms gate, result in kHz). Example 01 prints all clocks:
 
 ```
-python scripts/de10.py program examples/01_pll_clocks/pll_clocks.sof
+python scripts/de10.py build examples/01_pll_clocks
+python scripts/de10.py program examples/01_pll_clocks
 python scripts/de10.py log 3      # c0 PLL 50*1/2 = 025000 kHz ...
 ```
 

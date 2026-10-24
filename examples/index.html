@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DE10-Lite Examples</title>
-<meta name="description" content="Every capability of the DE10-Lite and its LCD / game-pad shield as a small, verified example: page, full project (.qar) and ready-to-load bitstream (.sof).">
+<meta name="description" content="Every capability of the DE10-Lite and its LCD / game-pad shield as a small, verified example: page, full project (.qar) and its tests.">
 <link rel="stylesheet" href="example.css">
 <style>
 .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 18px 0; }
@@ -22,7 +22,7 @@
 <nav class="crumbs"><a href="../index.html">DE10-Lite BKM</a> / Examples</nav>
 <h1>Examples</h1>
 <p class="lead">One capability per example, each built and checked on a real DE10-Lite: a page that explains it, the full
-Quartus project (<code>.qar</code>) and a bitstream (<code>.sof</code>) you can load at once. Each one is also a skill, so the AI can
+Quartus project (<code>.qar</code>); one build makes the bitstream (<code>.sof</code>) to load. Each one is also a skill, so the AI can
 rebuild it inside your own project.</p>
 
 <div class="cards">
@@ -43,7 +43,7 @@ rebuild it inside your own project.</p>
 
 <h2>How every example is made</h2>
 <ul>
-<li><code>examples/NN_name/src/</code> the Verilog; <code>sim/</code> the unit tests; <code>index.html</code> the page; <code>&lt;name&gt;.qar</code> and <code>&lt;name&gt;.sof</code>.</li>
+<li><code>examples/NN_name/src/</code> the Verilog; <code>sim/</code> the unit tests; <code>index.html</code> the page; <code>&lt;name&gt;.qar</code> (no prebuilt <code>.sof</code>: build it, a few minutes).</li>
 <li>Shared, tested modules in <code>lib/rtl/</code> (display chain, PLL, RAMs, ROMs, SPI, SDRAM, accelerometer, USB text link...);
 the board's pins in <code>lib/board/de10_lite_pins.csv</code>.</li>
 <li>One command per step in <code>scripts/</code>: <code>new_project.py</code> (project from the top module's ports), <code>de10.py</code>
