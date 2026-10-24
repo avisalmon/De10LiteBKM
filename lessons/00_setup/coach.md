@@ -44,9 +44,10 @@ ModelSim, the USB-Blaster driver, the board. Three checks: `computer`, `sim`, `b
    * Ask what they see. Expected: LEDs running back and forth, `rEAdY` on the 7-segment digits, colour bars and
      **READY** on the LCD. You can also look yourself: `python scripts/de10.py screen` and read the PNG.
    * Only when they confirm (or you saw it and they agree): `python scripts/lesson.py check 0 board`.
-   * Build fails for a reason you cannot fix: the prebuilt `lessons/00_setup/ready/ready.sof` separates "the board
-     and cable work" from "the compiler is broken" (`python scripts/de10.py program lessons/00_setup/ready/ready.sof`).
-     Do not record `board` until their own build runs.
+   * Build fails for a reason you cannot fix: build the course's reference copy to tell "their copy is broken" from
+     "Quartus is broken" (`python scripts/de10.py build lessons/00_setup/ready`, then
+     `python scripts/de10.py program lessons/00_setup/ready`). No .sof ships in the repo, so there is always a build
+     first. Do not record `board` until their own build runs.
 7. **Done.** `python scripts/lesson.py done 0`. Open slide 14 and tell them to type the completion code there. Write
    "Lesson 0 done" in `my_designs/PROGRESS.md`. Close with what they proved (every tool works, end to end) and what
    comes next (lesson 0.1: what an FPGA is).
