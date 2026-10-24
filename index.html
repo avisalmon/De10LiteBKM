@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DE10-Lite FPGA BKM</title>
+<meta name="description" content="Design real digital hardware on the Terasic DE10-Lite FPGA board with its LCD and game-pad shield: install the tools, learn Verilog from logic gates up to a computer, then build anything with an AI beside you.">
+<style>
+  :root {
+    --bg: #f7f8fb;
+    --panel: #ffffff;
+    --ink: #17202e;
+    --muted: #556173;
+    --line: #dfe4ec;
+    --accent: #0a7f8f;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2f4f6;
+    --warm: #b4580c;
+    --warm-soft: #fdf0e3;
+    --code-bg: #101722;
+    --code-ink: #e6edf5;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 16px rgba(16, 24, 40, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e131b;
+      --panel: #161d28;
+      --ink: #e9eef5;
+      --muted: #a3afc0;
+      --line: #273142;
+      --accent: #4cc9d9;
+      --accent-ink: #062228;
+      --accent-soft: #11303a;
+      --warm: #f2a65a;
+      --warm-soft: #33251a;
+      --code-bg: #0a0f16;
+      --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e131b; --panel: #161d28; --ink: #e9eef5; --muted: #a3afc0; --line: #273142;
+    --accent: #4cc9d9; --accent-ink: #062228; --accent-soft: #11303a; --warm: #f2a65a; --warm-soft: #33251a;
+    --code-bg: #0a0f16; --shadow: none;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.7;
+  }
+  a { color: var(--accent); }
+  img { max-width: 100%; display: block; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+
+  /* top bar */
+  .top {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 56px; }
+  .brand { font-weight: 700; display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+  .brand-dot { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); box-shadow: inset 0 -3px 0 rgba(0,0,0,.2); }
+  .nav { display: flex; gap: 18px; font-size: 15px; }
+  .nav a { color: var(--muted); text-decoration: none; }
+  .nav a:hover { color: var(--accent); }
+
+  /* hero */
+  .hero { padding: 48px 0 32px; }
+  .hero .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 40px; align-items: center; }
+  .eyebrow { color: var(--accent); font-weight: 600; font-size: 15px; letter-spacing: .02em; }
+  h1 { font-size: clamp(30px, 5vw, 46px); line-height: 1.2; margin: 8px 0 16px; }
+  .lead { color: var(--muted); font-size: 19px; max-width: 34em; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-weight: 600;
+    border-radius: 10px; padding: 11px 20px; border: 1px solid var(--accent); min-height: 44px;
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.ghost { color: var(--accent); background: transparent; }
+  .hero-img { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow); aspect-ratio: 534 / 318; }
+  .hero-img img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .updated { display: inline-flex; gap: 8px; margin-top: 20px; font-size: 14px; color: var(--muted); text-decoration: none; }
+  .updated b { color: var(--ink); font-weight: 600; }
+
+  /* sections */
+  section { padding: 44px 0; scroll-margin-top: 56px; }  /* the sticky header must not cover a heading jumped to */
+  section + section { border-top: 1px solid var(--line); }
+  h2 { font-size: clamp(24px, 3.4vw, 32px); line-height: 1.3; margin-bottom: 8px; }
+  .sub { color: var(--muted); max-width: 44em; margin-bottom: 24px; }
+  h3 { font-size: 19px; margin-bottom: 6px; }
+  .grid { display: grid; gap: 16px; }
+  .g4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .g3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); }
+  .card p { color: var(--muted); font-size: 16px; }
+  .icon { font-size: 26px; line-height: 1; margin-bottom: 10px; }
+
+  /* steps */
+  .step { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 16px; margin-bottom: 28px; }
+  .num {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 20px;
+  }
+  .step p, .step li { color: var(--muted); }
+  .step ul { padding-inline-start: 20px; margin-top: 6px; }
+  .check { font-size: 15px; margin-top: 8px; color: var(--ink) !important; }
+  .check::before { content: "✓ "; color: var(--accent); font-weight: 700; }
+
+  .video { position: relative; aspect-ratio: 16 / 9; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #000; }
+  .video iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .wiring { border-radius: 12px; border: 1px solid var(--line); background: #fff; padding: 12px; width: 100%; max-width: 900px; margin: 0 auto; }
+  .block-title { margin: 28px 0 12px; }
+
+  /* "what is a terminal" explainer */
+  .explain { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; margin-top: 12px; }
+  .explain h4 { font-size: 17px; margin-bottom: 6px; }
+  .explain p, .explain li { color: var(--muted); font-size: 16px; }
+  .explain ol { padding-inline-start: 22px; margin-top: 6px; }
+  .explain li + li { margin-top: 6px; }
+  .prompt-demo {
+    direction: ltr; text-align: left; background: var(--code-bg); color: var(--code-ink); border-radius: 8px;
+    padding: 10px 14px; font-family: Consolas, "Cascadia Mono", monospace; font-size: 14px; margin: 8px 0; overflow-x: auto;
+  }
+  .prompt-demo .cursor { display: inline-block; width: 8px; height: 15px; background: var(--code-ink); vertical-align: -2px; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .prompt-demo .cursor { animation: none; } }
+  kbd {
+    font-family: Consolas, "Cascadia Mono", monospace; font-size: 14px; border: 1px solid var(--line);
+    border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; background: var(--bg); color: var(--ink);
+    direction: ltr; unicode-bidi: isolate;
+  }
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--accent); font-weight: 600; min-height: 32px; }
+  .stage-tag {
+    display: inline-block; font-size: 14px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
+    border-radius: 999px; padding: 2px 12px; margin-bottom: 8px;
+  }
+  .lessons { columns: 2; column-gap: 32px; padding-inline-start: 20px; color: var(--muted); }
+  .lessons li { break-inside: avoid; }
+  @media (max-width: 520px) { .lessons { columns: 1; } }
+  table { width: 100%; border-collapse: collapse; font-size: 16px; }
+  th, td { text-align: start; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 14px; }
+  td code, .pin { font-family: Consolas, "Cascadia Mono", monospace; font-weight: 600; color: var(--accent); }
+
+  pre {
+    direction: ltr; text-align: left; background: var(--code-bg); color: var(--code-ink);
+    border-radius: 10px; padding: 16px 18px; overflow-x: auto; font-size: 15px; line-height: 1.6;
+    font-family: Consolas, "Cascadia Mono", monospace; position: relative; margin-top: 10px;
+  }
+  .copy {
+    position: absolute; top: 8px; right: 8px; font: inherit; font-size: 13px; cursor: pointer;
+    background: rgba(255,255,255,.1); color: var(--code-ink); border: 1px solid rgba(255,255,255,.2);
+    border-radius: 6px; padding: 2px 10px; min-height: 30px;
+  }
+  .say {
+    margin-top: 10px; background: var(--accent-soft); border-inline-start: 4px solid var(--accent);
+    border-radius: 8px; padding: 14px 18px; font-size: 22px; font-weight: 700; color: var(--ink);
+  }
+  .note { align-self: start; background: var(--warm-soft); border-radius: 10px; padding: 14px 18px; color: var(--ink); font-size: 16px; }
+  .note b { color: var(--warm); }
+
+  .who td:first-child { width: 50%; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 15px; }
+
+  .soon { color: var(--muted); font-size: 13px; font-weight: 600; background: var(--bg); border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; margin-inline-start: 6px; white-space: nowrap; }
+  .live { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+  .path { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+  .path h3 { margin-bottom: 4px; }
+  .path ul { padding-inline-start: 20px; color: var(--muted); font-size: 15px; }
+  .path li + li { margin-top: 2px; }
+  a.chip { color: var(--ink); text-decoration: none; }
+  a.chip:hover { border-color: var(--accent); }
+  .card a.more { display: inline-block; margin-top: 10px; font-weight: 600; text-decoration: none; }
+  footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
+
+  @media (max-width: 860px) {
+    .hero .wrap, .g2 { grid-template-columns: minmax(0, 1fr); }
+    .g4, .g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 520px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 16px; }
+    .g4, .g3 { grid-template-columns: minmax(0, 1fr); }
+    .step { grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
+    .num { width: 34px; height: 34px; font-size: 17px; }
+    .say { font-size: 19px; }
+    .brand-name { display: none; }
+    .nav { gap: 12px; font-size: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top"><span class="brand-dot" aria-hidden="true"></span><span class="brand-name">DE10-Lite FPGA BKM</span></a>
+    <nav class="nav" aria-label="Stages"><a href="#stage1">1 Install</a><a href="#stage2">2 Learn</a><a href="#stage3">3 Build</a></nav>
+  </div>
+</header>
+
+<main id="top">
+
+<div class="hero">
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Terasic DE10-Lite · LCD and game-pad shield · Quartus Prime Lite 17.1</div>
+      <h1>Design real hardware on an FPGA, with an AI beside you</h1>
+      <p class="lead">Install the tools, learn digital design from a logic gate up to your own computer and games, then
+      build anything you can imagine. The AI in your editor runs the tools, checks your work on the real board, and
+      teaches as you go.</p>
+      <div class="cta">
+        <a class="btn primary" href="#stage1">Get started</a>
+        <a class="btn ghost" href="#stages">How it works</a>
+      </div>
+      <!-- last-updated:start --><a class="updated" href="https://github.com/avisalmon/De10LiteBKM/blob/main/docs/lessons_log.md"><b>Last updated 24 October 2026</b> · 1 new lesson · See what's new &rarr;</a><!-- last-updated:end -->
+    </div>
+    <div class="hero-img"><img src="assets/hero.png" alt="The game-pad example screen, read back from the board over USB: a box per control, the raw ADC values and the wheel."></div>
+  </div>
+</div>
+
+<section id="stages">
+  <div class="wrap">
+    <h2>Three stages</h2>
+    <p class="sub">Start with stage 1. Then take the course, or go straight to building: the AI meets you where you are.</p>
+    <div class="grid g3">
+      <div class="card"><div class="icon" aria-hidden="true">🧰</div><h3>1 · Install</h3><p>VS Code, Git and an AI chat
+      by hand (about 30 minutes); then the chat installs Quartus and ModelSim, connects the board and proves it all works.</p><a class="more" href="#stage1">Start here &rarr;</a></div>
+      <div class="card"><div class="icon" aria-hidden="true">🎓</div><h3>2 · Learn</h3><p>Real Verilog the old-school way,
+      following nand2tetris: gates, arithmetic, memory, then a CPU or retro games with sprites. The AI gives hints, never the answer.</p><a class="more" href="#stage2">The course &rarr;</a></div>
+      <div class="card"><div class="icon" aria-hidden="true">✨</div><h3>3 · Build anything</h3><p>Ask for what you want in
+      the chat. It builds it from verified pieces (clocks, memories, the screen, SDRAM, sensors, FFT...) and proves it on the board.</p><a class="more" href="#stage3">The examples &rarr;</a></div>
+    </div>
+  </div>
+</section>
+
+<section id="stage1">
+  <div class="wrap">
+    <span class="stage-tag">Stage 1 · Lesson 0</span>
+    <h2>Install, and prove everything works</h2>
+    <p class="sub">A short slide deck: what you need, installing VS Code, Git and Claude Code, copying the course, and then the
+    chat takes over: Quartus, ModelSim, connecting the board and three checks. The steps are also right below.</p>
+    <a class="btn primary" href="lessons/00_setup/index.html">Open lesson 0</a>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <h2>Get your computer ready, once</h2>
+    <p class="sub">About 30 minutes, no prior knowledge. After that the chat does the work and tells you what to click. A Windows computer is recommended.</p>
+
+    <div class="step"><div class="num">1</div><div>
+      <h3>Install VS Code</h3>
+      <p>VS Code is a program for writing code, and the chat will live inside it. Download from <a href="https://code.visualstudio.com" target="_blank" rel="noopener">code.visualstudio.com</a>, run the installer and click Next until it finishes.</p>
+    </div></div>
+
+    <div class="step"><div class="num">2</div><div>
+      <h3>Install Git</h3>
+      <p>Git is a tool that copies projects from the internet to your computer, and keeps them updated. Download from <a href="https://git-scm.com/downloads" target="_blank" rel="noopener">git-scm.com</a>, run it and click Next on every screen (the defaults are fine). Then close VS Code and open it again.</p>
+    </div></div>
+
+    <div class="step"><div class="num">3</div><div>
+      <h3>Add an AI chat (one of the two)</h3>
+      <ul>
+        <li><b>Claude Code</b>: in VS Code click the four-squares icon on the side (Extensions), search "Claude Code", click Install, and sign in with a Claude account.</li>
+        <li><b>GitHub Copilot</b>: needs a free <a href="https://github.com/signup" target="_blank" rel="noopener">GitHub</a> account. In VS Code click the person icon at the bottom of the side bar, sign in to GitHub, open the chat and set it to <b>Agent</b> mode.</li>
+      </ul>
+      <p class="check">It works when you type hello in the chat and it answers.</p>
+    </div></div>
+
+    <div class="step"><div class="num">4</div><div>
+      <h3>Copy the project to your computer, with clicks only</h3>
+      <ol style="padding-inline-start:20px; color:var(--muted)">
+        <li>In VS Code press <bdi dir="ltr"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd></bdi>. A search box opens at the top.</li>
+        <li>Type <b>Git: Clone</b> and press Enter.</li>
+        <li>Paste this address and press Enter:
+<pre><button class="copy" type="button">Copy</button><code>https://github.com/avisalmon/De10LiteBKM.git</code></pre></li>
+        <li>Choose a folder to keep it in (Documents is fine) and click <b>Select as Repository Destination</b>.</li>
+        <li>When the message appears at the bottom, click <b>Open</b>, then <b>Yes, I trust the authors</b>.</li>
+      </ol>
+      <p class="check">The project's files show on the left, for example README.md and CLAUDE.md.</p>
+
+      <details>
+        <summary>Or: the same with the terminal (the command line)</summary>
+        <div class="explain">
+          <h4>What is a terminal?</h4>
+          <p>A terminal (also called the "command line") is a window where you give the computer instructions by typing, instead of clicking with the mouse. You type a line, press Enter, and the computer does it. Nothing to fear: it only does what you type.</p>
+          <h4 style="margin-top:12px">How to open it in VS Code</h4>
+          <p>In the top menu: <b>Terminal</b>, then <b>New Terminal</b>. (Or the keys <bdi dir="ltr"><kbd>Ctrl</kbd>+<kbd>`</kbd></bdi>, the key under Esc.) A panel opens at the bottom of the screen, with a line like this:</p>
+          <div class="prompt-demo">PS C:\Users\you&gt; <span class="cursor"></span></div>
+          <p>That line is called the "prompt": the computer is waiting for your instruction.</p>
+          <h4 style="margin-top:12px">How to use it</h4>
+          <ol>
+            <li>Click inside the terminal panel so it receives your typing.</li>
+            <li>Copy one line (the Copy button) and paste it into the terminal with <bdi dir="ltr"><kbd>Ctrl</kbd>+<kbd>V</kbd></bdi> or a right-click.</li>
+            <li>Press Enter, and wait until the prompt line appears again. That's the sign the instruction finished.</li>
+            <li>Red text = an error. No big deal: copy it into the chat and it will explain.</li>
+          </ol>
+          <p style="margin-top:10px">The four lines that copy and open the project, one after the other:</p>
+<pre><button class="copy" type="button">Copy</button><code>mkdir C:\bkm
+cd C:\bkm
+git clone https://github.com/avisalmon/De10LiteBKM.git
+code De10LiteBKM</code></pre>
+          <p>What each line does: makes a folder called bkm, goes into it, copies the project into it, and opens it in VS Code.</p>
+        </div>
+      </details>
+    </div></div>
+
+    <div class="step"><div class="num">5</div><div>
+      <h3>Open the chat and type:</h3>
+      <div class="say">Tell me what to do</div>
+      <p style="margin-top:10px">That's it. From here the chat leads, step by step. Back tomorrow? Type the same sentence and it continues where you stopped.</p>
+      <div class="explain">
+        <h4>From now on you don't type commands</h4>
+        <p>The chat runs the commands itself, in VS Code's terminal. Before each one it shows what it wants to run and asks permission (Allow / Run). Read it, and click to approve. If something is unclear, ask it: "What does this command do?"</p>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<section id="stage2">
+  <div class="wrap">
+    <span class="stage-tag">Stage 2 · The course</span>
+    <h2>Learn digital design, from a gate to a computer</h2>
+    <p class="sub">The lessons follow <a href="https://www.nand2tetris.org" target="_blank" rel="noopener">nand2tetris</a> in
+    order, so the course works next to the book. Theory starts from NAND; the practice is real Verilog on the board. Each
+    lesson has its own page with explanations and interactive simulations, starter code that compiles but does not work yet,
+    a ModelSim test that must pass, and proof on the board. The AI coaches with hints and checks your work; it does not
+    write it for you. In the chat, say <b>"teach me"</b>.</p>
+    <div class="grid g2">
+      <div class="path">
+        <h3>The trunk (everyone)</h3>
+        <ul>
+          <li>Part 0 · Tools and the board <span class="soon live">lesson 0 ready</span></li>
+          <li>Part 1 · Boolean logic (project 1) <span class="soon">coming</span></li>
+          <li>Part 2 · Arithmetic, counters, state machines, the ALU (project 2) <span class="soon">coming</span></li>
+          <li>Part 3 · Clocks, registers, RAM, the program counter (project 3) <span class="soon">coming</span></li>
+        </ul>
+      </div>
+      <div class="path">
+        <h3>Then pick a path, or both</h3>
+        <ul>
+          <li><b>Path A · the CPU:</b> machine language, the computer, the assembler (projects 4 to 6) <span class="soon">coming</span></li>
+          <li><b>Path B · retro games:</b> pixels, the game pad, sprites, a game world, your own game <span class="soon">coming</span></li>
+          <li>Beyond: projects 7 to 12 (VM, Jack, compiler, OS) as pointers for self-study</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:16px"><a class="btn ghost" href="lessons/00_setup/index.html">Lesson 0</a>
+    <a class="btn ghost" href="https://github.com/avisalmon/De10LiteBKM/blob/main/docs/stage2_lessons.md">The full lesson list</a></p>
+  </div>
+</section>
+
+<section id="stage3">
+  <div class="wrap">
+    <span class="stage-tag">Stage 3 · Build anything</span>
+    <h2>Ask for it, and the AI builds it on your board</h2>
+    <p class="sub">Every capability of the board is a verified example and a skill the AI knows: a page that explains it,
+    the full Quartus project and a bitstream you can load right away. The AI combines them into what you ask for, tests it in
+    simulation, and proves it on the board: it reads the screen and the board's messages back over the USB cable.</p>
+    <div class="chips">
+      <a class="chip" href="examples/01_pll_clocks/index.html">01 PLL and clocks</a>
+      <a class="chip" href="examples/02_rom/index.html">02 ROM</a>
+      <a class="chip" href="examples/03_ram/index.html">03 RAM</a>
+      <a class="chip" href="examples/04_gamepad/index.html">04 Game pad</a>
+      <a class="chip" href="examples/05_screen_readback/index.html">05 Read the screen</a>
+      <a class="chip" href="examples/06_sdram/index.html">06 64 MB SDRAM</a>
+      <a class="chip" href="examples/07_accelerometer/index.html">07 Accelerometer</a>
+      <a class="chip" href="examples/08_board_io/index.html">08 Switches and 7-segment</a>
+      <a class="chip" href="examples/10_ip_library/index.html">10 IP library</a>
+      <a class="chip" href="examples/11_fft/index.html">11 FFT</a>
+      <a class="chip" href="examples/12_dsp_multipliers/index.html">12 DSP multipliers</a>
+      <a class="chip" href="examples/13_flash/index.html">13 Keep it after power-off</a>
+    </div>
+    <p style="margin-top:16px"><a class="btn primary" href="examples/index.html">All examples</a></p>
+  </div>
+</section>
+
+<section id="who">
+  <div class="wrap">
+    <h2>Who does what</h2>
+    <p class="sub">You decide, and you do the few things only hands can do. The chat does the rest, and explains why.</p>
+    <div class="card">
+      <table class="who">
+        <thead><tr><th>You</th><th>The chat</th></tr></thead>
+        <tbody>
+          <tr><td>Install VS Code, Git and a chat, and copy the project</td><td>Installs everything else and checks it all works</td></tr>
+          <tr><td>Make a free MyAltera account and type the one-time code it emails you</td><td>Downloads Quartus Prime Lite and ModelSim, checks them, installs them</td></tr>
+          <tr><td>Plug in the board and shield; press buttons, flip switches, say what you see</td><td>Builds, programs the board, reads the screen and messages back, finds and fixes problems</td></tr>
+          <tr><td>Click "Yes" and Allow when asked</td><td>Does the work, reads the results and fixes errors</td></tr>
+          <tr><td>Decide what you want, and change things yourself</td><td>Teaches as it goes, and gives small challenges</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="good-to-know">
+  <div class="wrap">
+    <h2>Good to know</h2>
+    <div class="grid g3">
+      <div class="card"><h3>Always up to date</h3><p>The guide keeps improving. Every session, the chat first pulls the newest
+      version. Your work lives in my_designs, which updates never touch.</p></div>
+      <div class="card"><h3>You stay in charge</h3><p>Nothing irreversible happens without your OK, and no password or key goes
+      through the chat.</p></div>
+      <div class="card"><h3>Honest status</h3><p>Under construction (October 2026). Stage 1 and lesson 0 are written; twelve
+      examples are built and checked on a real board; the course lessons after lesson 0 are being written. Each page says
+      what is verified and what is not.</p></div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>By Avi Salmon · open source (MIT)</span>
+    <span><a href="https://github.com/avisalmon/De10LiteBKM">GitHub</a> · <a href="https://github.com/avisalmon/De10LiteBKM/blob/main/docs/journey.md">The full journey</a></span>
+  </div>
+</footer>
+
+<script>
+  document.querySelectorAll(".copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = btn.parentElement.querySelector("code").innerText;
+      navigator.clipboard.writeText(text).then(function () {
+        btn.textContent = "✓";
+        setTimeout(function () { btn.textContent = "Copy"; }, 1500);
+      });
+    });
+  });
+</script>
+</body>
+</html>

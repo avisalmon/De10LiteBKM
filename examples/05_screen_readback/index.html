@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>05 Screen Readback</title>
+<meta name="description" content="DE10-Lite example: read the screen back to the PC over USB, and test graphics automatically by comparing the board's picture with the simulation, pixel by pixel.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 05</nav>
+<h1>05 · Read the screen programmatically</h1>
+<p class="lead">The PC can ask the FPGA for the picture it is sending to the LCD and VGA, over the same USB cable that
+programs it. That makes graphics testable: this example moves a box from the PC and checks every pixel against the simulation.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24: 0 of 76,800 pixels differ</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">LCD shield or VGA monitor (the test does not need either)</span>
+  <span class="badge">Skill: read-screen</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="screen_readback.sof" download>Download screen_readback.sof</a>
+  <a class="btn alt" href="screen_readback.qar" download>Download screen_readback.qar (full project)</a>
+</div>
+
+<h2>The result</h2>
+<p><img src="media/board_vs_sim.png" alt="Two identical test cards side by side: left, the picture read back from the board; right, the frame rendered by the simulation. Colour bars, the title 05 SCREEN READBACK, a grey ramp, a grid and a white box." style="width:100%;border-radius:8px;border:1px solid var(--line)"></p>
+<pre><code>$ python examples/05_screen_readback/test_screen.py
+0 of 76800 pixels differ
+step 'H' -> box (64, 192): match
+step 'RRDD' -> box (128, 256): match
+step 'UUUUUULL' -> box (64, 64): match
+OK: every capture matches the simulation</code></pre>
+<p>Left: read back from the board. Right: rendered by simulating the same Verilog. Three positions of the box, all
+76,800 sampled pixels identical. (A capture takes about 6 s: 230 KB of text over JTAG.)</p>
+
+<h2>How it works</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 190" role="img" aria-label="Block diagram: the test card drives the screens; debug_link watches the same pixels; on F it stores every second pixel in a frame buffer and sends it as hex text over the JTAG UART; the PC rebuilds the picture and compares it with the simulation's frame.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="blk" x="10" y="20" width="140" height="60" rx="8"/><text x="22" y="44">test_card</text><text class="small" x="22" y="62">box at (bx, by)</text>
+  <rect class="pin" x="210" y="20" width="130" height="40" rx="6"/><text x="222" y="45">LCD + VGA</text>
+  <rect class="blk" x="210" y="100" width="190" height="70" rx="8"/><text x="222" y="124">debug_link</text><text class="small" x="222" y="142">on 'F': store 320×240 (M9K)</text><text class="small" x="222" y="158">send as hex text lines</text>
+  <rect class="blk" x="450" y="100" width="110" height="70" rx="8"/><text x="462" y="130">jtag_uart</text><text class="small" x="462" y="148">USB-Blaster</text>
+  <rect class="pin" x="610" y="80" width="280" height="100" rx="6"/><text x="622" y="104">PC</text><text class="small" x="622" y="124">de10.py screen → PNG</text><text class="small" x="622" y="142">sim/tb_frame.sv → expected PNG</text><text class="small" x="622" y="160">screen_check.py: pixel by pixel</text>
+  <path class="wire" d="M150,40 H210" marker-end="url(#a)"/><path class="wire" d="M180,40 V135 H210" marker-end="url(#a)"/>
+  <path class="wire" d="M400,135 H450" marker-end="url(#a)"/><path class="wire" d="M560,135 H610" marker-end="url(#a)"/>
+  <path class="wire" d="M610,100 H580 V60 H80 V80" marker-end="url(#a)"/><text class="small" x="300" y="56">commands H L R U D move the box</text>
+</svg>
+</div>
+<ul>
+<li><code>lib/rtl/debug_link.sv</code> sits next to any screen design and sees the same pixels the screens get. On <code>F</code> it waits for
+the top-left pixel, stores every second pixel of every second line (320 × 240, 12-bit colour, 56 % of the block RAM), then
+sends <code>FRAME 320 240</code>, 240 lines of hex, <code>END</code>.</li>
+<li><code>python scripts/de10.py screen out.png</code> sends the <code>F</code>, collects the text and writes the PNG.</li>
+<li><code>python scripts/screen_check.py capture.png expected.png --diff diff.png</code> compares in 12-bit colour and marks
+differences in red.</li>
+<li>The expected picture comes from simulation: <code>sim/tb_frame.sv</code> renders the test card for a box position given with
+<code>-D BX=.. -D BY=..</code>, sampling the same even pixels as the board.</li>
+</ul>
+<p>With 2-pixel sampling, every dot of the 2× and 4× text fonts in this BKM is captured. For a STEP 4 capture
+(160 × 120, 14 % of the RAM) use <code>debug_link #(.STEP(4))</code>.</p>
+
+<h2>Things learned</h2>
+<ul>
+<li>The capture first missed pixel (0, 0): it started one clock after seeing it. A self-checking unit test now compares all
+76,800 pixels of a known pattern (<code>lib/sim/tb_debug_link.sv</code>).</li>
+<li>Pillow already scales a PPM with maximum value 15 to 0..255; multiplying again turned every grey white (the first run
+reported 65 % of pixels different, all on the PC side).</li>
+</ul>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/05_screen_readback/screen_readback.sof
+python examples/05_screen_readback/test_screen.py        # moves the box, captures 3 times, compares
+python scripts/de10.py send R 1; python scripts/de10.py screen logs/now.png     # by hand</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/05_screen_readback screen_top --lib display debug font
+python scripts/de10.py build examples/05_screen_readback</code></pre>
+<h3>Test without the board</h3>
+<pre><code>python scripts/sim.py lib/sim/tb_debug_link.sv -D JTAG_UART_SIM     → pixels 76800, errors 0   PASS</code></pre>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/screen_top.sv</code>, <code>src/test_card.sv</code></td><td>The design and its picture</td></tr>
+<tr><td><code>sim/tb_frame.sv</code>, <code>test_screen.py</code></td><td>Expected frames and the board test</td></tr>
+<tr><td><code>lib/rtl/debug_link.sv</code>, <code>jtag_uart.sv</code></td><td>Screen read-back and the USB link</td></tr>
+<tr><td><code>scripts/de10.py</code>, <code>frame_to_png.py</code>, <code>screen_check.py</code></td><td>Capture, decode, compare</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 05 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

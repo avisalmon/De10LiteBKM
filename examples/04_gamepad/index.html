@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>04 Game Pad</title>
+<meta name="description" content="DE10-Lite example: the shield's joystick, A, B, Select, Start and wheel through the MAX 10 ADC, with debouncing, the buzzer, and every change reported to the PC.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 04</nav>
+<h1>04 · Game pad, wheel and buzzer</h1>
+<p class="lead">Every control on the LCD shield is read through the MAX 10's analog-to-digital converter. This example
+shows them all on the screen, beeps on B, and reports every change to your PC with the raw ADC value.</p>
+<div class="badges">
+  <span class="badge ok">Built and verified on the board 2026-10-24</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">LCD / game-pad shield</span>
+  <span class="badge">Skill: read-gamepad</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="gamepad.sof" download>Download gamepad.sof</a>
+  <a class="btn alt" href="gamepad.qar" download>Download gamepad.qar (full project)</a>
+</div>
+
+<h2>What you will see</h2>
+<p><img src="media/screen.png" alt="Screen read back from the board: the title 04 GAME PAD, boxes for each control, raw ADC values A0 to A5 in hex, a wheel bar almost full, and all ten switches up." style="width:100%;border-radius:8px;border:1px solid var(--line)"></p>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>What</th></tr>
+<tr><td>Screen</td><td>A box per control (green while held), the six raw ADC readings, the wheel as a bar, the switches, a frame counter</td></tr>
+<tr><td>HEX3..HEX0</td><td>The wheel, 0 to 4095</td></tr>
+<tr><td>LEDs</td><td>LEDR9..6 Left Right Up Down, LEDR5..4 KEY1 KEY0, LEDR3..0 Start Select B A</td></tr>
+<tr><td>Shield</td><td>The buzzer beeps (2 kHz) while B is held; the status LED is on while any control is held</td></tr>
+<tr><td>Your PC</td><td><code>PRESS A ch3=02F</code>, <code>RELEASE A ch3=E47</code>, <code>WHEEL 2048</code>: one line per change</td></tr>
+</table></div>
+
+<h2>How the controls are read</h2>
+<p>The shield has no digital button pins: each control changes a voltage on one of the MAX 10 ADC's inputs, and the
+FPGA decides from the 12-bit reading. Two buttons share a channel by giving different voltages.</p>
+<div class="tablewrap"><table>
+<tr><th>ADC channel</th><th>Controls</th><th>Decode</th><th>Reading at rest (this board)</th></tr>
+<tr><td>a0</td><td>Left / Right</td><td>Left above 0xCFF; Right between 0x5FF and 0xCFF</td><td>0x002</td></tr>
+<tr><td>a1</td><td>Up / Down</td><td>Up above 0xCFF; Down between 0x5FF and 0xCFF</td><td>0x001</td></tr>
+<tr><td>a2</td><td>Select / Start</td><td>Select above 0xCFF; Start between 0x5FF and 0xCFF</td><td>0x007</td></tr>
+<tr><td>a3</td><td>A</td><td>pressed below 0x800</td><td>0xE47 to 0xE6E</td></tr>
+<tr><td>a4</td><td>B</td><td>pressed below 0x800</td><td>0xE3E to 0xE63</td></tr>
+<tr><td>a5</td><td>Wheel</td><td>0 to 4095</td><td>jitters by about 33 steps</td></tr>
+</table></div>
+<p class="note">The readings at rest are measured on the board (Signal Tap and the screen). The press values come from the
+template's decode; the press-by-press check of every control is still to do (press each one with
+<code>python scripts/de10.py log 60</code> running and compare the <code>chN=</code> values with this table).</p>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 300" role="img" aria-label="Block diagram: the shield's controls give voltages to the MAX 10 ADC; the ADC IP, clocked at 50 MHz, gives six 12-bit readings; gamepad decodes them into buttons; debounce cleans them; they drive the screen, LEDs, buzzer, and an event printer that goes through a clock-crossing FIFO to the JTAG UART.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="pin" x="10" y="110" width="120" height="60" rx="6"/><text x="22" y="135">shield</text><text class="small" x="22" y="153">resistor ladders</text>
+  <rect class="ip" x="170" y="100" width="150" height="80" rx="8"/><text x="182" y="124">ADC IP (MAX 10)</text><text class="small" x="182" y="142">10 MHz from 50 MHz</text><text class="small" x="182" y="158">6 channels, 12 bit</text>
+  <rect class="blk" x="360" y="100" width="120" height="80" rx="8"/><text x="372" y="124">gamepad</text><text class="small" x="372" y="142">thresholds →</text><text class="small" x="372" y="158">8 buttons</text>
+  <rect class="blk" x="520" y="100" width="110" height="80" rx="8"/><text x="532" y="124">debounce</text><text class="small" x="532" y="142">10 ms steady</text>
+  <rect class="blk" x="680" y="20" width="200" height="50" rx="8"/><text x="692" y="42">screen (25 MHz)</text><text class="small" x="692" y="60">values latched per frame</text>
+  <rect class="pin" x="680" y="90" width="200" height="34" rx="6"/><text x="692" y="112">LEDs, buzzer, status LED</text>
+  <rect class="blk" x="680" y="140" width="200" height="50" rx="8"/><text x="692" y="162">gamepad_events</text><text class="small" x="692" y="180">"PRESS A ch3=02F"</text>
+  <rect class="blk" x="680" y="210" width="200" height="50" rx="8"/><text x="692" y="232">byte_cdc → tx_mux</text><text class="small" x="692" y="250">50 → 25 MHz, + debug link</text>
+  <rect class="pin" x="470" y="230" width="150" height="34" rx="6"/><text x="482" y="252">USB → your PC</text>
+  <path class="wire" d="M130,140 H170" marker-end="url(#a)"/><path class="wire" d="M320,140 H360" marker-end="url(#a)"/>
+  <path class="wire" d="M480,140 H520" marker-end="url(#a)"/><path class="wire" d="M630,140 H655 V45 H680" marker-end="url(#a)"/>
+  <path class="wire" d="M655,107 H680" marker-end="url(#a)"/><path class="wire" d="M655,140 V165 H680" marker-end="url(#a)"/>
+  <path class="wire" d="M780,190 V210" marker-end="url(#a)"/><path class="wire" d="M680,247 H620" marker-end="url(#a)"/>
+  <path class="wire" d="M320,170 H340 V40 H680" stroke-dasharray="4 3"/><text class="small" x="350" y="34">raw readings</text>
+</svg>
+</div>
+
+<h2>The template's ADC needed three fixes</h2>
+<p>Building this example found that the arcade template's ADC setup is wrong, although it seems to work:</p>
+<ol>
+<li><b>A typo in the generated IP</b> (<code>adc_adc_0.v</code>) set the PLL's multiplier twice and never its divider.</li>
+<li><b>The IP's PLL was declared for 100 MHz in</b> while the template fed it 25 MHz. Together: the ADC ran at 12.5 MHz, above
+the MAX 10's 10 MHz ADC clock.</li>
+<li><b>Altera's timing constraints for the ADC were missing</b>, so every build reported a −868 ns timing failure.</li>
+</ol>
+<p>All three are fixed in <code>lib/rtl/adc</code>: give <code>gamepad</code> 50 MHz and the ADC runs at exactly 10 MHz with clean
+timing. If you use the original template's files you will see Critical Warning 15042 and failing timing on <code>wire_from_adc_dout</code>.</p>
+
+<h2>Other things worth knowing</h2>
+<ul>
+<li><b>Debounce</b> (<code>lib/rtl/debounce.sv</code>): a value counts only after 10 ms without change.</li>
+<li><b>The wheel jitters</b> by about 33 steps at rest; report it only when it moves more than 64.</li>
+<li><b>Clock crossing</b>: the game pad lives at 50 MHz, the screen and USB link at 25 MHz. The event text crosses through
+<code>lib/rtl/byte_cdc.sv</code>, a small dual-clock FIFO with Gray-coded pointers.</li>
+<li><b>Torn numbers</b>: the screen latches every value once per frame (during vsync), so a digit never changes half way down.</li>
+<li>Fitter Critical Warning 16248 (VGA_HS / VGA_VS placed near ADC pins) is the board's layout, not your design.</li>
+</ul>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/04_gamepad/gamepad.sof
+python scripts/de10.py log 60          # press each control once
+python scripts/de10.py send "?"        # a full status line
+python scripts/de10.py screen logs/pad.png</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/04_gamepad gamepad_top --lib display gamepad debug font print mux cdc debounce bcd sevenseg
+python scripts/de10.py build examples/04_gamepad</code></pre>
+<p>Resources: 3,354 logic elements (7 %), memory 56 % (the screen read-back buffer). Timing: no negative slack.</p>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/gamepad_top.sv</code></td><td>Top: ADC, debounce, screen, buzzer, LEDs, USB</td></tr>
+<tr><td><code>src/gamepad_screen.sv</code></td><td>The screen (values latched per frame)</td></tr>
+<tr><td><code>src/gamepad_events.sv</code></td><td>Event lines for the PC</td></tr>
+<tr><td><code>lib/rtl/gamepad.sv</code>, <code>analog_input.sv</code>, <code>adc/</code></td><td>The ADC and decode (with the fixes)</td></tr>
+<tr><td><code>lib/rtl/debounce.sv</code>, <code>byte_cdc.sv</code></td><td>Debouncer; byte FIFO between two clocks</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 04 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

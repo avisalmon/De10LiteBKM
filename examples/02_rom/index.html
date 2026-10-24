@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>02 ROM</title>
+<meta name="description" content="DE10-Lite example: three ROMs (text, two pictures) on the LCD; one is rewritten over USB while the design runs.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 02</nav>
+<h1>02 · ROM</h1>
+<p class="lead">Put fixed data in the FPGA's block memory: a screen of text and two pictures. Two ways to build a ROM,
+both in the same design, and one of them rewritten from the PC while the design runs.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">LCD shield or VGA monitor</span>
+  <span class="badge">Skill: build-rom</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="rom.sof" download>Download rom.sof</a>
+  <a class="btn alt" href="rom.qar" download>Download rom.qar (full project)</a>
+</div>
+
+<h2>What you will see</h2>
+<p>The screen read back from the board over USB, before and after rewriting ROM B from the PC:</p>
+<p><img src="media/before_after.png" alt="Two screen captures. Left: two identical chip pictures. Right: the left picture is unchanged, the right one is now a smiley." style="width:100%;border-radius:8px;border:1px solid var(--line)"></p>
+<div class="tablewrap"><table>
+<tr><th>ROM</th><th>Built as</th><th>Content</th><th>Size</th></tr>
+<tr><td>Text</td><td>Inferred: Verilog array + <code>$readmemh</code></td><td><code>assets/text.hex</code>: 40 × 30 characters, one ASCII byte each</td><td>1,200 × 8 bits</td></tr>
+<tr><td>Picture A</td><td>Inferred: Verilog array + <code>$readmemh</code></td><td><code>assets/chip.hex</code>: 64 × 64 pixels, RGB444</td><td>4,096 × 12 bits</td></tr>
+<tr><td>Picture B</td><td>Altera <code>altsyncram</code> IP (<code>lib/rtl/rom_ip.v</code>)</td><td><code>assets/chip.mif</code>; named <code>IMG</code>, so it can be rewritten over JTAG</td><td>4,096 × 12 bits</td></tr>
+</table></div>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 330" role="img" aria-label="Block diagram: the VGA timing gives the pixel position; the text ROM feeds the font; picture ROMs A and B are addressed with the next pixel; a priority mux picks the colour for the LCD and VGA; the debug link reads the screen back over JTAG, and the PC can rewrite ROM B over JTAG.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="blk" x="10" y="130" width="140" height="60" rx="8"/><text x="22" y="155">vga_controller</text><text class="small" x="22" y="173">pixel x, y (25 MHz)</text>
+  <rect class="blk" x="210" y="20" width="160" height="60" rx="8"/><text x="222" y="45">text ROM</text><text class="small" x="222" y="63">inferred, text.hex</text>
+  <rect class="blk" x="410" y="20" width="110" height="60" rx="8"/><text x="422" y="55">font8x8</text>
+  <rect class="blk" x="210" y="130" width="160" height="60" rx="8"/><text x="222" y="155">picture A ROM</text><text class="small" x="222" y="173">inferred, chip.hex</text>
+  <rect class="ip" x="210" y="240" width="160" height="60" rx="8"/><text x="222" y="265">picture B ROM</text><text class="small" x="222" y="283">altsyncram IP "IMG"</text>
+  <rect class="blk" x="570" y="110" width="120" height="100" rx="8"/><text x="582" y="135">colour mux</text><text class="small" x="582" y="155">text over</text><text class="small" x="582" y="171">pictures over</text><text class="small" x="582" y="187">background</text>
+  <rect class="pin" x="740" y="120" width="150" height="34" rx="6"/><text x="752" y="142">LCD + VGA</text>
+  <rect class="blk" x="740" y="200" width="150" height="50" rx="8"/><text x="752" y="222">debug_link</text><text class="small" x="752" y="240">screen → JTAG</text>
+  <rect class="pin" x="560" y="270" width="160" height="40" rx="6"/><text x="572" y="295">PC (USB-Blaster)</text>
+  <path class="wire" d="M150,160 H180 V50 H210" marker-end="url(#a)"/>
+  <path class="wire" d="M150,160 H210" marker-end="url(#a)"/>
+  <path class="wire" d="M180,160 V270 H210" marker-end="url(#a)"/>
+  <path class="wire" d="M370,50 H410" marker-end="url(#a)"/>
+  <path class="wire" d="M520,50 H545 V130 H570" marker-end="url(#a)"/>
+  <path class="wire" d="M370,160 H570" marker-end="url(#a)"/>
+  <path class="wire" d="M370,270 H545 V190 H570" marker-end="url(#a)"/>
+  <path class="wire" d="M690,137 H740" marker-end="url(#a)"/>
+  <path class="wire" d="M815,154 V200" marker-end="url(#a)"/>
+  <path class="wire" d="M815,250 V290 H720" marker-end="url(#a)"/>
+  <path class="wire" d="M560,300 H400 V285 H370" marker-end="url(#a)"/>
+  <text class="small" x="410" y="318">In-System Memory Content Editor writes ROM B</text>
+</svg>
+</div>
+
+<h2>Two ways to make a ROM</h2>
+<h3>1. Inferred: plain Verilog</h3>
+<pre><code>reg [11:0] img_a [0:4095];
+initial $readmemh("assets/chip.hex", img_a);   // path from the Quartus project folder
+always @(posedge clk) qa &lt;= img_a[address];    // registered read = block RAM</code></pre>
+<p>Quartus sees an array that is only read, with an <code>initial $readmemh</code>, and a clocked read: it builds an M9K
+block-memory ROM. Portable to any tool, and the same file works in simulation. The read must be clocked; a
+combinational read becomes logic instead of memory.</p>
+<h3>2. The altsyncram IP</h3>
+<pre><code>rom_ip #(.WIDTH(12), .DEPTH(4096), .AW(12), .INIT_FILE("assets/chip.mif"),
+         .LPM_HINT("ENABLE_RUNTIME_MOD=YES,INSTANCE_NAME=IMG"))
+  img_b (.clk(clk), .address(address), .q(qb));</code></pre>
+<p><code>lib/rtl/rom_ip.v</code> instantiates Altera's memory block directly (what the IP wizard would write). It gives
+full control (memory type, output register) and one feature inference cannot: <b>a name for the In-System Memory
+Content Editor</b>, so the PC can read and rewrite the ROM over the USB cable while the design runs.</p>
+
+<h3>Timing: the address goes one pixel ahead</h3>
+<p>A block-memory ROM answers one clock after it gets the address. The screen moves one pixel per clock, so the design
+asks every ROM for the <b>next</b> pixel (<code>x + 1</code>); the answer then arrives exactly for the current pixel.
+Without this, every picture would be shifted one pixel to the right.</p>
+
+<h2>Make your own ROM content</h2>
+<pre><code>python scripts/img2rom.py my_picture.png assets/my_picture --size 64x64
+→ my_picture.hex (for $readmemh), my_picture.mif (for the IP), my_picture_preview.png (in 12-bit colour)</code></pre>
+<p>Text: write it in <code>assets/screen.txt</code> (up to 30 lines of 40 characters) and run
+<code>python examples/02_rom/assets/make_images.py</code>; it writes <code>text.hex</code> and the two pictures.</p>
+
+<h2>Rewrite a ROM while the design runs</h2>
+<pre><code>cd examples/02_rom
+quartus_stp -t ../../scripts/mem_edit.tcl list                          # MEM: index=0 name=IMG depth=4096 width=12
+quartus_stp -t ../../scripts/mem_edit.tcl write IMG assets/smiley.mif   # picture B changes at once
+quartus_stp -t ../../scripts/mem_edit.tcl read  IMG out.mif             # save what is in it now</code></pre>
+<p>The change lives in the FPGA only: reprogramming or a power cycle brings back <code>chip.mif</code>. To make it
+permanent, change the file and rebuild. The same works for RAMs, and it is a quick way to try new pictures, text or
+lookup tables without a 2-minute build.</p>
+
+<h2>Measured on the board</h2>
+<ul>
+<li>Screen read back over JTAG (<code>python scripts/de10.py screen</code>): text and both pictures exactly as drawn.</li>
+<li><code>mem_edit.tcl list</code> finds <code>IMG</code>, 4,096 × 12, read/write; writing <code>smiley.mif</code> changed picture B only (capture above).</li>
+<li>Resources: 6,238 logic elements (13 %); memory bits 62 % of which the screen read-back buffer is 56 %. Timing: no negative slack.</li>
+</ul>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/02_rom/rom.sof
+python scripts/de10.py screen logs/rom.png            # the screen, read back over USB</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/02_rom rom_top --lib display debug font rom
+python scripts/de10.py build examples/02_rom
+python scripts/de10.py program examples/02_rom</code></pre>
+<h3>Test without the board</h3>
+<pre><code>python scripts/sim.py examples/02_rom/sim/tb_rom_screen.sv --modelsim
+→ 81 checks, 0 errors   PASS</code></pre>
+<p>ModelSim, because picture B is the Altera IP; Altera's own simulation model reads the same <code>.mif</code>.</p>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/rom_top.sv</code></td><td>Display chain, screen, screen read-back</td></tr>
+<tr><td><code>src/rom_screen.sv</code></td><td>The three ROMs and the colour mux</td></tr>
+<tr><td><code>assets/</code></td><td><code>screen.txt</code>, <code>make_images.py</code> and the generated <code>.hex</code> / <code>.mif</code> / <code>.png</code></td></tr>
+<tr><td><code>sim/tb_rom_screen.sv</code></td><td>Unit test (81 pixel checks)</td></tr>
+<tr><td><code>lib/rtl/rom_ip.v</code></td><td>Reusable altsyncram ROM</td></tr>
+<tr><td><code>scripts/img2rom.py</code>, <code>scripts/mem_edit.tcl</code></td><td>Image to ROM files; live memory read / write</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 02 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>10 IP Library</title>
+<meta name="description" content="DE10-Lite example: Altera library IP used directly (altsqrt, lpm_divide, dcfifo) to turn accelerometer readings into total gravity and tilt, crossing clocks through a FIFO.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 10</nav>
+<h1>10 · Using IP from Altera's library</h1>
+<p class="lead">Square root, division and a dual-clock FIFO, straight from Altera's library: no wizard, no generated
+files, no license. Put to work measuring gravity with the on-board accelerometer.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skill: use-ip-library</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="ip_library.sof" download>Download ip_library.sof</a>
+  <a class="btn alt" href="ip_library.qar" download>Download ip_library.qar (full project)</a>
+</div>
+
+<h2>Two kinds of IP</h2>
+<div class="tablewrap"><table>
+<tr><th>Kind</th><th>Examples</th><th>How to use</th><th>License in Lite</th><th>Shown in</th></tr>
+<tr><td><b>Megafunctions</b> (built into Quartus)</td><td>altpll, altsyncram, dcfifo, scfifo, lpm_divide, altsqrt, lpm_mult, altshift_taps</td><td>Instantiate the module directly with parameters</td><td>Free</td><td>this example, 01, 02</td></tr>
+<tr><td><b>Generated cores</b></td><td>FFT II, FIR II, NCO, CORDIC, floating point</td><td><code>ip-generate</code> with parameters, add the <code>.qip</code></td><td>Many are evaluation only (time-limited .sof)</td><td><a href="../11_fft/index.html">11 FFT</a></td></tr>
+</table></div>
+
+<h2>What you will see</h2>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>What</th></tr>
+<tr><td>HEX5..HEX0</td><td><code>G 1.000</code>: total gravity in g (it stays near 1.000 however you hold the board still)</td></tr>
+<tr><td>Your PC</td><td><code>G=0100 (1000 mg) FLAT%=+076 #05</code>, 10 lines a second</td></tr>
+<tr><td>LEDR9</td><td>Accelerometer found (ID E5); LEDR1: FIFO not empty; LEDR0: FIFO full</td></tr>
+</table></div>
+<p><b>Measured:</b> <code>G=0100</code> = 256 counts = 1000 mg exactly; <code>FLAT%=+076</code>: 76 % of gravity points straight down through
+the board (it leans on its stand); the counter <code>#00, #01, ...</code> proves every word crossed the FIFO in order.</p>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 200" role="img" aria-label="Block diagram: the accelerometer gives x, y, z; DSP multipliers form x squared plus y squared plus z squared; altsqrt gives the magnitude; lpm_divide gives z times 100 over the magnitude; results go through a dcfifo from 50 MHz to 25 MHz and are printed to the PC.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="blk" x="10" y="70" width="110" height="60" rx="8"/><text x="22" y="95">adxl345</text><text class="small" x="22" y="113">x, y, z @100 Hz</text>
+  <rect class="blk" x="160" y="20" width="130" height="50" rx="8"/><text x="172" y="42">x²+y²+z²</text><text class="small" x="172" y="60">DSP multipliers</text>
+  <rect class="ip" x="330" y="20" width="120" height="50" rx="8"/><text x="342" y="42">altsqrt</text><text class="small" x="342" y="60">4-stage pipe</text>
+  <rect class="ip" x="330" y="120" width="120" height="60" rx="8"/><text x="342" y="142">lpm_divide</text><text class="small" x="342" y="160">z·100 / |g|</text><text class="small" x="342" y="174">12-stage pipe</text>
+  <rect class="ip" x="500" y="70" width="130" height="60" rx="8"/><text x="512" y="94">dcfifo</text><text class="small" x="512" y="112">50 → 25 MHz</text>
+  <rect class="blk" x="670" y="70" width="110" height="60" rx="8"/><text x="682" y="94">line_printer</text><text class="small" x="682" y="112">@ 25 MHz</text>
+  <rect class="pin" x="810" y="80" width="80" height="40" rx="6"/><text x="822" y="105">PC</text>
+  <path class="wire" d="M120,90 H140 V45 H160" marker-end="url(#a)"/><path class="wire" d="M290,45 H330" marker-end="url(#a)"/>
+  <path class="wire" d="M120,110 H140 V150 H330" marker-end="url(#a)"/><path class="wire" d="M390,70 V120" marker-end="url(#a)"/>
+  <path class="wire" d="M450,45 H475 V90 H500" marker-end="url(#a)"/><path class="wire" d="M450,150 H475 V110 H500" marker-end="url(#a)"/>
+  <path class="wire" d="M630,100 H670" marker-end="url(#a)"/><path class="wire" d="M780,100 H810" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>The three megafunctions</h2>
+<pre><code>altsqrt #(.width(32), .q_port_width(16), .r_port_width(17), .pipeline(4), .lpm_type("altsqrt")) sqrt (
+  .radical(sumsq), .clk(clk), .ena(1'b1), .aclr(1'b0), .q(mag), .remainder());
+
+lpm_divide #(.lpm_widthn(24), .lpm_widthd(16), .lpm_nrepresentation("SIGNED"), .lpm_drepresentation("UNSIGNED"),
+  .lpm_pipeline(12), .lpm_type("LPM_DIVIDE")) div (
+  .numer(z100), .denom(mag), .clock(clk), .clken(1'b1), .aclr(1'b0), .quotient(quot), .remain(rem));
+
+dcfifo #(.lpm_width(32), .lpm_widthu(4), .lpm_numwords(16), .lpm_showahead("OFF"), .lpm_type("dcfifo"),
+  .rdsync_delaypipe(4), .wrsync_delaypipe(4), .intended_device_family("MAX 10"), ...) fifo (
+  .data(wdata), .wrclk(clk50), .wrreq(wrreq), .wrfull(wrfull), .rdclk(clk25), .rdreq(rdreq), .q(rdata), .rdempty(rdempty), ...);</code></pre>
+<p>Where to find the ports and parameters of any megafunction: <code>C:\intelFPGA_lite\17.1\quartus\eda\sim_lib\altera_mf.v</code>
+(altsqrt, dcfifo, altsyncram ...) and <code>220model.v</code> (the <code>lpm_*</code> ones). The same files let ModelSim simulate them.</p>
+
+<h3>Pipelines: latency for speed</h3>
+<p>The divider first had 4 pipeline stages and failed timing at 50 MHz by 1.9 ns. With 12 stages it passes: the answer
+comes 12 clocks later instead of 4, which costs nothing here (a new sample arrives every 10 ms). That trade, more stages
+for a higher clock, is the knob almost every arithmetic IP gives you. Count the latency and wait for it (the design waits
+14 clocks after the square root).</p>
+<h3>dcfifo vs our byte_cdc</h3>
+<p><code>dcfifo</code> is Altera's dual-clock FIFO: any width and depth, in block RAM, with full / empty / used-words flags on both
+sides. <code>lib/rtl/byte_cdc.sv</code> (example 04) does the same job for bytes in plain Verilog. Use dcfifo when you want
+wide words or deep buffers.</p>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/10_ip_library/ip_library.sof
+python scripts/de10.py log 3</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/10_ip_library ip_lib_top --lib pll accel print bcd seg7
+python scripts/de10.py build examples/10_ip_library</code></pre>
+<p>Resources: 2,197 logic elements (4 %), 6 multiplier elements. Timing: no negative slack.</p>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/ip_lib_top.sv</code></td><td>The example</td></tr>
+<tr><td><code>lib/rtl/adxl345.sv</code>, <code>spi_master.sv</code></td><td>The accelerometer (example 07)</td></tr>
+<tr><td><code>lib/rtl/pll_de10.v</code></td><td>The 25 MHz clock (example 01)</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 10 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

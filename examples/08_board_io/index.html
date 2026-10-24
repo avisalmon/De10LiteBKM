@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>08 Switches, Keys, 7-Segment</title>
+<meta name="description" content="DE10-Lite example: the board's 10 switches, 2 keys, 10 LEDs and six 7-segment digits: debounced inputs, a press counter and scrolling text.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 08</nav>
+<h1>08 · Switches, keys, LEDs and the 7-segment display</h1>
+<p class="lead">The board's own inputs and outputs, done properly: debounced switches and keys, a press counter in
+decimal, and text scrolling across the six digits.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24 (text mode)</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skill: use-board-io</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="board_io.sof" download>Download board_io.sof</a>
+  <a class="btn alt" href="board_io.qar" download>Download board_io.qar (full project)</a>
+</div>
+
+<h2>What you will see</h2>
+<p><img src="media/scroll.png" alt="Two photos of the 7-segment display a second apart, showing 'o dE10' and then 'E10-LI': the message scrolling." style="width:100%;max-width:600px;border-radius:8px;border:1px solid var(--line)"></p>
+<div class="tablewrap"><table>
+<tr><th>Mode</th><th>7-segment</th><th>LEDs</th></tr>
+<tr><td>SW9 up</td><td>"HELLO dE10-LItE BKM" scrolls; SW3..SW0 set the speed</td><td>A light running back and forth</td></tr>
+<tr><td>SW9 down</td><td>Number of KEY0 presses (0 to 999999); KEY1 resets it</td><td>LEDR mirrors the switches</td></tr>
+</table></div>
+<p>Your PC (<code>python scripts/de10.py log</code>): <code>SW=3FF</code>, <code>KEY0 down count=000005</code>, <code>KEY1 down: reset</code>.</p>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 200" role="img" aria-label="Block diagram: switches and keys go through the debouncer; KEY presses become one-clock pulses that drive a counter; the counter in decimal or a scrolling message goes through seg7_char to the six digits; LEDs show the switches or a running light; changes are printed to the PC.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="pin" x="10" y="70" width="110" height="50" rx="6"/><text x="22" y="92">SW9..0</text><text class="small" x="22" y="110">KEY1..0</text>
+  <rect class="blk" x="160" y="70" width="120" height="50" rx="8"/><text x="172" y="92">debounce</text><text class="small" x="172" y="110">10 ms steady</text>
+  <rect class="blk" x="320" y="20" width="150" height="50" rx="8"/><text x="332" y="42">press → counter</text><text class="small" x="332" y="60">KEY1 resets</text>
+  <rect class="blk" x="320" y="90" width="150" height="50" rx="8"/><text x="332" y="112">scrolling message</text><text class="small" x="332" y="130">speed from SW3..0</text>
+  <rect class="blk" x="520" y="55" width="150" height="50" rx="8"/><text x="532" y="77">bin2bcd + seg7_char</text><text class="small" x="532" y="95">SW9 picks the mode</text>
+  <rect class="pin" x="720" y="62" width="170" height="34" rx="6"/><text x="732" y="84">HEX5..HEX0</text>
+  <rect class="pin" x="720" y="120" width="170" height="34" rx="6"/><text x="732" y="142">LEDR9..0</text>
+  <rect class="blk" x="520" y="140" width="150" height="45" rx="8"/><text x="532" y="167">line_printer → USB</text>
+  <path class="wire" d="M120,95 H160" marker-end="url(#a)"/><path class="wire" d="M280,95 H300 V45 H320" marker-end="url(#a)"/>
+  <path class="wire" d="M300,95 V115 H320" marker-end="url(#a)"/><path class="wire" d="M470,45 H495 V70 H520" marker-end="url(#a)"/>
+  <path class="wire" d="M470,115 H495 V90 H520" marker-end="url(#a)"/><path class="wire" d="M670,80 H720" marker-end="url(#a)"/>
+  <path class="wire" d="M300,115 V160 H520" marker-end="url(#a)"/><path class="wire" d="M495,115 V137 H720" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>The parts</h2>
+<div class="tablewrap"><table>
+<tr><th>Thing</th><th>Pins</th><th>Know this</th></tr>
+<tr><td>SW9..SW0</td><td>F15 B14 A14 A13 B12 A12 C12 D12 C11 C10</td><td>1 = up. They bounce like buttons when flipped: debounce them</td></tr>
+<tr><td>KEY1, KEY0</td><td>A7, B8</td><td><b>0 when pressed</b> (pull-up). Schmitt-trigger inputs, but still bounce</td></tr>
+<tr><td>LEDR9..LEDR0</td><td>B11 A11 D14 E14 C13 D13 B10 A10 A9 A8</td><td>1 = on</td></tr>
+<tr><td>HEX5..HEX0</td><td>8 pins each</td><td><b>0 = segment on</b> (active low); bit 7 is the decimal point</td></tr>
+</table></div>
+<p>All pins are in <code>lib/board/de10_lite_pins.csv</code>; <code>scripts/new_project.py</code> assigns them from your top module's port names.</p>
+
+<h3>Showing text: <code>seg7_char</code></h3>
+<pre><code>seg7_char c(.ch("E"), .dp(1'b0), .seg(HEX5));     // any ASCII: digits, most letters, - _ =</code></pre>
+<p><code>lib/rtl/seg7_char.sv</code> turns an ASCII character into segments: digits, the letters that have a fair 7-segment shape
+(A b C d E F G H I J L n o P q r S t U y), and a dash for the rest. Numbers in decimal: <code>bin2bcd</code> then <code>8'h30 + digit</code>.</p>
+
+<h3>Counting presses: debounce, then an edge</h3>
+<pre><code>debounce #(.N(12), .STEADY(500_000)) deb(.clk(clk), .in({~KEY, SW}), .out({key_down, sw}));  // 10 ms
+always @(posedge clk) key_d &lt;= key_down;
+wire [1:0] press = key_down &amp; ~key_d;     // one clock per press</code></pre>
+<p>Without the debounce a single press often counts 2 to 5 times.</p>
+
+<h2>Measured on the board</h2>
+<ul>
+<li>Text mode (all switches up): the camera shows the message moving ("o dE10", then "E10-LI" a second later) and the running light.</li>
+<li>USB: <code>SW=3FF</code> at start-up.</li>
+<li>Resources: 1,715 logic elements (3 %). Timing: no negative slack.</li>
+</ul>
+<p class="note">Count mode (SW9 down, KEY0 / KEY1) needs someone at the board; it is still to be checked by hand.</p>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/08_board_io/board_io.sof
+python scripts/de10.py log 30</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/08_board_io board_io_top --lib print debounce bcd seg7
+python scripts/de10.py build examples/08_board_io</code></pre>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/board_io_top.sv</code></td><td>The example</td></tr>
+<tr><td><code>lib/rtl/seg7_char.sv</code></td><td>ASCII to 7-segment</td></tr>
+<tr><td><code>lib/rtl/debounce.sv</code>, <code>bin2bcd.sv</code></td><td>Debouncer; binary to decimal</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 08 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

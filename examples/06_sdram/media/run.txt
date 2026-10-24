@@ -1,0 +1,8 @@
+PASS 00 delay=2 64K words errors=00010000 clocks=00163944
+PASS 01 delay=3 64K words errors=00000000 clocks=00173C60
+PASS 02 delay=4 64K words errors=00000000 clocks=00183ED1
+PASS 03 delay=5 64K words errors=00000000 clocks=001941A0
+PASS 04 delay=6 64K words errors=00000000 clocks=001A4335
+PASS 05 delay=7 64K words errors=00000000 clocks=001B46C4
+PASS 06 delay=4 32M words errors=00000001 clocks=307DA7D4
+PASS 07 delay=4 32M words errors=00000001 clocks=307DA7D6

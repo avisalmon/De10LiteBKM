@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>12 DSP Multipliers</title>
+<meta name="description" content="DE10-Lite example: the same multiply-accumulate engine in the MAX 10's embedded multipliers and in logic elements, checked against Python and compared in area and speed.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 12</nav>
+<h1>12 · DSP multipliers vs logic</h1>
+<p class="lead">The MAX 10 has hardware multipliers. This example runs the same multiply-accumulate engine twice,
+once in them and once in ordinary logic, checks both against Python, and measures what each costs.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skill: use-dsp-multipliers</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="dsp_multipliers.sof" download>Download dsp_multipliers.sof</a>
+  <a class="btn alt" href="dsp_multipliers.qar" download>Download dsp_multipliers.qar (full project)</a>
+</div>
+
+<h2>The result</h2>
+<div class="tablewrap"><table>
+<tr><th>One 18 × 18 signed multiplier</th><th>Embedded multiplier (DSP)</th><th>Logic elements</th></tr>
+<tr><td>Resources</td><td><b>2 multiplier elements, 0 logic elements</b></td><td><b>368 logic elements</b></td></tr>
+<tr><td>Fastest clock for the engine (Fmax, slow corner)</td><td><b>175 to 187 MHz</b></td><td><b>81 to 93 MHz</b></td></tr>
+<tr><td>Runs here at</td><td>100 MHz</td><td>75 MHz (at 100 MHz it failed timing by 0.78 ns)</td></tr>
+<tr><td>Result of 1,000,000 multiply-adds</td><td><code>01E17200A928</code></td><td><code>01E17200A928</code></td></tr>
+</table></div>
+<p>The Python reference (<code>sim/mac_reference.py</code>) gives <code>01E17200A928</code> too. The 10M50 has 288 multiplier elements
+(144 of 18 × 18), so a design can have up to 144 multiplies running every clock for free. Fmax moves a few MHz between builds;
+the ranges are from the builds of this example.</p>
+<p><img src="media/pass.png" alt="The 7-segment display showing PASS." style="width:100%;max-width:520px;border-radius:8px;border:1px solid var(--line)"></p>
+
+<h2>What you will see</h2>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>What</th></tr>
+<tr><td>HEX3..HEX0</td><td><b>PASS</b> when both engines match the expected result, <b>FAIL</b> if not, <b>RUN</b> while running</td></tr>
+<tr><td>LEDR0, LEDR1, LEDR9</td><td>DSP done, logic done, pass</td></tr>
+<tr><td>KEY0</td><td>Run again (each run is 10 ms at 100 MHz)</td></tr>
+<tr><td>Your PC</td><td><code>DSP   acc=01E17200A928 cycles=000F4241</code> and the same for <code>LOGIC</code> (0xF4241 = 1,000,001 clocks)</td></tr>
+</table></div>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 230" role="img" aria-label="Block diagram: the PLL gives 100 MHz to the DSP engine and 75 MHz to the logic engine; each engine has two LFSRs feeding a multiplier and an accumulator; their results cross to the 50 MHz domain after a synchronized done, are compared with the expected value, and are printed to the PC.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="ip" x="10" y="80" width="120" height="70" rx="8"/><text x="22" y="104">pll_de10</text><text class="small" x="22" y="122">c0 100 MHz</text><text class="small" x="22" y="138">c1 75 MHz</text>
+  <rect class="blk" x="180" y="20" width="330" height="80" rx="8"/><text x="192" y="42">mac (USE_DSP = 1) @ 100 MHz</text>
+  <text class="small" x="192" y="62">2 LFSRs → a, b (18-bit) → mult18_dsp → p → acc += p</text><text class="small" x="192" y="80">multstyle "dsp": embedded multiplier</text>
+  <rect class="blk" x="180" y="130" width="330" height="80" rx="8"/><text x="192" y="152">mac (USE_DSP = 0) @ 75 MHz</text>
+  <text class="small" x="192" y="172">same, with mult18_logic</text><text class="small" x="192" y="190">multstyle "logic": 368 logic elements</text>
+  <path class="wire" d="M130,105 H155 V60 H180" marker-end="url(#a)"/><path class="wire" d="M155,105 V170 H180" marker-end="url(#a)"/>
+  <rect class="blk" x="560" y="75" width="160" height="80" rx="8"/><text x="572" y="98">50 MHz side</text><text class="small" x="572" y="116">done → synchronizer</text><text class="small" x="572" y="132">compare with expected</text>
+  <path class="wire" d="M510,60 H535 V100 H560" marker-end="url(#a)"/><path class="wire" d="M510,170 H535 V130 H560" marker-end="url(#a)"/>
+  <rect class="pin" x="760" y="60" width="130" height="34" rx="6"/><text x="772" y="82">HEX: PASS</text>
+  <rect class="pin" x="760" y="135" width="130" height="34" rx="6"/><text x="772" y="157">USB → PC</text>
+  <path class="wire" d="M720,100 H740 V77 H760" marker-end="url(#a)"/><path class="wire" d="M720,130 H740 V152 H760" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>How to choose where a multiply goes</h2>
+<pre><code>(* multstyle = "dsp" *)                       // or "logic"
+module mult18_dsp (input signed [17:0] a, input signed [17:0] b, output signed [35:0] p);
+  assign p = a * b;
+endmodule</code></pre>
+<ul>
+<li>By default Quartus puts every <code>*</code> it can into the embedded multipliers. Most of the time that is what you want.</li>
+<li><b>Put the <code>multstyle</code> attribute on a module.</b> On a wire inside a <code>generate</code> block Quartus 17.1 ignored it and both
+engines ended up in DSP blocks: check the fitter's per-entity report ("DSP Elements" column) to see where a multiply really went.</li>
+<li>Each embedded multiplier is 18 × 18 (or two 9 × 9). Wider products use several, plus adders in logic.</li>
+<li>Register the product before adding it (the engine does: <code>p &lt;= a * b; acc &lt;= acc + p;</code>): one multiply-add per clock
+and an easy timing path.</li>
+</ul>
+
+<h2>Things learned building it</h2>
+<ul>
+<li>A result that crosses clocks after a "done" handshake still shows up as a timing failure (here −0.24 ns from 75 MHz into 50 MHz).
+It is safe because the value is not changing when it is read; say so in the <code>.sdc</code>:
+<code>set_false_path -from [get_registers {*mac:*|acc[*] *mac:*|cycles[*]}] -to [get_clocks clk50]</code> (<code>src/timing.sdc</code>).</li>
+<li>Checking against a reference model (Python) catches everything: off-by-one in the pipeline, wrong signs, wrong widths.</li>
+</ul>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/12_dsp_multipliers/dsp_multipliers.sof
+python scripts/de10.py log 2</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/12_dsp_multipliers mult_top --lib pll print seg7
+python scripts/de10.py build examples/12_dsp_multipliers</code></pre>
+<h3>Test without the board</h3>
+<pre><code>python examples/12_dsp_multipliers/sim/mac_reference.py 1000      → acc=FFDBBCBDE1C7
+python scripts/sim.py examples/12_dsp_multipliers/sim/tb_mac.sv      → both styles FFDBBCBDE1C7   PASS</code></pre>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/mult_top.sv</code></td><td>Top: PLL, two engines, compare, display, report</td></tr>
+<tr><td><code>src/mac.sv</code></td><td>The engine, plus <code>mult18_dsp</code> and <code>mult18_logic</code></td></tr>
+<tr><td><code>src/timing.sdc</code></td><td>Clocks and the false path for the results</td></tr>
+<tr><td><code>sim/mac_reference.py</code>, <code>sim/tb_mac.sv</code></td><td>Python reference and unit test</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 12 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>01 PLL and Clocks</title>
+<meta name="description" content="DE10-Lite example: one PLL makes five clocks; the design measures every clock on the board and shows it on the 7-segment and over USB.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 01</nav>
+<h1>01 · PLL and clocks</h1>
+<p class="lead">Make any clock you need from the board's 50 MHz oscillator, and prove it: the design measures
+every clock it has and shows the result on the 7-segment display and on your PC.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skill: set-pll-clocks</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="pll_clocks.sof" download>Download pll_clocks.sof</a>
+  <a class="btn alt" href="pll_clocks.qar" download>Download pll_clocks.qar (full project)</a>
+</div>
+
+<h2>What you will see</h2>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>What</th></tr>
+<tr><td>HEX5..HEX0</td><td>Frequency of the selected clock in kHz, for example <code>25000</code> = 25 MHz, <code>100000</code> = 100 MHz</td></tr>
+<tr><td>SW9 up</td><td>Cycles through the 8 clocks, one per second. SW9 down: SW2..SW0 choose one (0-4 = PLL outputs, 5 = MAX10_CLK2_50, 6 = ADC_CLK_10, 7 = MAX10_CLK1_50)</td></tr>
+<tr><td>LEDR2..LEDR0</td><td>Number of the clock on the display</td></tr>
+<tr><td>LEDR8..LEDR4</td><td>One blinker per PLL output. Each counts in its own clock, so all five blink at about 1 Hz</td></tr>
+<tr><td>LEDR9</td><td>PLL locked. Hold KEY0 to reset the PLL: LEDR9 goes off and the five blinkers stop</td></tr>
+<tr><td>Your PC</td><td><code>python scripts/de10.py log</code> prints one line per clock every second</td></tr>
+</table></div>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 380" role="img" aria-label="Block diagram: the 50 MHz oscillator drives the PLL; its five outputs and two other oscillators go to eight frequency counters; a selector feeds the decimal 7-segment display and a text printer sends lines over the JTAG UART.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="pin" x="10" y="40" width="130" height="34" rx="6"/><text x="22" y="62">MAX10_CLK1_50</text>
+  <rect class="pin" x="10" y="250" width="130" height="34" rx="6"/><text x="22" y="272">MAX10_CLK2_50</text>
+  <rect class="pin" x="10" y="296" width="130" height="34" rx="6"/><text x="30" y="318">ADC_CLK_10</text>
+  <rect class="pin" x="10" y="130" width="130" height="34" rx="6"/><text x="35" y="152">KEY0 (reset)</text>
+  <rect class="ip" x="190" y="30" width="150" height="190" rx="8"/><text x="205" y="54">pll_de10</text>
+  <text class="small" x="205" y="72">altpll, VCO 600 MHz</text>
+  <text x="205" y="98">c0  25 MHz</text><text x="205" y="122">c1  100 MHz</text><text x="205" y="146">c2  33.333 MHz</text>
+  <text x="205" y="170">c3  10 MHz</text><text x="205" y="194">c4  50 MHz +90°</text>
+  <path class="wire" d="M140,57 H190" marker-end="url(#a)"/>
+  <path class="wire" d="M140,147 H190" marker-end="url(#a)"/>
+  <rect class="blk" x="400" y="30" width="170" height="110" rx="8"/><text x="415" y="54">5 blinkers</text>
+  <text class="small" x="415" y="74">one counter per clock domain</text>
+  <path class="wire" d="M340,85 H400" marker-end="url(#a)"/>
+  <rect class="pin" x="740" y="40" width="140" height="34" rx="6"/><text x="752" y="62">LEDR8..4, LEDR9</text>
+  <path class="wire" d="M570,57 H740" marker-end="url(#a)"/>
+  <rect class="blk" x="400" y="190" width="170" height="130" rx="8"/><text x="415" y="214">8 × freq_counter</text>
+  <text class="small" x="415" y="234">1 ms gate from 50 MHz,</text><text class="small" x="415" y="250">edges counted in each clock,</text><text class="small" x="415" y="266">result = kHz</text>
+  <path class="wire" d="M340,190 H370 V230 H400" marker-end="url(#a)"/>
+  <path class="wire" d="M140,267 H400" marker-end="url(#a)"/>
+  <path class="wire" d="M140,313 H400" marker-end="url(#a)"/>
+  <path class="wire" d="M160,57 V20 H380 V300 H400"/>
+  <rect class="blk" x="610" y="160" width="110" height="60" rx="8"/><text x="622" y="184">select</text><text class="small" x="622" y="202">SW9 / SW2..0</text>
+  <path class="wire" d="M570,255 H590 V190 H610" marker-end="url(#a)"/>
+  <rect class="blk" x="610" y="240" width="110" height="44" rx="8"/><text x="622" y="267">bin2bcd</text>
+  <path class="wire" d="M665,220 V240" marker-end="url(#a)"/>
+  <rect class="pin" x="740" y="245" width="140" height="34" rx="6"/><text x="752" y="267">HEX5..HEX0</text>
+  <path class="wire" d="M720,262 H740" marker-end="url(#a)"/>
+  <rect class="blk" x="610" y="310" width="110" height="56" rx="8"/><text x="622" y="333">line_printer</text><text class="small" x="622" y="351">+ jtag_uart</text>
+  <path class="wire" d="M570,300 H590 V338 H610" marker-end="url(#a)"/>
+  <rect class="pin" x="740" y="320" width="140" height="34" rx="6"/><text x="752" y="342">USB → your PC</text>
+  <path class="wire" d="M720,337 H740" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>How the PLL is set</h2>
+<p>The PLL is the reusable <code>lib/rtl/pll_de10.v</code>: a direct instance of Altera's <code>altpll</code>
+(the same thing the IP wizard writes) with each output set by three parameters:</p>
+<pre><code>pll_de10 #(
+  .C0_MUL(1), .C0_DIV(2),                      // 50 * 1/2 = 25 MHz
+  .C1_MUL(2), .C1_DIV(1),                      // 100 MHz
+  .C2_MUL(2), .C2_DIV(3),                      // 33.333 MHz
+  .C3_MUL(1), .C3_DIV(5),                      // 10 MHz
+  .C4_MUL(1), .C4_DIV(1), .C4_PHASE("5000")    // 50 MHz, 5000 ps = 90 degrees late
+) pll (.areset(~KEY[0]), .inclk0(MAX10_CLK1_50), .clk(pll_clk), .locked(locked));</code></pre>
+<p>Rule: <b>f<sub>out</sub> = 50 MHz × MUL / DIV</b>. Quartus finds a VCO frequency and counter values that make all five
+outputs at once; if it can't, the build stops with an error naming the clock. What it actually built is in
+<code>output_files/pll_clocks.fit.rpt</code>, section <i>PLL Usage</i>. For this example:</p>
+<div class="tablewrap"><table>
+<tr><th>Output</th><th>MUL/DIV</th><th>Frequency</th><th>Phase</th><th>Counter (from VCO 600 MHz)</th></tr>
+<tr><td>c0</td><td>1/2</td><td>25.0 MHz</td><td>0</td><td>C0 = 24</td></tr>
+<tr><td>c1</td><td>2/1</td><td>100.0 MHz</td><td>0</td><td>C1 = 6</td></tr>
+<tr><td>c2</td><td>2/3</td><td>33.33 MHz</td><td>0</td><td>C2 = 18</td></tr>
+<tr><td>c3</td><td>1/5</td><td>10.0 MHz</td><td>0</td><td>C3 = 60</td></tr>
+<tr><td>c4</td><td>1/1</td><td>50.0 MHz</td><td>90° (5000 ps)</td><td>C4 = 12</td></tr>
+</table></div>
+<p>The VCO runs at 50 × M / N = 50 × 12 / 1 = 600 MHz, and each output divides it by its counter. Phase steps
+come in VCO steps of 208 ps, so a phase that is not a multiple of 208 ps is rounded (the report shows the value used).</p>
+
+<h3>Things to know</h3>
+<ul>
+<li><b>Use <code>locked</code>.</b> PLL outputs are not stable until <code>locked</code> is high. Hold your logic in reset
+until then; this example shows it on LEDR9.</li>
+<li><b>Each clock is its own world.</b> A signal that crosses from one clock to another must go through a synchronizer.
+<code>freq_counter</code> shows the safe pattern: a 1-bit gate crosses through two flip-flops, and the multi-bit count is
+read only while it is standing still.</li>
+<li><b>Tell the timing analyzer.</b> The <code>.sdc</code> file has <code>create_clock</code> for the oscillator and
+<code>derive_pll_clocks</code>, so every PLL output is checked automatically. This example meets timing with no negative slack.</li>
+<li><b>The DE10-Lite has three oscillators:</b> MAX10_CLK1_50 and MAX10_CLK2_50 (50 MHz each) and ADC_CLK_10 (10 MHz).
+The MAX 10 has 4 PLLs; one is enough here.</li>
+</ul>
+
+<h2>Measured on the board</h2>
+<pre><code>$ python scripts/de10.py log
+c0 PLL 50*1/2  = 025000 kHz
+c1 PLL 50*2/1  = 100000 kHz
+c2 PLL 50*2/3  = 033333 kHz     (33 333.3 kHz: shows 033333 or 033334)
+c3 PLL 50*1/5  = 010000 kHz
+c4 PLL 50 +90d = 050000 kHz
+MAX10_CLK2_50  = 050000 kHz
+ADC_CLK_10     = 010000 kHz
+MAX10_CLK1_50  = 050000 kHz</code></pre>
+<p>Resources: 1,631 logic elements (3 %), 1 of 4 PLLs, 0 multipliers. Timing: no negative slack.</p>
+
+<h2>Run it</h2>
+<h3>Just the result</h3>
+<pre><code>python scripts/de10.py program examples/01_pll_clocks/pll_clocks.sof
+python scripts/de10.py log 3</code></pre>
+<p>Or open <i>Quartus Prime Programmer</i>, choose USB-Blaster, add <code>pll_clocks.sof</code>, tick Program/Configure, Start.</p>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/01_pll_clocks pll_clocks_top --lib pll print bcd freq sevenseg
+python scripts/de10.py build examples/01_pll_clocks
+python scripts/de10.py program examples/01_pll_clocks</code></pre>
+<p>Or restore <code>pll_clocks.qar</code> in Quartus (<i>Project → Restore Archived Project</i>); it holds the project and the
+library files it uses, in their folders.</p>
+<h3>Test without the board</h3>
+<pre><code>python scripts/sim.py examples/01_pll_clocks/sim/tb_freq_counter.sv              # Icarus Verilog
+python scripts/sim.py examples/01_pll_clocks/sim/tb_freq_counter.sv --modelsim   # ModelSim
+→ 25 MHz -> 25000 kHz, 10 MHz -> 10000 kHz   PASS</code></pre>
+<p>This test caught a real bug while the example was being made: the first version lost one edge per gate and showed 24999.</p>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/pll_clocks_top.sv</code></td><td>The example: PLL, counters, selector, display, report</td></tr>
+<tr><td><code>sim/tb_freq_counter.sv</code></td><td>Unit test of the frequency counter</td></tr>
+<tr><td><code>lib/rtl/pll_de10.v</code></td><td>Reusable PLL (5 outputs, parameters)</td></tr>
+<tr><td><code>lib/rtl/freq_counter.sv</code></td><td>Frequency counter with safe clock crossing</td></tr>
+<tr><td><code>lib/rtl/bin2bcd.sv</code>, <code>seven_segment.sv</code></td><td>Number to decimal digits to segments</td></tr>
+<tr><td><code>lib/rtl/line_printer.sv</code>, <code>jtag_uart.sv</code></td><td>Text lines to the PC over the USB cable</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 01 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

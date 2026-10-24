@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>07 Accelerometer</title>
+<meta name="description" content="DE10-Lite example: read the on-board ADXL345 accelerometer over SPI, show milli-g on the 7-segment display, a bubble level on the LEDs, and X/Y/Z on the PC.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 07</nav>
+<h1>07 · Accelerometer (ADXL345 over SPI)</h1>
+<p class="lead">The DE10-Lite has a 3-axis accelerometer on board. This example talks to it over SPI, proves the link
+(the chip's ID must read E5, and at rest the three axes must add up to 1 g), and shows the tilt.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skill: read-accelerometer</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="accelerometer.sof" download>Download accelerometer.sof</a>
+  <a class="btn alt" href="accelerometer.qar" download>Download accelerometer.qar (full project)</a>
+</div>
+
+<h2>What you will see</h2>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>What</th></tr>
+<tr><td>HEX5</td><td>The axis: X, Y or Z</td></tr>
+<tr><td>HEX4..HEX0</td><td>That axis in milli-g (1000 = 1 g). SW9 up: cycles X, Y, Z each second; SW9 down: SW1..SW0 pick one</td></tr>
+<tr><td>LEDR</td><td>A bubble level for X: tilt the board left and right and the light moves</td></tr>
+<tr><td>Your PC</td><td><code>ID=E5 X=+0010 Y=+0167 Z=+0196</code>, ten lines a second (raw counts, 3.9 mg each)</td></tr>
+</table></div>
+
+<h2>Measured on the board</h2>
+<pre><code>$ python scripts/de10.py log 2
+ID=E5 X=+0012 Y=+0166 Z=+0196
+ID=E5 X=+0010 Y=+0167 Z=+0196
+ID=E5 X=+0011 Y=+0166 Z=+0195</code></pre>
+<p>ID <code>E5</code> is the ADXL345's fixed device ID: the SPI link works. The board stands tilted on its holder, and
+√(10² + 167² + 196²) = 257 counts × 3.9 mg = <b>1.00 g</b>: gravity, as it must be at rest.</p>
+<p>Resources: 1,247 logic elements (3 %). Timing: no negative slack.</p>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 220" role="img" aria-label="Block diagram: adxl345 driver sends a fixed sequence of SPI bytes through spi_master to the ADXL345 chip; X, Y, Z come back every 10 ms and go to the milli-g display, the LED bubble level, and through a sequential decimal converter to the PC.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="pin" x="10" y="70" width="140" height="80" rx="6"/><text x="22" y="95">ADXL345</text><text class="small" x="22" y="113">on the board</text><text class="small" x="22" y="129">CS SCLK SDI SDO</text>
+  <rect class="blk" x="200" y="70" width="140" height="80" rx="8"/><text x="212" y="95">spi_master</text><text class="small" x="212" y="113">mode 3, 1 MHz</text><text class="small" x="212" y="129">byte by byte</text>
+  <rect class="blk" x="390" y="70" width="160" height="80" rx="8"/><text x="402" y="95">adxl345</text><text class="small" x="402" y="113">init 3 registers, DEVID,</text><text class="small" x="402" y="129">X Y Z every 10 ms</text>
+  <path class="wire" d="M150,100 H200" marker-end="url(#a)"/><path class="wire" d="M200,120 H150" marker-end="url(#a)"/>
+  <path class="wire" d="M340,110 H390" marker-end="url(#a)"/>
+  <rect class="blk" x="610" y="10" width="140" height="50" rx="8"/><text x="622" y="32">× 125 / 32</text><text class="small" x="622" y="50">counts → milli-g</text>
+  <rect class="pin" x="790" y="18" width="100" height="34" rx="6"/><text x="802" y="40">HEX5..0</text>
+  <rect class="pin" x="610" y="85" width="140" height="34" rx="6"/><text x="622" y="107">LEDR bubble</text>
+  <rect class="blk" x="610" y="140" width="140" height="60" rx="8"/><text x="622" y="162">bin2bcd_seq</text><text class="small" x="622" y="180">+ line_printer</text>
+  <rect class="pin" x="790" y="153" width="100" height="34" rx="6"/><text x="802" y="175">USB → PC</text>
+  <path class="wire" d="M550,110 H580 V35 H610" marker-end="url(#a)"/><path class="wire" d="M580,102 H610" marker-end="url(#a)"/>
+  <path class="wire" d="M580,110 V170 H610" marker-end="url(#a)"/><path class="wire" d="M750,35 H790" marker-end="url(#a)"/>
+  <path class="wire" d="M750,170 H790" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>Talking to the chip</h2>
+<div class="tablewrap"><table>
+<tr><th>Step</th><th>SPI bytes</th><th>Meaning</th></tr>
+<tr><td>1</td><td><code>31 08</code></td><td>DATA_FORMAT: full resolution, ±2 g (3.9 mg per count, 1 g ≈ 256)</td></tr>
+<tr><td>2</td><td><code>2C 0A</code></td><td>BW_RATE: 100 samples a second</td></tr>
+<tr><td>3</td><td><code>2D 08</code></td><td>POWER_CTL: start measuring</td></tr>
+<tr><td>4</td><td><code>80</code> + 1 byte</td><td>Read register 0x00, DEVID: must be <code>E5</code></td></tr>
+<tr><td>every 10 ms</td><td><code>F2</code> + 6 bytes</td><td>Read 6 registers from 0x32: X, Y, Z, low byte first (0x80 = read, 0x40 = several bytes)</td></tr>
+</table></div>
+<p>SPI mode 3: the clock idles high, the FPGA changes data on the falling edge, the chip samples on the rising edge.
+4-wire: we send on <code>GSENSOR_SDI</code>, the chip answers on <code>GSENSOR_SDO</code>. The driver can also do 3-wire
+(data both ways on SDI, as Terasic's demo does), but that mode is not verified here.</p>
+
+<h2>How it was debugged (a real story)</h2>
+<p>The first version read <code>ID=00</code> and zeros. Signal Tap on the four SPI pins (<code>scripts/make_stp.py</code>, trigger on
+CS falling) showed the bytes going out looked right, but zoomed to single samples it showed two bugs in the SPI master:</p>
+<ol>
+<li><b>Data changed on the same clock as SCLK rose</b>, exactly when the chip samples it. In mode 3 data must change on the falling edge.</li>
+<li><b>CS went high on the same clock as the last rising edge</b>, so the chip dropped the last bit of every byte (the datasheet's
+CS hold time).</li>
+</ol>
+<p>A unit test with a model SPI device (<code>lib/sim/tb_spi_master.sv</code>) now fails on either bug and passes on the fixed
+master. Before finding them, switching to 3-wire mode looked like the cure; it was not. Measure before you conclude.</p>
+<p>Two more lessons: the report line first failed timing by 15 ns (a "/ 1000" in logic), fixed with a sequential decimal
+converter (<code>lib/rtl/bin2bcd_seq.sv</code>); and the chip keeps its registers while the FPGA is reprogrammed, so after a
+bad experiment it may be in a mode you did not set: always write every register you depend on.</p>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/07_accelerometer/accelerometer.sof
+python scripts/de10.py log 3</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/07_accelerometer accel_top --lib accel print bcd bcdseq seg7
+python scripts/de10.py build examples/07_accelerometer</code></pre>
+<h3>Test without the board</h3>
+<pre><code>python scripts/sim.py lib/sim/tb_spi_master.sv       → 0 errors   PASS
+python scripts/sim.py lib/sim/tb_bin2bcd_seq.sv      → 65536 values, 0 errors   PASS</code></pre>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/accel_top.sv</code></td><td>The example</td></tr>
+<tr><td><code>lib/rtl/adxl345.sv</code></td><td>The accelerometer driver (4-wire, 3-wire option)</td></tr>
+<tr><td><code>lib/rtl/spi_master.sv</code></td><td>Reusable SPI master, mode 3</td></tr>
+<tr><td><code>lib/rtl/bin2bcd_seq.sv</code></td><td>Binary to decimal, one bit per clock (fast and small)</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 07 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

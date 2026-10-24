@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 0 · Get Ready</title>
+<meta name="description" content="DE10-Lite course, lesson 0: install the tools, connect the board, and prove that everything works together.">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --slide: #ffffff;
+    --ink: #17202e;
+    --muted: #556173;
+    --line: #dfe4ec;
+    --accent: #0a7f8f;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2f4f6;
+    --warm: #b4580c;
+    --warm-soft: #fdf0e3;
+    --ok: #1f8a4c;
+    --ok-soft: #e3f5ea;
+    --code-bg: #101722;
+    --code-ink: #e6edf5;
+    --pcb: #1d5c3a;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 28px rgba(16, 24, 40, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1017; --slide: #161d28; --ink: #e9eef5; --muted: #a3afc0; --line: #273142;
+      --accent: #4cc9d9; --accent-ink: #062228; --accent-soft: #11303a; --warm: #f2a65a; --warm-soft: #33251a;
+      --ok: #5fd08f; --ok-soft: #13301f; --code-bg: #0a0f16; --pcb: #1f6b43; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1017; --slide: #161d28; --ink: #e9eef5; --muted: #a3afc0; --line: #273142;
+    --accent: #4cc9d9; --accent-ink: #062228; --accent-soft: #11303a; --warm: #f2a65a; --warm-soft: #33251a;
+    --ok: #5fd08f; --ok-soft: #13301f; --code-bg: #0a0f16; --pcb: #1f6b43; --shadow: none;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, Arial, sans-serif; font-size: 18px; line-height: 1.6;
+    display: flex; flex-direction: column;
+  }
+  a { color: var(--accent); }
+  code, kbd, .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+  code { background: var(--accent-soft); border-radius: 4px; padding: 0 5px; font-size: .92em; }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; font-size: .85em; background: var(--bg); }
+
+  /* top bar */
+  .bar { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--slide); }
+  .bar .course { font-weight: 700; white-space: nowrap; }
+  .bar .course span { color: var(--muted); font-weight: 400; }
+  .progress { flex: 1; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+  .count { color: var(--muted); font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* the deck */
+  .deck { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 20px; min-height: 0; }
+  .slide {
+    display: none; width: min(1100px, 100%); min-height: min(640px, 100%); max-height: 100%; overflow-y: auto;
+    background: var(--slide); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 32px 48px;
+  }
+  .slide.on { display: block; }
+  .tag { display: inline-block; font-size: 14px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 99px; padding: 2px 12px; margin-bottom: 10px; }
+  .tag.web { color: var(--warm); background: var(--warm-soft); }
+  h1 { font-size: clamp(30px, 4.6vw, 48px); line-height: 1.15; margin-bottom: 14px; }
+  h2 { font-size: clamp(24px, 3.2vw, 34px); line-height: 1.2; margin-bottom: 14px; }
+  h3 { font-size: 19px; margin: 14px 0 4px; }
+  p + p { margin-top: 10px; }
+  .lead { font-size: 21px; color: var(--muted); max-width: 40em; }
+  .muted { color: var(--muted); }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; align-items: center; margin-top: 18px; }
+  .cols.top { align-items: start; }
+  ol.steps, ul.list { padding-left: 24px; margin-top: 8px; }
+  ol.steps li, ul.list li { margin-top: 8px; }
+  .box { background: var(--accent-soft); border-radius: 10px; padding: 14px 18px; margin-top: 16px; }
+  .box.warm { background: var(--warm-soft); }
+  .box.ok { background: var(--ok-soft); }
+  .box b.t { display: block; margin-bottom: 2px; }
+  .say { margin-top: 18px; background: var(--accent-soft); border-left: 6px solid var(--accent); border-radius: 10px; padding: 18px 22px; font-size: 30px; font-weight: 700; }
+  .term { background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 16px 18px; font-size: 15px; line-height: 1.7; overflow-x: auto; white-space: pre; }
+  .term .ok { color: #5fd08f; } .term .dim { color: #8b98aa; }
+  .figure { width: 100%; }
+  .figure svg { width: 100%; height: auto; display: block; }
+  .shot { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card svg { width: 100%; height: 90px; display: block; margin-bottom: 8px; }
+  .card h3 { margin-top: 0; font-size: 17px; }
+  .card p { font-size: 15px; color: var(--muted); }
+  table { border-collapse: collapse; margin-top: 8px; }
+  th, td { border: 1px solid var(--line); padding: 4px 16px; text-align: center; font-family: Consolas, monospace; }
+  th { background: var(--accent-soft); }
+
+  /* "I did it" ticks, saved in this browser */
+  .tick { display: flex; gap: 10px; align-items: center; margin-top: 18px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 10px; cursor: pointer; width: fit-content; }
+  .tick input { width: 22px; height: 22px; accent-color: var(--ok); }
+  .tick:has(input:checked) { border-style: solid; border-color: var(--ok); background: var(--ok-soft); }
+
+  /* completion code */
+  .code-form { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .code-form input { font: inherit; font-family: Consolas, monospace; font-size: 24px; letter-spacing: .08em; text-transform: uppercase; padding: 8px 14px; border: 2px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); width: 14ch; }
+  .btn { font: inherit; font-weight: 600; border: 1px solid var(--accent); border-radius: 10px; padding: 10px 20px; cursor: pointer; background: var(--accent); color: var(--accent-ink); min-height: 44px; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .msg { margin-top: 10px; font-weight: 600; min-height: 1.6em; }
+  .msg.bad { color: var(--warm); } .msg.good { color: var(--ok); }
+  .done-banner { display: none; }
+  .is-done .done-banner { display: block; }
+  .is-done .code-entry { display: none; }
+
+  /* bottom navigation */
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px 14px; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .dots button { width: 12px; height: 12px; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+  .dots button.seen { background: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .dots button.cur { background: var(--accent); transform: scale(1.3); }
+
+  /* SVG drawing classes */
+  .s-line { stroke: var(--muted); fill: none; stroke-width: 2; }
+  .s-acc { stroke: var(--accent); fill: none; stroke-width: 3; }
+  .s-box { fill: var(--slide); stroke: var(--line); stroke-width: 2; }
+  .s-soft { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+  .s-txt { fill: var(--ink); font: 600 15px "Segoe UI", sans-serif; }
+  .s-small { fill: var(--muted); font: 13px "Segoe UI", sans-serif; }
+  .s-pcb { fill: var(--pcb); }
+
+  @media (max-width: 760px) {
+    body { font-size: 16px; }
+    .bar .course span { display: none; }
+    .deck { padding: 10px 16px; }
+    .slide { padding: 24px 20px; }
+    .cols { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .say { font-size: 22px; }
+    .nav { padding: 8px 16px 12px; }
+    .nav .btn { padding: 8px 12px; white-space: nowrap; }
+    .count { display: none; }
+    .lead { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="course">DE10-Lite Course <span>· Lesson 0 · Get ready</span></div>
+  <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+  <div class="count" id="count">1 / 14</div>
+</header>
+
+<main class="deck" id="deck">
+
+<!-- 1 -->
+<section class="slide" data-title="Welcome">
+  <span class="tag">Lesson 0</span>
+  <h1>Get ready to build a computer from logic gates</h1>
+  <p class="lead">In this course you will design real digital circuits in Verilog and run them on an FPGA board. You start with
+  a single gate. You finish with a working CPU, or with your own retro video game.</p>
+  <div class="cols">
+    <div>
+      <h3>Lesson 0 makes sure everything works</h3>
+      <p>Before learning anything, we install the tools, connect the board, and prove that the whole chain works:
+      your computer, the design software, the simulator, the cable and the board.</p>
+      <p class="muted">About one hour, mostly waiting for downloads.</p>
+    </div>
+    <div class="figure" aria-label="The course map: parts 0 to 3 are shared, then path A builds a CPU and path B builds retro games.">
+      <svg viewBox="0 0 460 230" role="img">
+        <title>Course map: a shared start, then two paths</title>
+        <rect class="s-soft" x="10" y="85" width="170" height="60" rx="10"/>
+        <text class="s-txt" x="24" y="110">Parts 0-3, everyone</text>
+        <text class="s-small" x="24" y="130">gates, adders, memory</text>
+        <path class="s-acc" d="M180 115 C 230 115, 230 45, 280 45"/>
+        <path class="s-acc" d="M180 115 C 230 115, 230 185, 280 185"/>
+        <rect class="s-box" x="280" y="15" width="170" height="60" rx="10"/>
+        <text class="s-txt" x="294" y="40">Path A: the CPU</text>
+        <text class="s-small" x="294" y="60">your own computer</text>
+        <rect class="s-box" x="280" y="155" width="170" height="60" rx="10"/>
+        <text class="s-txt" x="294" y="180">Path B: retro games</text>
+        <text class="s-small" x="294" y="200">sprites on the screen</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-title="What you need">
+  <span class="tag">Lesson 0 · before you start</span>
+  <h2>What you need</h2>
+  <div class="grid4">
+    <div class="card">
+      <svg viewBox="0 0 160 90" aria-hidden="true"><rect class="s-pcb" x="10" y="10" width="140" height="70" rx="6"/><rect x="60" y="30" width="34" height="30" fill="#222"/><g fill="#e33"><circle cx="24" cy="70" r="3"/><circle cx="34" cy="70" r="3"/><circle cx="44" cy="70" r="3"/></g><rect x="112" y="18" width="30" height="14" fill="#333"/><text x="66" y="50" fill="#ddd" font-size="9">MAX10</text></svg>
+      <h3>The DE10-Lite board</h3>
+      <p>Terasic's board with an Intel MAX 10 FPGA chip, switches, buttons, LEDs and number displays.</p>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 160 90" aria-hidden="true"><rect x="10" y="10" width="140" height="70" rx="6" fill="#1b4f8a"/><rect x="22" y="18" width="80" height="54" fill="#111"/><rect x="26" y="22" width="72" height="46" fill="#4a90d9"/><circle cx="122" cy="34" r="9" fill="#ccc"/><circle cx="128" cy="60" r="5" fill="#e33"/><circle cx="114" cy="60" r="5" fill="#3a3"/></svg>
+      <h3>The LCD + game-pad shield</h3>
+      <p>Plugs on top of the board: a colour screen, a game pad, a wheel and a buzzer.</p>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 160 90" aria-hidden="true"><path d="M20 45 C 60 10, 100 80, 140 45" stroke="#666" stroke-width="6" fill="none"/><rect x="6" y="36" width="22" height="18" rx="2" fill="#888"/><rect x="132" y="35" width="20" height="20" rx="2" fill="#555"/></svg>
+      <h3>A USB cable</h3>
+      <p>Comes with the board. It powers the board and carries your designs to it.</p>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 160 90" aria-hidden="true"><rect x="30" y="10" width="100" height="58" rx="4" fill="#333"/><rect x="36" y="16" width="88" height="46" fill="#4cc9d9"/><rect x="20" y="70" width="120" height="8" rx="3" fill="#555"/></svg>
+      <h3>A Windows computer</h3>
+      <p>With internet and about 20 GB free disk space. The design software is big.</p>
+    </div>
+  </div>
+  <div class="box"><b class="t">And an AI chat</b>Claude Code inside VS Code (you need a Claude account). It will be your coach for the whole course.</div>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-title="How learning works">
+  <span class="tag">Lesson 0 · how this course works</span>
+  <h2>Three things on your desk</h2>
+  <div class="figure" style="margin-top:10px">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="The slides teach in the browser, the chat in VS Code coaches and runs the tools, and the board shows the result over a USB cable.">
+      <title>Slides, chat and board</title>
+      <rect class="s-box" x="20" y="30" width="280" height="190" rx="12"/>
+      <rect class="s-soft" x="20" y="30" width="280" height="34" rx="12"/>
+      <text class="s-txt" x="38" y="53">Browser: the slides</text>
+      <rect x="44" y="84" width="200" height="12" rx="6" fill="var(--line)"/><rect x="44" y="108" width="230" height="10" rx="5" fill="var(--line)"/><rect x="44" y="128" width="170" height="10" rx="5" fill="var(--line)"/>
+      <rect x="44" y="152" width="90" height="48" rx="6" fill="var(--accent-soft)"/>
+      <rect class="s-box" x="360" y="30" width="280" height="190" rx="12"/>
+      <rect class="s-soft" x="360" y="30" width="280" height="34" rx="12"/>
+      <text class="s-txt" x="378" y="53">VS Code: the chat</text>
+      <rect x="384" y="84" width="170" height="26" rx="13" fill="var(--line)"/>
+      <rect x="440" y="120" width="176" height="26" rx="13" fill="var(--accent-soft)"/>
+      <rect x="384" y="156" width="200" height="26" rx="13" fill="var(--line)"/>
+      <rect class="s-pcb" x="720" y="60" width="250" height="130" rx="10"/>
+      <rect x="760" y="76" width="130" height="80" fill="#111"/><rect x="766" y="82" width="118" height="68" fill="#4a90d9"/>
+      <g fill="#e33"><circle cx="910" cy="170" r="4"/><circle cx="924" cy="170" r="4"/><circle cx="938" cy="170" r="4"/></g>
+      <text class="s-txt" x="760" y="220">The board</text>
+      <path class="s-acc" d="M640 125 H720" stroke-dasharray="6 5"/>
+      <text class="s-small" x="652" y="115">USB</text>
+      <path class="s-line" d="M300 125 H360"/>
+      <text class="s-txt" x="40" y="262">Teaches: read and learn</text>
+      <text class="s-txt" x="380" y="262">Coaches: runs tools, checks, hints</text>
+      <text class="s-txt" x="720" y="262">Proves it: you see it work</text>
+    </svg>
+  </div>
+  <ul class="list">
+    <li><b>You read a slide here</b>, then go to the chat and do the task. The chat opens the next slides for you when it's time.</li>
+    <li><b>The chat never writes your circuits.</b> It runs the tools, tests your work, explains errors and gives hints. The design is yours.</li>
+    <li><b>Every lesson ends on the board.</b> First a test in the simulator must pass, then you see it working for real.</li>
+  </ul>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-title="Install VS Code">
+  <span class="tag web">Step 1 of 5 · on your own</span>
+  <h2>Install VS Code</h2>
+  <div class="cols top">
+    <div>
+      <p><b>VS Code</b> is a program for writing code. The chat will live inside it, and you will write your Verilog in it.</p>
+      <ol class="steps">
+        <li>Go to <a href="https://code.visualstudio.com" target="_blank" rel="noopener">code.visualstudio.com</a>.</li>
+        <li>Click the big <b>Download for Windows</b> button.</li>
+        <li>Run the file you downloaded. Click <b>Next</b> until it finishes. The defaults are fine.</li>
+      </ol>
+      <div class="box ok"><b class="t">You know it worked when</b>VS Code opens and shows a Welcome page.</div>
+    </div>
+    <div class="figure">
+      <svg viewBox="0 0 420 260" role="img" aria-label="A VS Code window: the side bar with icons on the left, the editor in the middle.">
+        <title>The VS Code window</title>
+        <rect x="0" y="0" width="420" height="260" rx="10" fill="#1e1e1e"/>
+        <rect x="0" y="0" width="420" height="26" rx="10" fill="#333"/>
+        <rect x="0" y="26" width="44" height="234" fill="#2c2c2c"/>
+        <g fill="#888"><rect x="12" y="40" width="20" height="20" rx="3"/><rect x="12" y="74" width="20" height="20" rx="3"/><rect x="12" y="108" width="20" height="20" rx="3"/></g>
+        <g fill="#4cc9d9"><rect x="12" y="142" width="9" height="9"/><rect x="23" y="142" width="9" height="9"/><rect x="12" y="153" width="9" height="9"/><rect x="25" y="138" width="9" height="9" transform="rotate(20 29 142)"/></g>
+        <text x="50" y="158" fill="#4cc9d9" font-size="12">&#8592; Extensions</text>
+        <text x="150" y="110" fill="#ccc" font-size="20">Welcome</text>
+        <rect x="150" y="128" width="160" height="8" rx="4" fill="#444"/><rect x="150" y="146" width="120" height="8" rx="4" fill="#444"/>
+      </svg>
+    </div>
+  </div>
+  <label class="tick"><input type="checkbox" data-tick="vscode"> VS Code is installed</label>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-title="Install Git">
+  <span class="tag web">Step 2 of 5 · on your own</span>
+  <h2>Install Git</h2>
+  <p><b>Git</b> copies projects from the internet to your computer, and keeps them up to date. This course improves all the
+  time, and Git is how you get the improvements.</p>
+  <ol class="steps">
+    <li>Go to <a href="https://git-scm.com/downloads" target="_blank" rel="noopener">git-scm.com/downloads</a> and click <b>Windows</b>.</li>
+    <li>Download the installer, run it, and click <b>Next</b> on every screen. The defaults are fine.</li>
+    <li><b>Close VS Code and open it again</b>, so it finds Git.</li>
+  </ol>
+  <div class="box ok"><b class="t">You know it worked when</b>you see the next step's <b>Git: Clone</b> command in VS Code. If it says Git is missing, restart the computer.</div>
+  <label class="tick"><input type="checkbox" data-tick="git"> Git is installed</label>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-title="Install Claude Code">
+  <span class="tag web">Step 3 of 5 · on your own</span>
+  <h2>Add your coach: Claude Code</h2>
+  <div class="cols top">
+    <div>
+      <ol class="steps">
+        <li>In VS Code, click the <b>Extensions</b> icon on the left side (four little squares).</li>
+        <li>Search for <b>Claude Code</b> and click <b>Install</b>.</li>
+        <li>Open it (the Claude icon) and <b>sign in</b> with your Claude account.</li>
+        <li>Type <code>hello</code> in the chat and press <kbd>Enter</kbd>.</li>
+      </ol>
+      <div class="box ok"><b class="t">You know it worked when</b>the chat answers you.</div>
+    </div>
+    <div class="box warm" style="margin-top:0">
+      <b class="t">Using GitHub Copilot instead?</b>That works too: sign in to GitHub in VS Code, open the Copilot chat
+      and switch it to <b>Agent</b> mode. The course was built and tested with Claude Code.
+    </div>
+  </div>
+  <label class="tick"><input type="checkbox" data-tick="chat"> The chat answers me</label>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-title="Copy the course">
+  <span class="tag web">Step 4 of 5 · on your own</span>
+  <h2>Copy the course to your computer, with clicks only</h2>
+  <ol class="steps">
+    <li>In VS Code press <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>P</kbd>. A search box opens at the top.</li>
+    <li>Type <b>Git: Clone</b> and press <kbd>Enter</kbd>.</li>
+    <li>Paste this address and press <kbd>Enter</kbd>: <code>https://github.com/avisalmon/De10LiteBKM.git</code></li>
+    <li>Choose a folder to keep it in (Documents is fine) and click <b>Select as Repository Destination</b>.</li>
+    <li>When the message appears at the bottom, click <b>Open</b>, then <b>Yes, I trust the authors</b>.</li>
+  </ol>
+  <div class="box ok"><b class="t">You know it worked when</b>the course's files show on the left: <code>lessons</code>, <code>README.md</code>, <code>CLAUDE.md</code>...</div>
+  <div class="box"><b class="t">Your own work is safe</b>Everything you make goes in the folder <code>my_designs</code>. Course updates never touch it.</div>
+  <label class="tick"><input type="checkbox" data-tick="clone"> The course is open in VS Code</label>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-title="Meet your coach">
+  <span class="tag web">Step 5 of 5 · the handover</span>
+  <h2>Now go to the chat and type:</h2>
+  <div class="say">teach me</div>
+  <p style="margin-top:18px">From here the chat leads. It installs what it can by itself, tells you exactly what to click
+  when it needs you, and opens the next slide in your browser when it's time to read.</p>
+  <div class="box">
+    <b class="t">The chat asks before it runs anything</b>Before each command it shows what it wants to run and asks
+    permission (<b>Allow</b>). Read it and approve. Not sure what a command does? Ask: "what does this command do?"
+  </div>
+  <p class="muted" style="margin-top:14px">Coming back tomorrow? Open VS Code and type <b>teach me</b> again. It continues where you stopped.</p>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-title="Install Quartus">
+  <span class="tag">Tools · with the chat</span>
+  <h2>Install Quartus and ModelSim</h2>
+  <div class="cols top">
+    <div>
+      <p><b>Quartus Prime Lite</b> is Intel's free design software. It turns your Verilog into the exact wiring of the
+      FPGA chip. <b>ModelSim</b> is the simulator: it tests your circuit on the computer before it goes to the board.</p>
+      <ol class="steps">
+        <li>Create a free account on the Altera (Intel FPGA) website. Use your own details.</li>
+        <li>On the download page choose <b>Lite Edition</b>, release <b>17.1</b>, tab <b>Individual Files</b>. The chat opens the page for you.</li>
+        <li>Download the three files on the right <b>into one folder</b>.</li>
+        <li>Run <code>QuartusLiteSetup</code>. Keep the default folder. Make sure <b>MAX 10</b> and <b>ModelSim Starter</b> are ticked.</li>
+        <li>At the end, leave the <b>USB Blaster driver</b> installation ticked and click Install.</li>
+      </ol>
+    </div>
+    <div>
+      <div class="figure">
+        <svg viewBox="0 0 420 250" role="img" aria-label="Three files in one folder: the Quartus installer, the ModelSim installer and the MAX 10 device file.">
+          <title>Three files, one folder</title>
+          <path d="M10 40 h110 l20 20 h270 v180 h-400 z" fill="var(--warm-soft)" stroke="var(--warm)" stroke-width="2"/>
+          <text class="s-txt" x="24" y="34">Downloads\quartus17</text>
+          <rect class="s-box" x="30" y="78" width="360" height="42" rx="8"/><text class="s-txt mono" x="44" y="104">QuartusLiteSetup-17.1.0.590-windows.exe</text>
+          <rect class="s-box" x="30" y="130" width="360" height="42" rx="8"/><text class="s-txt mono" x="44" y="156">ModelSimSetup-17.1.0.590-windows.exe</text>
+          <rect class="s-box" x="30" y="182" width="360" height="42" rx="8"/><text class="s-txt mono" x="44" y="208">max10-17.1.0.590.qdz</text>
+        </svg>
+      </div>
+      <div class="box warm"><b class="t">Why version 17.1?</b>Every lesson was tested with it. Newer versions work differently, so stay with 17.1. The install takes 15 to 30 minutes.</div>
+    </div>
+  </div>
+  <label class="tick"><input type="checkbox" data-tick="quartus"> Quartus is installed</label>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-title="Connect the board">
+  <span class="tag">Tools · with the chat</span>
+  <h2>Connect the board</h2>
+  <div class="cols">
+    <div>
+      <ol class="steps">
+        <li><b>The shield</b>: if it's not on the board yet, line its pins up with the board's black header sockets and press gently. Never force it.</li>
+        <li><b>The cable</b>: plug the USB cable into the board's USB port (it has only one), and the other end into your computer.</li>
+        <li>The board's power LED lights up. The same cable powers the board.</li>
+        <li>Tell the chat. It checks that the computer sees the board.</li>
+      </ol>
+      <div class="box"><b class="t">"No USB-Blaster found"?</b>Windows needs the cable's driver. The chat walks you through Device Manager in a minute.</div>
+    </div>
+    <div class="figure">
+      <svg viewBox="0 0 420 280" role="img" aria-label="The shield sits on top of the DE10-Lite board; a USB cable goes from the board to the computer.">
+        <title>Shield on the board, cable to the computer</title>
+        <rect class="s-pcb" x="20" y="90" width="300" height="160" rx="10"/>
+        <rect x="70" y="40" width="210" height="150" rx="8" fill="#1b4f8a"/>
+        <rect x="84" y="52" width="140" height="100" fill="#111"/><rect x="90" y="58" width="128" height="88" fill="#4a90d9"/>
+        <circle cx="252" cy="80" r="12" fill="#ccc"/><circle cx="258" cy="130" r="7" fill="#e33"/><circle cx="240" cy="130" r="7" fill="#3a3"/>
+        <text x="96" y="176" fill="#cfe" font-size="12">shield</text>
+        <g fill="#e33"><circle cx="60" cy="232" r="4"/><circle cx="74" cy="232" r="4"/><circle cx="88" cy="232" r="4"/><circle cx="102" cy="232" r="4"/></g>
+        <text x="40" y="214" fill="#cfe" font-size="12">DE10-Lite</text>
+        <rect x="290" y="200" width="30" height="24" fill="#999"/>
+        <path d="M320 212 C 360 212, 360 150, 400 150" stroke="#666" stroke-width="6" fill="none"/>
+        <text class="s-small" x="330" y="250">USB to the computer</text>
+      </svg>
+    </div>
+  </div>
+  <label class="tick"><input type="checkbox" data-tick="board"> The board is connected and lit</label>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-title="Check 1: the computer">
+  <span class="tag">Check 1 of 3</span>
+  <h2>Check 1: does the computer have everything?</h2>
+  <p>The chat runs a check-up called <b>doctor</b>. Every line must say OK.</p>
+  <div class="cols top">
+    <div class="term"><span class="dim">Doctor
+------</span>
+<span class="ok">OK</span>    Windows 11 (AMD64)
+<span class="ok">OK</span>    Python 3.12
+<span class="ok">OK</span>    running inside the project's env
+<span class="ok">OK</span>    Quartus Prime 17.1.0 Lite Edition
+<span class="ok">OK</span>    MAX 10 device support
+<span class="ok">OK</span>    ModelSim-Intel Starter
+<span class="ok">OK</span>    DE10-Lite found on the USB-Blaster
+
+All good.</div>
+    <ul class="list" style="margin-top:0">
+      <li><b>Python and env</b>: the helper scripts the chat uses. <code>env</code> is a private box of Python tools just for this course.</li>
+      <li><b>Quartus</b>: turns your Verilog into a design for the chip.</li>
+      <li><b>MAX 10 support</b>: Quartus' data about our exact chip.</li>
+      <li><b>ModelSim</b>: the simulator.</li>
+      <li><b>USB-Blaster</b>: the part of the board that talks to your computer over the cable.</li>
+    </ul>
+  </div>
+  <div class="box warm"><b class="t">A line says FAIL?</b>That's what the check is for. It says what to fix, and the chat fixes it with you.</div>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-title="Check 2: simulation">
+  <span class="tag">Check 2 of 3</span>
+  <h2>Check 2: a circuit tested in the simulator</h2>
+  <div class="cols top">
+    <div>
+      <p>A <b>simulation</b> tests a circuit in software, before it goes to the chip. It is fast and shows every signal.
+      In this course, <b>every circuit passes a test before it goes to the board.</b></p>
+      <p>The chat runs a test on the smallest circuit there is: an <b>AND gate</b>. Its output <code>y</code> is 1 only when
+      both inputs <code>a</code> and <code>b</code> are 1. The test tries all four input pairs and compares.</p>
+      <table aria-label="AND truth table">
+        <tr><th>a</th><th>b</th><th>y</th></tr>
+        <tr><td>0</td><td>0</td><td>0</td></tr><tr><td>0</td><td>1</td><td>0</td></tr>
+        <tr><td>1</td><td>0</td><td>0</td></tr><tr><td>1</td><td>1</td><td>1</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="figure">
+        <svg viewBox="0 0 420 200" role="img" aria-label="Waveforms: a is low for two steps then high; b toggles every step; y is high only in the last step.">
+          <title>The AND gate's waveforms</title>
+          <g class="s-small"><text x="10" y="44">a</text><text x="10" y="104">b</text><text x="10" y="164">y</text></g>
+          <path class="s-line" d="M40 50 H200 V20 H400"/>
+          <path class="s-line" d="M40 110 H120 V80 H200 V110 H280 V80 H400"/>
+          <path class="s-acc" d="M40 170 H280 V140 H400"/>
+          <g stroke="var(--line)" stroke-dasharray="3 4"><path d="M120 10 V185"/><path d="M200 10 V185"/><path d="M280 10 V185"/></g>
+        </svg>
+      </div>
+      <div class="term" style="margin-top:10px">a=0 b=0 -&gt; y=0  ok
+a=0 b=1 -&gt; y=0  ok
+a=1 b=0 -&gt; y=0  ok
+a=1 b=1 -&gt; y=1  ok
+<span class="ok">PASS</span>: and_gate matches its truth table</div>
+    </div>
+  </div>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-title="Check 3: the board">
+  <span class="tag">Check 3 of 3</span>
+  <h2>Check 3: your first design on the board</h2>
+  <div class="cols top">
+    <div>
+      <p>The chat builds a ready-made test design on <b>your</b> computer and sends it to the board. That proves Quartus works
+      too. While it builds (about 2 minutes), this is what happens:</p>
+      <ol class="steps">
+        <li><b>Synthesis</b> turns the Verilog into logic gates.</li>
+        <li><b>The fitter</b> places those gates inside the chip and wires them up.</li>
+        <li><b>Timing analysis</b> checks the design is fast enough.</li>
+        <li><b>Programming</b> sends the result over the USB cable into the chip.</li>
+      </ol>
+      <div class="box warm"><b class="t">Good to know</b>The FPGA forgets the design when the power goes off. That's normal: you load it again with one command.</div>
+    </div>
+    <div>
+      <img class="shot" src="media/ready_screen.png" alt="The expected screen: eight colour bars on top (white, yellow, cyan, green, magenta, red, blue, black) and the word READY in big white letters below, on dark blue.">
+      <div class="box ok"><b class="t">Tell the chat what you see</b>Colour bars and <b>READY</b> on the screen, <b class="mono">rEAdY</b> on the red number displays, and one LED running back and forth.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-title="Done" id="last">
+  <span class="tag">Lesson 0 · finish</span>
+  <h2>Enter your completion code</h2>
+  <div class="code-entry">
+    <p>When all three checks pass, the chat gives you a code. Type it here to finish lesson 0.</p>
+    <form class="code-form" id="code-form" autocomplete="off">
+      <input id="code" aria-label="Completion code" placeholder="L00-....." maxlength="12">
+      <button class="btn" type="submit">Finish lesson 0</button>
+    </form>
+    <div class="msg" id="msg" role="status"></div>
+  </div>
+  <div class="done-banner">
+    <div class="box ok" style="font-size:22px"><b class="t">Lesson 0 done!</b>Your computer, the tools, the cable and the board all work together.</div>
+    <h3 style="margin-top:22px">What you proved</h3>
+    <ul class="list">
+      <li>The simulator tests circuits.</li>
+      <li>Quartus builds a design for your chip.</li>
+      <li>The board runs it.</li>
+    </ul>
+    <h3 style="margin-top:18px">Next: lesson 0.1, what an FPGA is</h3>
+    <p>Go to the chat and type <b>teach me</b>.</p>
+    <button class="btn ghost" type="button" id="reset" style="margin-top:16px">Reset this lesson's progress</button>
+  </div>
+</section>
+
+</main>
+
+<nav class="nav">
+  <button class="btn ghost" type="button" id="prev" aria-label="Previous slide">&larr; Back</button>
+  <div class="dots" id="dots" aria-label="Slides"></div>
+  <button class="btn" type="button" id="next" aria-label="Next slide">Next &rarr;</button>
+</nav>
+
+<script>
+  (function () {
+    var LESSON = "0";
+    var CODE_HASH = 4030959446;   // scripts/lesson.py code-hash 0
+    var KEY = "de10-course";
+    var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+    var dots = document.getElementById("dots");
+    var cur = 0;
+
+    // Progress lives in this browser only. Private windows and some school browsers block storage: the deck still works.
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+    }
+    function save(all) {
+      try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) {}
+    }
+    function mine() {
+      var all = load();
+      all[LESSON] = all[LESSON] || { slide: 0, seen: [], ticks: {}, done: null };
+      return all;
+    }
+    function update(fn) {
+      var all = mine();
+      fn(all[LESSON]);
+      save(all);
+      return all[LESSON];
+    }
+
+    slides.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.title = (i + 1) + ". " + s.getAttribute("data-title");
+      b.setAttribute("aria-label", b.title);
+      b.addEventListener("click", function () { go(i); });
+      dots.appendChild(b);
+    });
+
+    function go(i) {
+      cur = Math.max(0, Math.min(slides.length - 1, i));
+      slides.forEach(function (s, k) { s.classList.toggle("on", k === cur); });
+      var st = update(function (p) {
+        p.slide = cur;
+        if (p.seen.indexOf(cur) < 0) p.seen.push(cur);
+      });
+      Array.prototype.forEach.call(dots.children, function (b, k) {
+        b.classList.toggle("cur", k === cur);
+        b.classList.toggle("seen", st.seen.indexOf(k) >= 0);
+      });
+      document.getElementById("count").textContent = (cur + 1) + " / " + slides.length;
+      document.getElementById("progress").style.width = (100 * (cur + 1) / slides.length) + "%";
+      document.getElementById("prev").disabled = cur === 0;
+      document.getElementById("next").disabled = cur === slides.length - 1;
+      slides[cur].scrollTop = 0;
+      if (location.hash !== "#" + (cur + 1)) history.replaceState(null, "", "#" + (cur + 1));
+    }
+
+    document.getElementById("prev").addEventListener("click", function () { go(cur - 1); });
+    document.getElementById("next").addEventListener("click", function () { go(cur + 1); });
+    document.addEventListener("keydown", function (e) {
+      if (e.target.tagName === "INPUT") return;
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); go(cur + 1); }
+      if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
+      if (e.key === "Home") go(0);
+      if (e.key === "End") go(slides.length - 1);
+    });
+    // The chat opens the deck at a slide with #N (scripts/lesson.py open 0 N)
+    window.addEventListener("hashchange", function () {
+      var n = parseInt(location.hash.slice(1), 10);
+      if (n) go(n - 1);
+    });
+
+    // "I did it" ticks
+    var state = mine()[LESSON];
+    document.querySelectorAll("[data-tick]").forEach(function (box) {
+      var name = box.getAttribute("data-tick");
+      box.checked = !!state.ticks[name];
+      box.addEventListener("change", function () {
+        update(function (p) { p.ticks[name] = box.checked; });
+      });
+    });
+
+    // Completion code: the same 32-bit FNV-1a as scripts/lesson.py
+    function fnv1a(text) {
+      var h = 0x811c9dc5;
+      var bytes = new TextEncoder().encode(text);
+      for (var i = 0; i < bytes.length; i++) {
+        h ^= bytes[i];
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      return h >>> 0;
+    }
+    var last = document.getElementById("last");
+    function showDone(when) { last.classList.toggle("is-done", !!when); }
+    showDone(state.done);
+    document.getElementById("code-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var typed = document.getElementById("code").value.trim().toUpperCase().replace(/\s+/g, "");
+      var msg = document.getElementById("msg");
+      if (fnv1a(typed) === CODE_HASH) {
+        var p = update(function (p) { p.done = new Date().toISOString().slice(0, 10); });
+        showDone(p.done);
+      } else {
+        msg.className = "msg bad";
+        msg.textContent = "That's not the code. Copy it exactly from the chat, for example L00-ABCDE.";
+      }
+    });
+    document.getElementById("reset").addEventListener("click", function () {
+      if (!confirm("Clear lesson 0's progress in this browser? (The chat's own record is not touched.)")) return;
+      var all = load();
+      delete all[LESSON];
+      save(all);
+      location.hash = "#1";
+      location.reload();
+    });
+
+    var start = parseInt(location.hash.slice(1), 10);
+    go(start ? start - 1 : (state.slide || 0));
+  })();
+</script>
+</body>
+</html>

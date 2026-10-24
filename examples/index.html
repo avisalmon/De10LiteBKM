@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DE10-Lite Examples</title>
+<meta name="description" content="Every capability of the DE10-Lite and its LCD / game-pad shield as a small, verified example: page, full project (.qar) and ready-to-load bitstream (.sof).">
+<link rel="stylesheet" href="example.css">
+<style>
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; margin: 18px 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; text-decoration: none; color: var(--ink); display: block; }
+.card:hover { border-color: var(--accent); }
+.card .num { font-size: 13px; color: var(--muted); font-weight: 600; }
+.card h3 { margin: 2px 0 6px; font-size: 17px; }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.card .tag { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--ok); }
+.card .tag.todo { color: var(--warn); }
+</style>
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../index.html">DE10-Lite BKM</a> / Examples</nav>
+<h1>Examples</h1>
+<p class="lead">One capability per example, each built and checked on a real DE10-Lite: a page that explains it, the full
+Quartus project (<code>.qar</code>) and a bitstream (<code>.sof</code>) you can load at once. Each one is also a skill, so the AI can
+rebuild it inside your own project.</p>
+
+<div class="cards">
+<a class="card" href="01_pll_clocks/index.html"><span class="num">01</span><h3>PLL and clocks</h3><p>Five clocks from one PLL, every clock on the board measured and shown.</p><span class="tag">verified</span></a>
+<a class="card" href="02_rom/index.html"><span class="num">02</span><h3>ROM</h3><p>Text and pictures in block memory, two ways; one rewritten over USB while running.</p><span class="tag">verified</span></a>
+<a class="card" href="03_ram/index.html"><span class="num">03</span><h3>RAM, single and dual port</h3><p>A self-testing RAM and a 160×120 frame buffer you paint on.</p><span class="tag">verified</span></a>
+<a class="card" href="04_gamepad/index.html"><span class="num">04</span><h3>Game pad, wheel, buzzer</h3><p>Every shield control through the ADC, debounced and reported; the template's ADC fixed.</p><span class="tag">verified (button map: press check to do)</span></a>
+<a class="card" href="05_screen_readback/index.html"><span class="num">05</span><h3>Read the screen</h3><p>The picture back to the PC over USB; graphics tested against the simulation, pixel by pixel.</p><span class="tag">verified: 0 pixels differ</span></a>
+<a class="card" href="06_sdram/index.html"><span class="num">06</span><h3>64 MB SDRAM</h3><p>A small controller and a test of all 33.5 million words.</p><span class="tag">verified</span></a>
+<a class="card" href="07_accelerometer/index.html"><span class="num">07</span><h3>Accelerometer</h3><p>The ADXL345 over SPI: tilt, milli-g, a bubble level; 1.00 g at rest.</p><span class="tag">verified</span></a>
+<a class="card" href="08_board_io/index.html"><span class="num">08</span><h3>Switches, keys, 7-segment</h3><p>Debounced inputs, a press counter, scrolling text on six digits.</p><span class="tag">verified (count mode: by hand)</span></a>
+<div class="card"><span class="num">09</span><h3>40-pin GPIO</h3><p>The expansion header, with a loopback wire.</p><span class="tag todo">to do (needs the loopback)</span></div>
+<a class="card" href="10_ip_library/index.html"><span class="num">10</span><h3>IP from the library</h3><p>altsqrt, lpm_divide, dcfifo straight from Altera's library: a gravity meter.</p><span class="tag">verified</span></a>
+<a class="card" href="11_fft/index.html"><span class="num">11</span><h3>FFT: IP vs our own</h3><p>256 points both ways, scored against numpy: accuracy, speed and area.</p><span class="tag">verified</span></a>
+<a class="card" href="12_dsp_multipliers/index.html"><span class="num">12</span><h3>DSP multipliers</h3><p>The same engine in hardware multipliers and in logic: 0 vs 368 logic cells.</p><span class="tag">verified</span></a>
+<a class="card" href="13_flash/index.html"><span class="num">13</span><h3>Keep a design after power-off</h3><p>Write it into the MAX 10's own flash; it starts by itself.</p><span class="tag">flashed and verified (power cycle: by hand)</span></a>
+</div>
+
+<h2>How every example is made</h2>
+<ul>
+<li><code>examples/NN_name/src/</code> the Verilog; <code>sim/</code> the unit tests; <code>index.html</code> the page; <code>&lt;name&gt;.qar</code> and <code>&lt;name&gt;.sof</code>.</li>
+<li>Shared, tested modules in <code>lib/rtl/</code> (display chain, PLL, RAMs, ROMs, SPI, SDRAM, accelerometer, USB text link...);
+the board's pins in <code>lib/board/de10_lite_pins.csv</code>.</li>
+<li>One command per step in <code>scripts/</code>: <code>new_project.py</code> (project from the top module's ports), <code>de10.py</code>
+(build, program, flash, pack, log, screen, cam), <code>sim.py</code> (Icarus or ModelSim), <code>make_stp.py</code> (Signal Tap).</li>
+</ul>
+
+<footer>DE10-Lite BKM · built with Quartus Prime Lite 17.1 on a DE10-Lite (10M50DAF484C7G) with the LCD / game-pad shield.</footer>
+</main>
+</body>
+</html>

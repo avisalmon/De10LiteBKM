@@ -1,0 +1,58 @@
+# Python virtual environment: ALWAYS the folder `env` (never commit it)
+env/
+# Environment-variable file (passwords, keys); never the virtualenv
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# The user's own work stays on their computer, so pulling updates never conflicts with it
+my_designs/*
+!my_designs/README.md
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+Thumbs.db
+.DS_Store
+~$*
+*.log
+# Research handoff from the build sessions (vendor archives, a vendor PDF, photos): not published
+_handoff/
+
+# Quartus build output (each example keeps only its .qar and .sof, copied next to index.html)
+db/
+incremental_db/
+output_files/
+greybox_tmp/
+qdb/
+*.qws
+*.qarlog
+*.done
+*.smsg
+*.summary
+*.rpt
+*.jdi
+*.pin
+*.sld
+*.qip_temp
+c5_pin_model_dump.txt
+PLLJ_PLLSPE_INFO.txt
+hc_output/
+simulation/qsim/
+# Simulation output (ModelSim / Icarus)
+work/
+transcript
+vsim.wlf
+*.vcd
+*.vvp
+*.ppm
+# Run logs, captures and photos made by the scripts
+logs/
+
+# Debug leftovers from Signal Tap sessions and simulation dumps
+examples/*/debug.stp
+examples/*/sim/*_dump.txt
+examples/*/sim/expected.ppm

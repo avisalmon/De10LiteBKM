@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>13 Keep a Design</title>
+<meta name="description" content="DE10-Lite example: write a design into the MAX 10's internal configuration flash so it starts by itself at every power-up.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 13</nav>
+<h1>13 · Keep a design after power-off</h1>
+<p class="lead">Every other example loads a <code>.sof</code>: it runs until the power goes off. The MAX 10 also has its own
+configuration flash: write a design there and the board starts it by itself at every power-up.</p>
+<div class="badges">
+  <span class="badge ok">Flashed and verified on the board 2026-10-24</span>
+  <span class="badge">Power-cycle check: to do by hand</span>
+  <span class="badge">Skill: flash-design</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="gamepad.pof" download>Download gamepad.pof (for the flash)</a>
+  <a class="btn alt" href="../04_gamepad/gamepad.qar" download>Its project: gamepad.qar (example 04)</a>
+</div>
+
+<h2>.sof or .pof</h2>
+<div class="tablewrap"><table>
+<tr><th></th><th>.sof (SRAM Object File)</th><th>.pof (Programmer Object File)</th></tr>
+<tr><td>Goes into</td><td>the FPGA's configuration memory (SRAM)</td><td>the MAX 10's internal flash (CFM, plus UFM)</td></tr>
+<tr><td>Lasts</td><td>until power-off</td><td>until something else is flashed; loads itself at every power-up</td></tr>
+<tr><td>Takes</td><td>about 2 s</td><td>about 15 s (write + verify)</td></tr>
+<tr><td>Use for</td><td>every build while developing</td><td>the finished design: a demo, a product, a classroom board</td></tr>
+</table></div>
+<p>Every build in this BKM already makes both: <code>output_files/&lt;name&gt;.sof</code> and <code>&lt;name&gt;.pof</code>
+(the projects use <code>INTERNAL_FLASH_UPDATE_MODE "SINGLE IMAGE WITH ERAM"</code>, so ROM and RAM contents are in the flash
+image too).</p>
+
+<h2>Do it</h2>
+<pre><code>python scripts/de10.py flash examples/04_gamepad       # writes and verifies the flash
+→ Info: Quartus Prime Programmer was successful. 0 errors, 0 warnings
+→ OK: flashed and verified; it starts at the next power-up</code></pre>
+<p>Under the hood: <code>quartus_pgm -m jtag -o "pv;output_files/gamepad.pof"</code> (p = program, v = verify). Or in the
+Quartus Programmer: add the <code>.pof</code>, tick <i>Program/Configure</i> and <i>Verify</i> on the CFM and UFM rows, Start.</p>
+
+<h2>Measured on the board</h2>
+<ul>
+<li>The game-pad tester (<a href="../04_gamepad/index.html">example 04</a>) was flashed and verified without errors.</li>
+<li>Right after programming, the MAX 10 reloaded itself from the new flash image: the board answered over USB with
+example 04's status line, its frame counter showing it had just started.</li>
+<li>Still to do by hand: unplug the USB cable, plug it back, and see the game-pad screen come up without the PC
+doing anything. (This replaces whatever the board started with before; the original streaks demo is gone.)</li>
+</ul>
+
+<h2>Good to know</h2>
+<ul>
+<li>Loading a <code>.sof</code> afterwards does not touch the flash: develop as usual, and the flashed design comes back at the next power-up.</li>
+<li>The MAX 10 can also hold <b>two</b> images and choose at power-up (the dual-image mode, selected by the CONFIG_SEL pin, or
+switched from your design with the Dual Configuration IP). Not built here.</li>
+<li>The <b>UFM</b> (user flash memory) part of the flash can hold your own data that survives power-off, through the On-Chip
+Flash IP. Not built here.</li>
+</ul>
+
+<footer>DE10-Lite BKM · example 13 · DE10-Lite (10M50DAF484C7G), Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

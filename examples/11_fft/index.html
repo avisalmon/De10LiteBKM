@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11 FFT: IP vs DIY</title>
+<meta name="description" content="DE10-Lite example: a 256-point FFT with Altera's FFT IP and with our own radix-2 design, on the same signal, compared in accuracy, speed and area.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 11</nav>
+<h1>11 · FFT: Altera's IP vs our own</h1>
+<p class="lead">Can you use Altera's FFT IP on the DE10-Lite, and what does it cost compared with writing your own?
+Both run here on the same 256-point signal, and the PC checks both against numpy.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skills: use-ip-library, compute-fft</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="fft_time_limited.sof" download>Download fft_time_limited.sof</a>
+  <a class="btn alt" href="fft.qar" download>Download fft.qar (full project, with the generated IP)</a>
+</div>
+<p class="note">The FFT IP is a licensed Altera core. Quartus Prime Lite compiles it in <b>OpenCore Plus evaluation</b> mode: the
+build makes <code>fft_time_limited.sof</code> instead of <code>fft.sof</code>, and the design runs only while the programmer stays
+connected ("tethered": <code>quartus_pgm</code> keeps running) or for a limited time. Our own FFT has no such limit.</p>
+
+<h2>The result</h2>
+<div class="tablewrap"><table>
+<tr><th>256-point complex FFT, 16-bit</th><th>Altera FFT II IP<br><span class="small">Burst, 1 engine, block floating point</span></th><th>Our <code>fft_r2</code><br><span class="small">radix-2, 1 butterfly, /2 every stage</span></th></tr>
+<tr><td>Accuracy: signal-to-error vs numpy</td><td><b>66.9 dB</b> (max error 188)</td><td><b>56.3 dB</b> (max error 786)</td></tr>
+<tr><td>Strongest bins found</td><td>10, 37, 85 (the three tones)</td><td>10, 37, 85</td></tr>
+<tr><td>Time for one FFT at 50 MHz</td><td><b>1,637 clocks</b> = 33 µs</td><td><b>6,145 clocks</b> = 123 µs</td></tr>
+<tr><td>Logic cells</td><td><b>1,698</b></td><td><b>398</b></td></tr>
+<tr><td>Memory bits (M9K blocks)</td><td>9,472 (3)</td><td>12,288 (3)</td></tr>
+<tr><td>Multiplier elements (9-bit)</td><td>8</td><td>8</td></tr>
+<tr><td>License</td><td>evaluation in Lite (time-limited .sof)</td><td>none</td></tr>
+</table></div>
+<p><b>Reading it:</b> the IP is about 4 times bigger in logic, 4 times faster, and 10 dB more accurate (block floating point
+scales only when the numbers need it; our FFT halves at every stage and loses bits on a signal that never needed it).
+Our FFT's 56 dB is about 9 good bits on a 16-bit signal: plenty for a spectrum display, not for audio analysis.
+Both ran on the board; our FFT gives exactly the same numbers in simulation and on the board.</p>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 230" role="img" aria-label="Block diagram: a ROM holds the test signal; it feeds both the FFT IP through its Avalon streaming interface and our fft_r2; each result goes to its own RAM; when both are done everything is printed to the PC over the JTAG UART, where Python compares with numpy.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="blk" x="10" y="85" width="130" height="60" rx="8"/><text x="22" y="108">input ROM</text><text class="small" x="22" y="126">input.hex, 256 × 32</text>
+  <rect class="ip" x="200" y="20" width="200" height="70" rx="8"/><text x="212" y="42">fft256 (FFT II IP)</text><text class="small" x="212" y="60">Avalon-ST sink / source</text><text class="small" x="212" y="76">+ block exponent</text>
+  <rect class="blk" x="200" y="140" width="200" height="70" rx="8"/><text x="212" y="162">fft_r2 (ours)</text><text class="small" x="212" y="180">1 RAM, twiddle ROM,</text><text class="small" x="212" y="196">1 butterfly / 5 clocks</text>
+  <path class="wire" d="M140,115 H170 V55 H200" marker-end="url(#a)"/><path class="wire" d="M170,115 V175 H200" marker-end="url(#a)"/>
+  <rect class="blk" x="450" y="30" width="130" height="50" rx="8"/><text x="462" y="60">result RAM</text>
+  <rect class="blk" x="450" y="150" width="130" height="50" rx="8"/><text x="462" y="180">result RAM</text>
+  <path class="wire" d="M400,55 H450" marker-end="url(#a)"/><path class="wire" d="M400,175 H450" marker-end="url(#a)"/>
+  <rect class="blk" x="630" y="85" width="130" height="60" rx="8"/><text x="642" y="108">dump</text><text class="small" x="642" y="126">line_printer, jtag_uart</text>
+  <path class="wire" d="M580,55 H605 V100 H630" marker-end="url(#a)"/><path class="wire" d="M580,175 H605 V130 H630" marker-end="url(#a)"/>
+  <rect class="pin" x="790" y="90" width="100" height="50" rx="6"/><text x="802" y="112">PC</text><text class="small" x="802" y="130">numpy check</text>
+  <path class="wire" d="M760,115 H790" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>Using an IP from the library, without the GUI</h2>
+<p>Altera's IP cores live in <code>C:\intelFPGA_lite\17.1\ip\altera</code>. Each has a <code>_hw.tcl</code> file whose
+<code>add_parameter</code> lines are the settings. <code>ip-generate</code> builds a configured copy into your project:</p>
+<pre><code>python examples/11_fft/ip/generate_fft_ip.py
+→ ip-generate --component-name=altera_fft_ii --output-name=fft256 --file-set=QUARTUS_SYNTH
+    --component-parameter=length=256 --component-parameter=data_flow=Burst ... → ip/fft256/fft256.qip</code></pre>
+<p>Add the <code>.qip</code> to the project (<code>src/extra.qsf</code>: <code>set_global_assignment -name QIP_FILE ip/fft256/fft256.qip</code>)
+and instantiate <code>fft256</code>. When a setting is not allowed for the chosen architecture, ip-generate prints an
+<code>Error</code> line saying why (here: Burst needs Bi-directional and Natural output order).</p>
+
+<h3>Talking to the FFT IP</h3>
+<ul>
+<li><b>In:</b> one sample per clock while <code>sink_ready</code> is high: <code>sink_valid</code>, <code>sink_sop</code> on the first sample,
+<code>sink_eop</code> on the 256th, <code>sink_real</code>/<code>sink_imag</code>. <code>inverse</code> = 0 for the forward FFT.</li>
+<li><b>Out:</b> <code>source_valid</code> with <code>source_sop</code>/<code>source_eop</code> around 256 results in natural order, and
+<code>source_exp</code>, the block exponent.</li>
+<li><b>Scale:</b> the true FFT value = output × 2<sup>−exp</sup>. Here exp = −7, so ×128. (Checked: with that scale the
+error against numpy is 66.9 dB below the signal.)</li>
+</ul>
+
+<h2>Our FFT in brief</h2>
+<p><code>src/fft_r2.sv</code>: the 256 samples are written into one RAM at bit-reversed addresses; then 8 stages × 128
+butterflies, each reading two values and a twiddle (cos, sin in Q15 from <code>assets/twiddle.hex</code>), multiplying with 4
+multipliers, and writing back (a + W·b)/2 and (a − W·b)/2. Halving every stage makes overflow impossible; the price is
+precision. Ideas to make it better: halve only when a stage would overflow (block floating point), or two butterflies in
+parallel with a second RAM.</p>
+
+<h2>Bugs met on the way (each now a gotcha)</h2>
+<ul>
+<li><b>An unsized number in a concatenation.</b> <code>{sign, 8'h30 + (m / 10), ...}</code>: the bare <code>10</code> is 32 bits, so each
+term became 32 bits and the text came out as zero bytes. Size everything inside <code>{ }</code>.</li>
+<li><b>The later assignment wins.</b> <code>if (go) t &lt;= 0; ... if (run) t &lt;= t + 1;</code> in one block never reset the counter.</li>
+<li><b>A third read port kills block RAM.</b> Reading <code>ram[cnt]</code> directly (not through a clocked port) would have turned
+the RAM into 8,192 flip-flops.</li>
+</ul>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/11_fft/fft_time_limited.sof    (keeps running: tethered; stop it with Ctrl+C)
+python scripts/de10.py send R 8 > logs/fft_dump.txt                    (in a second terminal)
+python examples/11_fft/sim/fft_data.py check logs/fft_dump.txt</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python examples/11_fft/sim/fft_data.py make          # input.hex, twiddle.hex
+python examples/11_fft/ip/generate_fft_ip.py         # the IP
+python scripts/new_project.py examples/11_fft fft_top --lib print seg7
+python scripts/de10.py build examples/11_fft</code></pre>
+<h3>Test without the board</h3>
+<pre><code>python scripts/sim.py examples/11_fft/sim/tb_fft_r2.sv
+python examples/11_fft/sim/fft_data.py check examples/11_fft/sim/diy_dump.txt     → DIY 56.3 dB, bins 10 37 85</code></pre>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/fft_top.sv</code></td><td>Feeds both FFTs, collects, sends to the PC</td></tr>
+<tr><td><code>src/fft_r2.sv</code></td><td>Our radix-2 FFT</td></tr>
+<tr><td><code>ip/generate_fft_ip.py</code>, <code>ip/fft256/</code></td><td>The IP generation command and its output</td></tr>
+<tr><td><code>sim/fft_data.py</code></td><td>Test signal, twiddles, accuracy check against numpy</td></tr>
+<tr><td><code>sim/tb_fft_r2.sv</code></td><td>Unit test of our FFT</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 11 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>06 SDRAM</title>
+<meta name="description" content="DE10-Lite example: a small SDRAM controller and a full test of the board's 64 MB SDRAM, with the read timing measured on the board.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 06</nav>
+<h1>06 · The 64 MB SDRAM</h1>
+<p class="lead">The DE10-Lite has 64 MB of SDRAM next to the FPGA: about 40 times all the FPGA's block memory together.
+This example drives it with a small controller written here, and tests every one of its 33,554,432 words.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-24: all 32M words checked</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skill: use-sdram</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="sdram.sof" download>Download sdram.sof</a>
+  <a class="btn alt" href="sdram.qar" download>Download sdram.qar (full project)</a>
+</div>
+
+<h2>Yes, it is DRAM</h2>
+<p>SDRAM = synchronous dynamic RAM: every bit is a tiny capacitor that leaks, so each row must be refreshed every 64 ms
+(the controller does it every 7.8 µs, one row at a time), and a word is reached in steps: open the row (ACTIVATE), read
+or write the column, close the row (PRECHARGE). The chip on the board is an IS42S16320: 4 banks × 8,192 rows × 1,024
+columns × 16 bits.</p>
+
+<h2>Measured on the board</h2>
+<pre><code>PASS 00 delay=2 64K words errors=00010000 clocks=00163944     ← read delay 2: every word wrong
+PASS 01 delay=3 64K words errors=00000000 clocks=00173C60     ← 3 and up: all correct
+PASS 02 delay=4 64K words errors=00000000 clocks=00183ED1
+PASS 03 delay=5 64K words errors=00000000 clocks=001941A0
+PASS 04 delay=6 64K words errors=00000000 clocks=001A4335
+PASS 05 delay=7 64K words errors=00000000 clocks=001B46C4
+PASS 06 delay=4 32M words errors=00000001 clocks=307DA7D4     ← the whole chip; the 1 error is the one SW0 injected
+PASS 07 delay=4 32M words errors=00000001 clocks=307DA7D6</code></pre>
+<ul>
+<li>The first six passes measure the <b>read delay</b> (clocks from the READ command until the data is sampled) on 64K words:
+2 is too early, 3 is the first that works. The controller uses <b>4</b>, one clock of margin, which is also what the simulation
+model predicted. (5 to 7 "work" only because the data bus keeps its last value after a read.)</li>
+<li>A full pass writes and reads all 33,554,432 words in 0x307DA7D4 clocks = 16.3 s at 50 MHz: about 4 million accesses a
+second, 8 MB/s. Simple and safe, not fast; a burst controller is 10 to 20 times faster.</li>
+<li>SW0 was up during this run: the design writes one wrong word per pass on purpose, and the test finds exactly that one.
+A full pass with SW0 down (expected: 0) is still to be run by someone at the board; the 64K passes above, which do not
+include the injected address, show 0. Resources: 1,664 logic elements (3 %). Timing: no negative slack.</li>
+</ul>
+
+<h2>What you will see</h2>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>What</th></tr>
+<tr><td>HEX5..HEX0</td><td>Errors since start-up (with SW0 down it must stay 0)</td></tr>
+<tr><td>LEDR9 / LEDR1 / LEDR0</td><td>SDRAM ready / reading / writing; LEDR2 shows SW0</td></tr>
+<tr><td>SW0 up</td><td>Inject one wrong word per pass (proves the checker); KEY0: start over</td></tr>
+<tr><td>Your PC</td><td>The lines above, plus progress every 4M words</td></tr>
+</table></div>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 200" role="img" aria-label="Block diagram: the PLL gives the 50 MHz logic clock and a 180 degree shifted copy for DRAM_CLK; the memory test sends requests to sdram_ctrl, which drives the SDRAM chip's command, address and data pins and returns read data; results go to the 7-segment display and to the PC.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="ip" x="10" y="20" width="130" height="60" rx="8"/><text x="22" y="44">pll_de10</text><text class="small" x="22" y="62">50 MHz + 50 MHz 180°</text>
+  <rect class="blk" x="200" y="100" width="160" height="80" rx="8"/><text x="212" y="124">memory test</text><text class="small" x="212" y="142">write all, read all,</text><text class="small" x="212" y="158">compare, report</text>
+  <rect class="blk" x="420" y="60" width="170" height="120" rx="8"/><text x="432" y="84">sdram_ctrl</text><text class="small" x="432" y="104">init, refresh 7.8 µs,</text><text class="small" x="432" y="120">ACT → READ/WRITE</text><text class="small" x="432" y="136">with auto-precharge</text><text class="small" x="432" y="152">read delay 4</text>
+  <rect class="pin" x="660" y="40" width="230" height="150" rx="6"/><text x="672" y="64">SDRAM IS42S16320 (64 MB)</text><text class="small" x="672" y="86">DRAM_CLK ← 180° clock</text><text class="small" x="672" y="104">CS RAS CAS WE, BA[1:0]</text><text class="small" x="672" y="122">ADDR[12:0], DQ[15:0]</text><text class="small" x="672" y="140">4 banks × 8192 rows</text><text class="small" x="672" y="158">× 1024 cols × 16 bit</text>
+  <path class="wire" d="M140,50 H660" marker-end="url(#a)"/><path class="wire" d="M75,80 V140 H200" marker-end="url(#a)"/>
+  <path class="wire" d="M360,130 H420" marker-end="url(#a)"/><path class="wire" d="M420,160 H360" marker-end="url(#a)"/>
+  <path class="wire" d="M590,110 H660" marker-end="url(#a)"/><path class="wire" d="M660,150 H590" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>The controller (lib/rtl/sdram_ctrl.sv)</h2>
+<ul>
+<li><b>Clock:</b> 50 MHz logic; DRAM_CLK is the same clock shifted 180° by the PLL, so the SDRAM samples our signals in the
+middle of their 20 ns: about 10 ns of margin both ways, no fragile I/O timing analysis needed. The pins use the I/O cells'
+own registers (<code>FAST_OUTPUT_REGISTER</code> / <code>FAST_INPUT_REGISTER</code> in <code>src/extra.qsf</code>) so their timing is
+the same in every build.</li>
+<li><b>Start-up:</b> wait 200 µs, PRECHARGE ALL, 8 AUTO REFRESH, LOAD MODE (burst 1, CAS latency 3).</li>
+<li><b>Each access:</b> ACTIVATE the row, READ or WRITE the column with A10 = 1 (auto-precharge), wait. About 9 clocks for a write,
+13 for a read.</li>
+<li><b>Interface:</b> when <code>ready</code>, raise <code>req</code> for one clock with <code>we</code>, <code>addr</code> = {bank, row, column},
+<code>wdata</code>; reads come back as <code>rvalid</code> + <code>rdata</code>.</li>
+</ul>
+
+<h2>What it took (three real bugs, each found on the board)</h2>
+<ol>
+<li><b>Requests swallowed by refresh.</b> The test saw <code>ready</code>, raised <code>req</code> for one clock, and in that very clock a refresh
+became due: the controller refreshed and the request vanished; the test hung. Signal Tap showed the test waiting and the
+controller idle. Fix: the controller now latches every request and serves it after the refresh.</li>
+<li><b>Every write one address late.</b> The test raised <code>req</code> and moved its address counter on in the same clock, so the
+controller (which takes the request a clock later) saw the next address. Reading address 1 twice proved it. Fix: a separate
+request-address register set together with <code>req</code>.</li>
+<li><b>A name used before its declaration</b> became a silent 1-bit wire. Now the file starts with <code>`default_nettype none</code>,
+which turns that into a compile error.</li>
+</ol>
+<p>The simulation (<code>lib/sim/tb_sdram_ctrl.sv</code> with the SDRAM model <code>lib/sim/sdram_model.sv</code>, which drives read data only in the
+datasheet's valid window) passed all along: it fails with read delay 3 or 5, so it checks the timing, but it could not see
+bugs that lived in how the test talked to the controller. The board and Signal Tap could.</p>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py program examples/06_sdram/sdram.sof
+python scripts/de10.py log 40</code></pre>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/06_sdram sdram_top --lib pll sdram print bcd seg7
+python scripts/de10.py build examples/06_sdram</code></pre>
+<h3>Test without the board</h3>
+<pre><code>python scripts/sim.py lib/sim/tb_sdram_ctrl.sv      → 300 words, 0 read errors, 0 protocol errors   PASS</code></pre>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/sdram_top.sv</code></td><td>The memory test</td></tr>
+<tr><td><code>src/extra.qsf</code></td><td>I/O-cell registers for the SDRAM pins</td></tr>
+<tr><td><code>lib/rtl/sdram_ctrl.sv</code></td><td>The controller</td></tr>
+<tr><td><code>lib/sim/sdram_model.sv</code>, <code>lib/sim/tb_sdram_ctrl.sv</code></td><td>SDRAM model and unit test</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 06 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

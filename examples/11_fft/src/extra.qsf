@@ -1,0 +1,1 @@
+set_global_assignment -name QIP_FILE ip/fft256/fft256.qip
