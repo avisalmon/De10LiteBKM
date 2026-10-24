@@ -15,6 +15,7 @@ A testbench passes when it prints PASS and never FAIL.
 """
 import os
 import re
+import shutil
 import subprocess
 import sys
 
@@ -47,19 +48,30 @@ def run(cmd, cwd, env=None):
     return p.returncode, out
 
 
+def oss_tool(name):
+    """The OSS CAD Suite's copy on Windows, else the one on PATH (Linux / macOS, the CI runner's apt package)."""
+    exe = os.path.join(OSS, "bin", name + ".exe")
+    if os.path.exists(exe):
+        return exe
+    found = shutil.which(name)
+    if not found:
+        sys.exit(f"FAIL: {name} not found: install the OSS CAD Suite (setup-my-computer) or put {name} on PATH")
+    return found
+
+
 def icarus(tb, defines, gui):
     here = os.path.dirname(os.path.abspath(tb))
     name = os.path.splitext(os.path.basename(tb))[0]
     env = dict(os.environ)
     env["PATH"] = os.path.join(OSS, "bin") + os.pathsep + os.path.join(OSS, "lib") + os.pathsep + env["PATH"]
-    rc, _ = run([os.path.join(OSS, "bin", "iverilog.exe"), "-g2012", *["-D" + d for d in defines],
+    rc, _ = run([oss_tool("iverilog"), "-g2012", *["-D" + d for d in defines],
                  "-o", name + ".vvp", *sources(tb)], here, env)
     if rc:
         return rc, ""
-    rc, out = run([os.path.join(OSS, "bin", "vvp.exe"), "-n", name + ".vvp"], here, env)
+    rc, out = run([oss_tool("vvp"), "-n", name + ".vvp"], here, env)
     vcd = os.path.join(here, name + ".vcd")
     if gui and os.path.exists(vcd):
-        subprocess.Popen([os.path.join(OSS, "bin", "gtkwave.exe"), vcd], env=env)
+        subprocess.Popen([oss_tool("gtkwave"), vcd], env=env)
     return rc, out
 
 
