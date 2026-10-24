@@ -76,7 +76,8 @@ and a verified example in `examples/` (index: `examples/index.html`): reuse its 
 | a spectrum / FFT | `compute-fft` | 11 |
 | fast multiply, MAC, filters | `use-dsp-multipliers` | 12 |
 | the design to stay after power-off | `flash-design` | 13 |
-| a game (Pac-Man, Snake, Breakout...) | `build-arcade-game` | Pac-Man (in `my_designs/`) |
+| a game (Pac-Man, Snake, Breakout...) | `build-arcade-game` | `projects/pacman` |
+| a whole design, published with pages and a .qar | `make-project` | `projects/` (portal `projects/index.html`) |
 
 The loop for every request: `scripts/new_project.py` -> `scripts/sim.py` (unit test) -> `scripts/de10.py build` ->
 `program` -> prove it (`de10.py log` / `screen` / `cam`, or ask the user what they see) -> `flash` if they want to keep it.

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pac-Man: user guide</title>
+<meta name="description" content="How to build, load, play and test Pac-Man on the DE10-Lite with the shield: controls, the USB letters, keeping it in the flash, changing the maze, what to do when something looks wrong.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">Pac-Man</a> / User guide</nav>
+<h1>Pac-Man: user guide</h1>
+<p class="lead">From the repo to a game on your board, and everything you can do with it afterwards. Every command runs from the
+repo's root folder in the <code>env</code> virtualenv; the chat does them for you if you ask.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a class="here" href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#need">What you need</a></li>
+  <li><a href="#build">Build and load it</a></li>
+  <li><a href="#play">Play</a></li>
+  <li><a href="#usb">Play and test over USB</a></li>
+  <li><a href="#flash">Keep it after power-off</a></li>
+  <li><a href="#sim">Run the simulation</a></li>
+  <li><a href="#change">Change it</a></li>
+  <li><a href="#trouble">When something looks wrong</a></li>
+</ol>
+
+<h2 id="need">What you need</h2>
+<ul>
+  <li>A DE10-Lite with the LCD / game-pad shield on its Arduino header (the game needs the screen and the joystick).</li>
+  <li>Quartus Prime Lite 17.1 installed as in stage 1 of the BKM (<code>python scripts/doctor.py</code> shows no FAIL).</li>
+  <li>The repo cloned, <code>env</code> created (<code>setup-my-computer</code> does this), the board on the USB cable.</li>
+</ul>
+
+<h2 id="build">Build and load it</h2>
+<p>The sources are in the repo; one build makes the bitstream (the repo keeps none, they are 3 MB each):</p>
+<pre><code>python scripts/de10.py build   projects/pacman      # about 4 minutes; ends with the resource and timing summary
+python scripts/de10.py program projects/pacman      # loads it over the USB-Blaster; runs until power-off</code></pre>
+<p>From the archive instead (for example in the Quartus GUI): <i>Project → Restore Archived Project</i> → <code>pacman.qar</code>,
+then <i>Processing → Start Compilation</i>, then <i>Tools → Programmer</i> with <code>output_files/pacman.sof</code>. The archive
+holds the sources, the settings, the wall picture and the maze generator.</p>
+<p>What you should see right after loading: the maze with all its dots, the four ghosts in and above the house, PUSH START
+in the middle, 00 on the 7-segment digits, two LEDs lit.</p>
+
+<h2 id="play">Play</h2>
+<div class="tablewrap"><table>
+<tr><th>Control</th><th>Does</th></tr>
+<tr><td>Start (shield) or KEY0</td><td>starts a game; after GAME OVER, starts the next one</td></tr>
+<tr><td>Joystick</td><td>steers. The last direction you pushed is remembered: push it before the corner and Pac-Man turns when he reaches it. Pushing the opposite way turns him round at once.</td></tr>
+<tr><td>7-segment</td><td>your score</td></tr>
+<tr><td>LEDR0..4</td><td>spare lives; LEDR8 lit = paused, LEDR9 lit = invincible (test modes, set over USB)</td></tr>
+<tr><td>Buzzer</td><td>the intro tune, waka on dots, a low warble while the ghosts are blue, a sweep when you eat one, the death sound</td></tr>
+</table></div>
+<p>Rules, briefly: 10 points a dot, 50 a power pellet. A power pellet turns the ghosts blue for a few seconds: eat them for
+200, 400, 800, 1600. Eat all 244 dots and the maze flashes: the next level is faster and the blue time shorter. Three
+lives, one more at 10,000. The high score stays until the board loses power.</p>
+
+<h2 id="usb">Play and test over USB</h2>
+<p>The game listens on the JTAG UART, the same link the BKM uses for logs. Each letter is one command:</p>
+<pre><code>python scripts/de10.py send s        # Start
+python scripts/de10.py send u        # up; also l, d, r (left, down, right)
+python scripts/de10.py send p        # pause / resume
+python scripts/de10.py send i        # invincible on / off (the ghosts cannot catch you)
+python scripts/de10.py send m        # mute / unmute
+python scripts/de10.py send "?"      # the debug link's status line (buttons, switches, frame counter)
+python scripts/de10.py screen x.png  # the screen as the board shows it, 320 x 240 (about 6 s)
+python scripts/de10.py cam   x.jpg   # a webcam still of the board, if a camera is set up</code></pre>
+<p>This is how the AI tested the game without hands, and how you can script a test of your own: send letters, capture, look.</p>
+
+<h2 id="flash">Keep it after power-off</h2>
+<p>Loading with <code>program</code> lasts until the power goes; to make Pac-Man the design the board starts with:</p>
+<pre><code>python scripts/de10.py flash projects/pacman        # writes and verifies output_files/pacman.pof, about 15 s</code></pre>
+<p>It replaces whatever was in the flash before (the chat asks first). Loading other designs with <code>program</code> afterwards
+does not touch it; Pac-Man returns at the next power-up. The library's <code>flash-design</code> skill and example 13 explain
+the <code>.pof</code>.</p>
+
+<h2 id="sim">Run the simulation</h2>
+<pre><code>python scripts/sim.py projects/pacman/sim/tb_pacman.sv          # Icarus, about 2.5 minutes, ends with PASS
+python scripts/sim.py projects/pacman/sim/tb_pacman.sv --gui    # the same, then GTKWave with the waveform</code></pre>
+<p>It plays a scripted game and writes frames next to the testbench: <code>attract.ppm</code>, <code>ready.ppm</code>,
+<code>play.ppm</code>, <code>mid.ppm</code>, <code>dying.ppm</code>. Open them with any image viewer, or convert with Pillow
+(<code>Image.open("x.ppm").save("x.png")</code>). The checks it makes are listed on the <a href="index.html#tests">overview</a>.</p>
+
+<h2 id="change">Change it</h2>
+<div class="tablewrap"><table>
+<tr><th>You want</th><th>Where</th></tr>
+<tr><td>another maze</td><td>edit the 31-line picture in <code>assets/make_maze.py</code> (<code>#</code> wall, <code>.</code> dot, <code>o</code> power, <code>-</code> door, space open), run <code>python projects/pacman/assets/make_maze.py</code>, check <code>assets/maze_preview.png</code>, rebuild. Keep 28 × 31 and the tunnel on row 14, or adjust the fixed points in <code>pac_logic.sv</code>.</td></tr>
+<tr><td>easier or harder</td><td><code>speed_of</code>, <code>fright_frames</code> and <code>mode_frames</code> in <code>pac_logic.sv</code></td></tr>
+<tr><td>other colours</td><td>the ghost colours are parameters in <code>pac_draw.sv</code>; the maze and text colours are constants there</td></tr>
+<tr><td>a different tune</td><td>the <code>intro()</code> table in <code>pac_sound.sv</code>: {half period, frames}; <code>half = 25,000,000 / (2 × Hz)</code></td></tr>
+<tr><td>fruit, pop-up points</td><td>not built yet: a timer in <code>pac_logic</code> that places a bonus on the dot RAM's spare value (3), and a small sprite in <code>pac_draw</code>. The chat can add them.</td></tr>
+</table></div>
+<p>After any change: simulation (<code>PASS</code>), build (timing OK), program, play. The testbench renders the frames, so most
+mistakes show up as a picture before the board is involved.</p>
+
+<h2 id="trouble">When something looks wrong</h2>
+<div class="tablewrap"><table>
+<tr><th>You see</th><th>Likely</th><th>Do</th></tr>
+<tr><td>White bars at the left and right of the LCD</td><td>normal: the panel is 800 wide, the picture 640</td><td>nothing</td></tr>
+<tr><td>Nothing on the screen, LEDs dark</td><td>the board is not programmed, or the PLL did not lock</td><td><code>python scripts/de10.py jtag</code> to see the board, then <code>program</code> again</td></tr>
+<tr><td>The joystick does nothing but USB letters work</td><td>the shield is not seated, or the ADC pins are not the shield's</td><td>power off, reseat the shield; run example 04 to see the raw readings</td></tr>
+<tr><td>Pac-Man ignores a turn</td><td>he was not at a tile centre yet; a push is remembered until the next centre</td><td>hold the direction a little longer</td></tr>
+<tr><td>No sound</td><td>muted over USB ('m'), or the buzzer is on another shield line</td><td>send <code>m</code>; check <code>ARDUINO_IO[12]</code> in <code>pacman_top.sv</code> against your shield</td></tr>
+<tr><td>Build fails</td><td>a changed source</td><td>run the simulation first: Icarus points at the line; then <code>logs/build.log</code></td></tr>
+<tr><td>Timing not met after a change</td><td>a long combinational path in the draw module</td><td><code>python scripts/de10.py report projects/pacman</code>; register the new signal once per frame or per pixel</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="spec.html">architecture spec</a>.</footer>
+</main>
+</body>
+</html>

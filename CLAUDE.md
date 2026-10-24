@@ -30,8 +30,9 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).
 * A spectrum, an FFT -> `compute-fft` (11). Multiply, MAC, filters, Fmax -> `use-dsp-multipliers` (12).
 * Keep the design after power-off, write the flash -> `flash-design` (13).
-* A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (Pac-Man,
-  built in the user's `my_designs/`).
+* A whole design to publish: a new project, its pages (overview, spec, guide), its review, the portal -> `make-project`
+  (`projects/`, standard folder; Pac-Man is the model).
+* A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (`projects/pacman`).
 
 The map of all documentation is [docs/README.md](docs/README.md).
 
@@ -71,7 +72,8 @@ The map of all documentation is [docs/README.md](docs/README.md).
 
 `index.html` the public start page (GitHub Pages, Hebrew + English) · `docs/` journey, gotchas, lessons ·
 `scripts/` doctor, check_updates, sync_skills · `my_designs/` the user's work (git-ignored) · `tests/` ·
-`.claude/skills/` your playbooks.
+`.claude/skills/` your playbooks · `projects/<name>/` whole designs, public, each with index / spec / guide pages
+and a `.qar` (no bitstreams; portal `projects/index.html`).
 Domain toolkit: `examples/NN_name/` (one verified example per capability: page, src, sim, .qar; no prebuilt .sof: build it) ·
 `lib/rtl/` shared tested Verilog · `lib/sim/` its unit tests and models · `lib/board/de10_lite_pins.csv` the pins ·
 `scripts/new_project.py` (Quartus project from a top module) · `scripts/de10.py` (build, program, flash, pack, log,

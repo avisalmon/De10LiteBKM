@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DE10-Lite Projects</title>
+<meta name="description" content="Complete designs for the DE10-Lite and its LCD / game-pad shield, each with an overview, an architecture spec, a user guide and the full Quartus project.">
+<link rel="stylesheet" href="project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../index.html">DE10-Lite BKM</a> / Projects</nav>
+<h1>Projects</h1>
+<p class="lead">Whole designs, not single capabilities: each one was built by the AI from the BKM's examples and skills, reviewed,
+tested in simulation and on the board, and documented the same way: an <b>overview</b> with the block diagram and the flow,
+an <b>architecture spec</b>, a <b>user guide</b>, and the full Quartus project as a <code>.qar</code>. No bitstreams in the repo: one
+build (a few minutes) makes the <code>.sof</code>.</p>
+
+<div class="cards">
+<a class="card" href="pacman/index.html"><img src="pacman/media/screen_play.png" alt="Pac-Man on the DE10-Lite screen"><h3>Pac-Man</h3><p>The arcade game: the real maze, four ghosts with the arcade AI, power pellets, levels, lives, the intro tune. 9,504 LEs.</p><span class="tag">runs on the board; joystick and sound to be checked by a person</span></a>
+</div>
+
+<h2>What every project folder holds</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What it is</th></tr>
+<tr><td><code>index.html</code></td><td>the overview: what it does, what you will see, the block diagram, how it flows, how it was tested, the review log, status, files</td></tr>
+<tr><td><code>spec.html</code></td><td>the architecture spec: requirements, modules and ports, clock domains, memories, state encodings, budgets, design decisions</td></tr>
+<tr><td><code>guide.html</code></td><td>the user guide: build, load, use, test over USB, flash, simulate, change, troubleshoot</td></tr>
+<tr><td><code>&lt;name&gt;.qar</code></td><td>the whole Quartus project, archived by Quartus itself</td></tr>
+<tr><td><code>src/</code>, <code>sim/</code>, <code>assets/</code>, <code>media/</code></td><td>the sources, the testbench, generated data and generators, the pictures</td></tr>
+</table></div>
+<p>The standard is the <code>make-project</code> skill, with a template in <code>projects/_template/</code>; a test checks that every
+project has these files and that this page links it. For single capabilities (a PLL, a ROM, the SDRAM...) see the
+<a href="../examples/index.html">examples</a>.</p>
+
+<footer>Part of the <a href="../index.html">DE10-Lite FPGA BKM</a>.</footer>
+</main>
+</body>
+</html>

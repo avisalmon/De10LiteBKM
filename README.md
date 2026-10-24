@@ -3,7 +3,7 @@
 ### Design real hardware on an FPGA, with an AI beside you
 
 <!-- last-updated:start -->
-**Last updated 24 October 2026** · 3 new lessons · [See what's new](docs/lessons_log.md)
+**Last updated 24 October 2026** · 4 new lessons · [See what's new](docs/lessons_log.md)
 <!-- last-updated:end -->
 
 **Start page (Hebrew / English): https://avisalmon.github.io/De10LiteBKM/**
@@ -24,8 +24,9 @@ Open this repo in VS Code with **Claude Code** or **GitHub Copilot** (Agent mode
 - **Stage 2: the course.** nand2tetris on the FPGA in real Verilog: gates, arithmetic, memory, then a CPU or retro games
   (being written; lesson 0 is ready, the full list is in [docs/stage2_lessons.md](docs/stage2_lessons.md)).
 - **Stage 3: build anything.** Twelve verified examples (clocks, ROM, RAM, game pad, screen read-back, SDRAM,
-  accelerometer, switches and 7-segment, IP cores, FFT, DSP multipliers, flash) with pages, projects and bitstreams:
-  [examples/](examples/index.html).
+  accelerometer, switches and 7-segment, IP cores, FFT, DSP multipliers, flash) with pages and projects:
+  [examples/](examples/index.html). Whole designs built from them, each with an overview, an architecture spec, a user
+  guide and the Quartus archive: [projects/](projects/index.html) (the first: Pac-Man).
 - **A toolkit the AI uses every time:** tested Verilog in `lib/`, one-command scripts in `scripts/` (build, program,
   simulate, Signal Tap, read the screen back over USB).
 
@@ -46,15 +47,17 @@ index.html             The start page (GitHub Pages), Hebrew + English
 CLAUDE.md              The AI's standing rules for this repo
 .claude/skills/        The playbooks (source); .github/skills/ is the generated copy for GitHub Copilot
 scripts/               doctor (read-only checks), check_updates, sync_skills
-my_designs/          YOUR work (git-ignored, so updates never touch it)
+projects/              Whole designs (Pac-Man...): index / spec / guide pages, sources, tests, .qar
+my_designs/            YOUR work (git-ignored, so updates never touch it)
 docs/                  journey, gotchas, what's new, spec, backlog
 ```
 
 ## Honest status
 
 Verified on one DE10-Lite (10M50DAF484C7G) with the LCD / game-pad shield, Windows 11, Quartus Prime Lite 17.1 (October 2026):
-examples 01-08 and 10-13 run on the board, each page says exactly what was checked. Not yet verified: example 09 (GPIO),
-the game-pad press map, a power cycle after flashing, a clean-computer install by a newcomer, macOS / Linux.
+examples 01-08 and 10-13 and the Pac-Man project run on the board, each page says exactly what was checked. Not yet
+verified: example 09 (GPIO), the game-pad press map, a power cycle after flashing, Pac-Man's joystick feel and sound, a
+clean-computer install by a newcomer, macOS / Linux.
 Lessons after lesson 0 are being written. Details: [docs/backlog.md](docs/backlog.md).
 
 ## License

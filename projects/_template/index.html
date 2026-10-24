@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FILL IN: project name on the DE10-Lite</title>
+<meta name="description" content="FILL IN: one sentence: what it is, what it proves, for whom.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / FILL IN name</nav>
+<h1>FILL IN name</h1>
+<p class="lead">FILL IN: two or three sentences. What it does, what is special about it, how it was built and checked.</p>
+<nav class="pages"><a class="here" href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+<div class="badges">
+  <span class="badge ok">FILL IN: Runs on the board / Simulation only</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">FILL IN: shield needed?</span>
+  <span class="badge">FILL IN: N logic elements (P %)</span>
+  <span class="badge">Skill: FILL IN</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="FILL IN name.qar" download>Download FILL IN name.qar (full Quartus project)</a>
+  <a class="btn alt" href="guide.html#build">Build and load it</a>
+</div>
+<p class="note">No bitstream in the repo (a <code>.sof</code> is 3 MB per project): restore the <code>.qar</code> or use the sources here,
+one build makes it in a few minutes. The <a href="guide.html">user guide</a> has every command.</p>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#see">What you will see</a></li>
+  <li><a href="#diagram">Block diagram</a></li>
+  <li><a href="#flow">How it flows</a></li>
+  <li><a href="#numbers">Numbers</a></li>
+  <li><a href="#tests">How it was tested</a></li>
+  <li><a href="#review">Review log</a></li>
+  <li><a href="#status">Status and what is next</a></li>
+  <li><a href="#files">Files</a></li>
+</ol>
+
+<h2 id="see">What you will see</h2>
+<div class="two">
+  <figure><img src="media/screen.png" alt="FILL IN"><figcaption>FILL IN: the screen read back over USB, or the main result.</figcaption></figure>
+  <figure><img src="media/board.jpg" alt="FILL IN"><figcaption>FILL IN: the board (webcam), the 7-segment, the LEDs.</figcaption></figure>
+</div>
+<p>FILL IN: what a person sees and does, step by step, in plain words.</p>
+
+<h2 id="diagram">Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 960 300" role="img" aria-label="FILL IN: the diagram in one sentence, for screen readers.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <!-- FILL IN. Classes: pin (board / outside world), ip (library or Altera IP), blk (your module); wire for arrows.
+       Group by clock domain, label the crossings, name the signals on the arrows. -->
+  <rect class="pin" x="10" y="100" width="120" height="56" rx="6"/><text x="22" y="124">input</text><text class="small" x="22" y="142">FILL IN</text>
+  <rect class="blk" x="180" y="100" width="150" height="56" rx="8"/><text x="192" y="124">your module</text><text class="small" x="192" y="142">FILL IN</text>
+  <rect class="pin" x="380" y="100" width="120" height="56" rx="6"/><text x="392" y="124">output</text><text class="small" x="392" y="142">FILL IN</text>
+  <path class="wire" d="M130,128 H180" marker-end="url(#a)"/><path class="wire" d="M330,128 H380" marker-end="url(#a)"/>
+</svg>
+</div>
+<p>FILL IN: the clock domains and what crosses between them; why the blocks are split this way.</p>
+
+<h2 id="flow">How it flows</h2>
+<ol>
+  <li>FILL IN: what happens first (a tick, a request, a sample).</li>
+  <li>FILL IN: the main loop, one step per item, with the clocks it takes.</li>
+  <li>FILL IN: where the result goes (screen, pins, USB).</li>
+</ol>
+
+<h2 id="numbers">Numbers</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Device</td><td>MAX 10 10M50DAF484C7G, Quartus Prime Lite 17.1</td></tr>
+<tr><td>Logic</td><td>FILL IN from <code>python scripts/de10.py report</code>: LEs (%), registers, multipliers</td></tr>
+<tr><td>Memory</td><td>FILL IN: bits (%), and what uses them</td></tr>
+<tr><td>Clocks</td><td>FILL IN: domains, PLLs, timing met?</td></tr>
+<tr><td>Build</td><td>FILL IN: minutes, warnings and what they are</td></tr>
+</table></div>
+
+<h2 id="tests">How it was tested</h2>
+<h3>Without the board</h3>
+<p>FILL IN: the testbench, what it drives, what it checks, the result (PASS), what was looked at by eye.</p>
+<h3>On the board</h3>
+<p>FILL IN: what was sent, captured and compared; the commands.</p>
+<h3>Only a person can check</h3>
+<p>FILL IN: what is still open and why.</p>
+
+<h2 id="review">Review log</h2>
+<div class="tablewrap"><table>
+<tr><th>Found</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>FILL IN</td><td>FILL IN</td><td>FILL IN (and where it was recorded: a skill, a gotcha)</td></tr>
+</table></div>
+
+<h2 id="status">Status and what is next</h2>
+<div class="tablewrap"><table>
+<tr><th>Item</th><th>Status</th></tr>
+<tr><td>FILL IN</td><td><span class="status done">verified: simulation and board</span></td></tr>
+<tr><td>FILL IN</td><td><span class="status todo">to do by a person</span></td></tr>
+</table></div>
+
+<h2 id="files">Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What it is</th></tr>
+<tr><td><code>index.html</code>, <code>spec.html</code>, <code>guide.html</code></td><td>this overview, the <a href="spec.html">architecture spec</a>, the <a href="guide.html">user guide</a></td></tr>
+<tr><td><code>FILL IN name.qar</code></td><td>the whole Quartus project</td></tr>
+<tr><td><code>src/FILL IN</code></td><td>FILL IN: one line per file</td></tr>
+<tr><td><code>sim/tb_FILL IN.sv</code></td><td>the testbench</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Built with the <code>FILL IN</code> skill; the standard
+project layout is the <code>make-project</code> skill.</footer>
+</main>
+</body>
+</html>

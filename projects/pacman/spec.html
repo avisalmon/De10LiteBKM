@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pac-Man: architecture spec</title>
+<meta name="description" content="Architecture specification of the Pac-Man project for the DE10-Lite: modules, interfaces, clock domains, memories, coordinate system, the per-frame sequencer, state encodings and timing budget.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">Pac-Man</a> / Architecture spec</nav>
+<h1>Pac-Man: architecture spec</h1>
+<p class="lead">What each module is, what crosses between them, where every bit of state lives, and the budgets (clocks per
+frame, memory, logic). Written for someone who will change the design or build the next game on it.</p>
+<nav class="pages"><a href="index.html">Overview</a><a class="here" href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#req">Requirements</a></li>
+  <li><a href="#modules">Modules and hierarchy</a></li>
+  <li><a href="#clocks">Clock domains and crossings</a></li>
+  <li><a href="#coords">Coordinate system and screen geometry</a></li>
+  <li><a href="#mem">Memories and tables</a></li>
+  <li><a href="#logic">pac_logic: state, sequencer, encodings</a></li>
+  <li><a href="#draw">pac_draw: the pixel pipeline</a></li>
+  <li><a href="#sound">pac_sound</a></li>
+  <li><a href="#io">Board I/O and the USB protocol</a></li>
+  <li><a href="#budget">Budgets</a></li>
+  <li><a href="#decisions">Design decisions</a></li>
+</ol>
+
+<h2 id="req">Requirements</h2>
+<ul>
+  <li>The arcade Pac-Man's maze, dots, power pellets, four ghosts with the arcade's targeting and mode timing, frightened
+  mode, eyes returning home, lives, levels with rising speed, a high score, the intro tune and effects.</li>
+  <li>Runs on the DE10-Lite with the LCD / game-pad shield, from the library's display chain (VGA pins and LCD together).</li>
+  <li>Playable by a person with the joystick and Start, and by the AI over USB (letters), so it can be tested without hands.</li>
+  <li>The screen can be read back over USB (<code>debug_link</code>) for automatic checks.</li>
+  <li>Fits comfortably in the MAX 10 10M50 with the debug capture buffer: under 25 % logic, under 70 % memory.</li>
+  <li>Fully testable in simulation: a testbench renders frames and plays the game.</li>
+</ul>
+
+<h2 id="modules">Modules and hierarchy</h2>
+<pre><code>pacman_top                      board level, 25/50/100 MHz
+├─ pll25 (lib)                   50 MHz in → 25, 50, 100 MHz, locked
+├─ Screens_dispaly (lib)         VGA timing (pxl_x, pxl_y, sync) + LCD copy
+├─ gamepad (lib) + adc IP        the shield's joystick and buttons, 50 MHz
+├─ debounce (lib)                8 buttons, 5 ms steady
+├─ pac_logic                     the game
+│  ├─ maze_tiles  (q_tiles)      tile table, query port (walls)
+│  ├─ maze_tiles  (f_tiles)      tile table, fill port (dots, power)
+│  └─ dots[1024]                 inferred dual-port RAM, 2 bits
+├─ pac_draw                      the picture
+│  ├─ walls[61440]               inferred ROM, 2 bits ($readmemb assets/walls.bin)
+│  ├─ ghost_sprite ×4            14 × 14 ghost, colour parameter
+│  └─ font8x8 (lib)              8 × 8 glyphs, ASCII 0x20..0x5F
+├─ pac_sound                     the buzzer
+├─ seven_segment ×6 (lib)        BCD score
+├─ debug_link (lib)              '?' status, 'F' frame dump; the rx stream is shared with the game's letters
+└─ jtag_uart (lib)               the USB link (alt_jtag_atlantic)</code></pre>
+
+<h3>pac_logic ports</h3>
+<div class="tablewrap"><table>
+<tr><th>Port</th><th>Dir</th><th>Width</th><th>Meaning</th></tr>
+<tr><td>clk, rst_n</td><td>in</td><td>1</td><td>25 MHz; reset = PLL not locked (the first dot fill runs on release)</td></tr>
+<tr><td>tick</td><td>in</td><td>1</td><td>one clock per frame (VSYNC falling edge)</td></tr>
+<tr><td>want_set, want_dir</td><td>in</td><td>1, 2</td><td>a direction request (joystick held, or a USB letter); remembered until replaced</td></tr>
+<tr><td>start, invincible, pause</td><td>in</td><td>1</td><td>Start button / 's'; test aids 'i' and 'p'</td></tr>
+<tr><td>rb_addr, rb_q</td><td>in, out</td><td>10, 2</td><td>dot RAM read port for the screen: {row[4:0], col[4:0]} → 0 none, 1 dot, 2 power</td></tr>
+<tr><td>pac_x, pac_y, pac_dir, pac_mouth</td><td>out</td><td>8, 8, 2, 2</td><td>Pac-Man in maze pixels; mouth 0 closed, 1 half, 2 wide</td></tr>
+<tr><td>death_phase, dying_anim, pac_show</td><td>out</td><td>4, 1, 1</td><td>the death animation (phase 0..11), and whether to draw him at all</td></tr>
+<tr><td>g_x, g_y, g_dir, g_state, g_fright</td><td>out</td><td>32, 32, 8, 12, 4</td><td>the four ghosts packed: ghost g (1..4) in bits [8g-8 +: 8], [2g-2 +: 2], [3g-3 +: 3], [g-1]</td></tr>
+<tr><td>ghosts_show, fright_flash</td><td>out</td><td>1</td><td>hide the ghosts (death, game over); frightened time nearly over</td></tr>
+<tr><td>score, hiscore, lives, level_bcd</td><td>out</td><td>24, 24, 4, 8</td><td>BCD, 6 digits; lives includes the one in play; level 1..99 BCD</td></tr>
+<tr><td>show_ready, show_gameover, show_push, maze_white</td><td>out</td><td>1</td><td>messages and the level-clear flash</td></tr>
+<tr><td>frame</td><td>out</td><td>8</td><td>frame counter for animation (bit 3 = 8-frame blink)</td></tr>
+<tr><td>snd_dot, snd_power, snd_ghost, snd_death, snd_intro, fright_on</td><td>out</td><td>1</td><td>one-clock sound triggers; fright_on is a level</td></tr>
+</table></div>
+
+<h2 id="clocks">Clock domains and crossings</h2>
+<div class="tablewrap"><table>
+<tr><th>Domain</th><th>What runs there</th><th>Crossing</th></tr>
+<tr><td>50 MHz (pll c1)</td><td>ADC IP, <code>gamepad</code>, <code>debounce</code></td><td>→ 25 MHz: two flip-flops per button in <code>pacman_top</code>. Buttons are slow levels, so no handshake is needed; a one-frame delay is invisible.</td></tr>
+<tr><td>25 MHz (pll c0)</td><td>VGA timing, <code>pac_logic</code>, <code>pac_draw</code>, <code>pac_sound</code>, <code>debug_link</code>, <code>jtag_uart</code>, 7-segment</td><td>none inside: the screen reads the game's registers directly. They change only during vertical blank (the sequencer runs right after <code>tick</code>), so a frame is always drawn from one consistent state.</td></tr>
+<tr><td>100 MHz (pll c2)</td><td><code>lcd_ctrl</code> inside <code>Screens_dispaly</code></td><td>the library's own; it samples the 25 MHz rgb and syncs.</td></tr>
+</table></div>
+<p>The JTAG UART's <code>rx_valid</code> is a 25 MHz pulse. The game's letters are decoded in <code>pacman_top</code>; 's' is held in a
+register until the next <code>tick</code> so the game, which samples <code>start</code> only at ticks, cannot miss it.</p>
+
+<h2 id="coords">Coordinate system and screen geometry</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Scan</td><td>640 × 480 at 25 MHz from <code>vga_controller</code>: <code>pxl_x</code>, <code>pxl_y</code> (32-bit, as the library defines them)</td></tr>
+<tr><td>Art grid</td><td>320 × 240: <code>lx = pxl_x[9:1]</code>, <code>ly = pxl_y[8:1]</code>; every art pixel is 2 × 2 scan pixels. The USB capture (STEP 2) is exactly this grid.</td></tr>
+<tr><td>Maze</td><td>28 × 31 tiles of 8 = 224 × 248 maze pixels, at art columns 48..271. <code>mx = lx - 48</code>, <code>my = ly + 4</code>: 4 rows of the outer wall are cut at the top and the bottom (the maze is 8 rows taller than the screen).</td></tr>
+<tr><td>Tiles</td><td>tile (c, r) = (x &gt;&gt; 3, y &gt;&gt; 3); the centre of a tile is x[2:0] = 4, y[2:0] = 4. Decisions happen only at centres.</td></tr>
+<tr><td>Directions</td><td>0 up, 1 left, 2 down, 3 right (the arcade's tie order); reverse = d ^ 2</td></tr>
+<tr><td>Fixed points</td><td>Pac-Man start (112, 188); the house door (112, 92); inside the house y = 116, Inky at x 96, Clyde at x 128; the tunnel is row 14, open past both edges, x wraps 0 ↔ 223</td></tr>
+<tr><td>Side panels</td><td>left: art columns 0..47 (6 text cells): 1UP score, HIGH, LEVEL; right: 272..319: LIVES, spare-life icons, PAC MAN</td></tr>
+</table></div>
+
+<h2 id="mem">Memories and tables</h2>
+<div class="tablewrap"><table>
+<tr><th>Memory</th><th>Size</th><th>Where</th><th>Ports</th><th>Content</th></tr>
+<tr><td><code>dots</code></td><td>1024 × 2</td><td>pac_logic (M9K)</td><td>A: the sequencer reads and clears, FILL writes; B: the screen reads</td><td>{row, col} → 0 empty, 1 dot (10 pts), 2 power pellet (50 pts). 244 non-zero entries after a fill.</td></tr>
+<tr><td><code>walls</code></td><td>61,440 × 2 (240 rows × 256)</td><td>pac_draw (M9K, ROM)</td><td>one read, addressed with the next scan pixel</td><td>0 nothing, 1 wall line (blue, white when the level flashes), 2 the house door (pink). Row 0 of the file is maze pixel row 4. Columns 224..255 are padding.</td></tr>
+<tr><td><code>maze_tiles</code></td><td>31 × 3 × 28 bits</td><td>pac_logic, two instances</td><td>combinational: row → wall / dot / power bit vectors</td><td>generated from the maze text by <code>assets/make_maze.py</code>; the door counts as wall for movement</td></tr>
+<tr><td><code>font8x8</code></td><td>64 glyphs × 8 bytes</td><td>pac_draw</td><td>combinational</td><td>library</td></tr>
+<tr><td>debug capture</td><td>320 × 240 × 12</td><td>debug_link (M9K)</td><td>library</td><td>the last frame, dumped on 'F'. Not part of the game: 921,600 bits.</td></tr>
+</table></div>
+<p>Both big memories answer one clock after the address. The screen therefore computes the address from the <b>next</b>
+scan pixel (<code>pxl_x + 1</code>) and uses the answer for the current one; the wall lookup and the dot lookup both work
+this way, so no pixel is shifted. The testbench primes each line by starting at <code>pxl_x = -1</code>.</p>
+
+<h2 id="logic">pac_logic: state, sequencer, encodings</h2>
+<h3>Per-actor registers</h3>
+<p>Five actors, index 0 Pac-Man, 1 Blinky, 2 Pinky, 3 Inky, 4 Clyde: <code>ax, ay</code> (8-bit maze pixels), <code>ad</code> (2-bit
+direction), <code>acc</code> (5-bit speed accumulator, sixteenths), <code>gst</code> (3-bit ghost state), <code>gfr</code> (frightened).</p>
+<div class="tablewrap"><table>
+<tr><th>gst</th><th>Name</th><th>Moves</th><th>Leaves when</th></tr>
+<tr><td>0</td><td>HOUSE</td><td>no</td><td>its release condition (dots eaten this life, or time alive)</td></tr>
+<tr><td>1</td><td>LEAVE</td><td>to x = 112, then up to y = 92, ignoring walls</td><td>at the door: ACTIVE, facing left</td></tr>
+<tr><td>2</td><td>ACTIVE</td><td>the maze, by target</td><td>eaten → EYES; or a collision kills Pac-Man</td></tr>
+<tr><td>3</td><td>EYES</td><td>target the door tile (13, 11), double speed</td><td>at a door tile centre → ENTER</td></tr>
+<tr><td>4</td><td>ENTER</td><td>to x = 112, then down to y = 116</td><td>LEAVE, no longer frightened</td></tr>
+</table></div>
+<h3>Game state (<code>gs</code>) and its timer (<code>gtimer</code>, frames)</h3>
+<div class="tablewrap"><table>
+<tr><th>gs</th><th>Name</th><th>Frames</th><th>Next</th></tr>
+<tr><td>0</td><td>G_ATTRACT</td><td>until Start</td><td>G_FILL → G_READY (new_game: score, lives, level reset; intro tune)</td></tr>
+<tr><td>1</td><td>G_FILL</td><td>1024 clocks, not frames</td><td><code>gs_after_fill</code>; resets the actors, dots_left = 244</td></tr>
+<tr><td>2</td><td>G_READY</td><td>120, or 260 on a new game</td><td>G_PLAY</td></tr>
+<tr><td>3</td><td>G_PLAY</td><td>-</td><td>sequencer every tick; G_FREEZE, G_DYING, G_LEVEL from the collision and timer passes</td></tr>
+<tr><td>4</td><td>G_FREEZE</td><td>30</td><td>G_PLAY</td></tr>
+<tr><td>5</td><td>G_DYING</td><td>60</td><td>G_DEATH (death sound)</td></tr>
+<tr><td>6</td><td>G_DEATH</td><td>126: 96 of animation, 30 blank</td><td>G_READY with one life less (actors reset), or G_OVER</td></tr>
+<tr><td>7</td><td>G_LEVEL</td><td>180: the maze flashes the last 120</td><td>level + 1, G_FILL → G_READY</td></tr>
+<tr><td>8</td><td>G_OVER</td><td>120, then until Start</td><td>G_FILL → G_READY</td></tr>
+</table></div>
+<h3>The micro-sequencer (<code>ms</code>)</h3>
+<p>Started by a tick in G_PLAY. One actor (<code>a</code>) at a time; the actor's registers are copied into working
+registers <code>cx, cy, cd, cst</code> and written back in M_DONE after every pixel step.</p>
+<div class="tablewrap"><table>
+<tr><th>State</th><th>Clocks</th><th>Does</th></tr>
+<tr><td>M_ACTOR</td><td>1</td><td>load the actor; <code>acc += speed</code>; steps = acc &gt;&gt; 4 (0..2). Pac-Man skips the frame after eating a dot (<code>pac_pause</code>).</td></tr>
+<tr><td>M_STEP</td><td>1</td><td>Pac-Man: a reverse request is taken at once; at a centre ask about the wanted tile → M_PWANT, else M_MOVE. Ghost: by <code>cst</code>: HOUSE waits; LEAVE / ENTER steer by coordinates; ACTIVE / EYES at a centre → M_TGT (EYES at a door tile → ENTER), else M_MOVE.</td></tr>
+<tr><td>M_PWANT, M_PFWD</td><td>2</td><td>wanted tile open → take it; then ask about the tile ahead: wall → stop (M_DONE), else M_MOVE</td></tr>
+<tr><td>M_TGT</td><td>1</td><td>choose the target tile (EYES: the door; scatter: the corner; chase: the ghost's rule); start k at 0, or at a random direction when frightened</td></tr>
+<tr><td>M_GQ, M_GR</td><td>2 × up to 4</td><td>ask about direction k; frightened: the first open non-reverse way wins; else keep the open way with the smallest squared distance to the target (ties: the lower k). After 4 tries take the best (or reverse if all shut, which this maze never does).</td></tr>
+<tr><td>M_MOVE</td><td>1</td><td>one pixel along <code>cd</code>, wrapping in the tunnel; Pac-Man → M_EAT, a ghost → M_DONE</td></tr>
+<tr><td>M_EAT..M_EAT3</td><td>3</td><td>at a centre read the dot RAM under Pac-Man (2 clocks), then clear it, add 10 / 50 in BCD, count, set <code>pac_pause</code>; a power pellet starts <code>fr_timer</code>, frightens ACTIVE / HOUSE / LEAVE ghosts and reverses the active ones</td></tr>
+<tr><td>M_DONE</td><td>1</td><td>write back; another step or M_NEXT</td></tr>
+<tr><td>M_NEXT</td><td>1</td><td>next actor, or the collision pass</td></tr>
+<tr><td>M_COLL</td><td>4</td><td>ghost cg vs Pac-Man: ACTIVE and |dx| ≤ 4 and |dy| ≤ 4: frightened → EYES, points 200 · 2^chain, G_FREEZE; else G_DYING unless invincible. Only in G_PLAY, so a second ghost on the same frame waits for the freeze to end.</td></tr>
+<tr><td>M_TIMERS</td><td>1</td><td>frightened countdown (all <code>gfr</code> cleared at 1); scatter/chase mode steps (420, 1200, 420, 1200, 300, 1200, 300 frames, then chase for ever; each change reverses ACTIVE ghosts; paused while frightened); house releases; last dot → G_LEVEL</td></tr>
+</table></div>
+<p>Longest frame: 5 actors × 2 steps × about 12 clocks + 4 + 1 ≈ 130 clocks. Vertical blank is 36,000.</p>
+<h3>Numbers that tune the game</h3>
+<div class="tablewrap"><table class="kv">
+<tr><td>Speeds (1/16 px per frame)</td><td>Pac-Man 16 (level 1), 18 after; +2 while frightened. Ghosts 15 (level 1), 16 (2-4), 17 (5+); tunnel 7; frightened 8; eyes 32; in/out of the house 8</td></tr>
+<tr><td>Frightened frames</td><td>360, 300, 240, 180, 120, then 60; flashing below 120</td></tr>
+<tr><td>House release</td><td>Pinky at once; Inky 30 dots this life or 240 frames alive; Clyde 60 dots or 480 frames</td></tr>
+<tr><td>Points</td><td>dot 10, power 50, ghosts 200 / 400 / 800 / 1600 per pellet, extra life at 10,000 (once)</td></tr>
+<tr><td>Random</td><td>16-bit LFSR (taps 16, 14, 13, 11), free running at 25 MHz; a ghost takes two bits at decision time</td></tr>
+</table></div>
+
+<h2 id="draw">pac_draw: the pixel pipeline</h2>
+<p>Purely combinational from (<code>pxl_x</code>, <code>pxl_y</code>) and the game's registers, plus the two memories addressed one pixel
+ahead. For every pixel, in priority order:</p>
+<ol>
+  <li><b>Ghosts</b> (Blinky in front): <code>ghost_sprite</code> gives <code>hit</code> and a colour. The body is a 14-row bitmap with two skirt
+  frames (<code>frame[3]</code>); eyes are two 4 × 5 whites shifted a pixel toward the direction with 2 × 2 pupils; frightened: blue
+  body, a wavy mouth, white/red while flashing; EYES / ENTER: only the eyes.</li>
+  <li><b>Pac-Man</b>: a 13-pixel disc on half-pixel centres (<code>dx2 = 2(mx - x) + 1</code>, <code>dx2² + dy2² ≤ 169</code>) minus a wedge:
+  the pixel is in the mouth when <code>a·sin(t) &gt; |b|·cos(t)</code>, with (a, b) the pixel rotated into the facing direction and
+  t the half-opening (0°, 25°, 45° by <code>pac_mouth</code>; 15°..180° by <code>death_phase</code> while dying). Products go through
+  12-bit wires: the compare would otherwise be done at 6 bits.</li>
+  <li><b>Text</b>: one <code>font8x8</code>; the character comes from the panel tables (screen grid) or the maze messages
+  (READY!, GAME OVER, PUSH START on tile row 17). Numbers are BCD digits with leading zeros blanked, the last two always shown.</li>
+  <li><b>Spare-life icons</b>: small left-facing Pac-Men, one per spare life.</li>
+  <li><b>Dots</b> (2 × 2 at the tile centre) and <b>power pellets</b> (a 7-pixel disc, blinking) from <code>rb_q</code>.</li>
+  <li><b>Walls</b> from the ROM: blue, white while <code>maze_white</code>; the door pink.</li>
+</ol>
+
+<h2 id="sound">pac_sound</h2>
+<p>A square wave: a 16-bit counter toggles the output when it reaches <code>half</code> (clocks per half period at 25 MHz,
+<code>half = 25e6 / (2f)</code>). <code>half</code> is chosen once per frame from the highest-priority effect still running: death
+(96 frames, falling with a warble), the intro tune (31 notes, {half, frames} table, 256 frames), ghost eaten (30 frames,
+rising), power pellet (40 frames, two low notes), dot (6 frames, two notes whose order alternates: "waka"). 'm' mutes.
+The output drives <code>ARDUINO_IO[12]</code>, the shield's buzzer line.</p>
+
+<h2 id="io">Board I/O and the USB protocol</h2>
+<div class="tablewrap"><table>
+<tr><th>Pin / channel</th><th>Use</th></tr>
+<tr><td>Shield joystick, Start</td><td>through the ADC: <code>gamepad</code> thresholds, see example 04. One direction at a time, priority up, left, down, right.</td></tr>
+<tr><td>KEY0</td><td>Start (active low on the board, inverted here)</td></tr>
+<tr><td>HEX5..HEX0</td><td>the score, BCD, leading zeros blank (the last two digits always on)</td></tr>
+<tr><td>LEDR4..0</td><td>one LED per spare life; LEDR8 pause, LEDR9 invincible</td></tr>
+<tr><td>ARDUINO_IO[7:0], [11:8]</td><td>the LCD data and control lines (library layout)</td></tr>
+<tr><td>ARDUINO_IO[12], [13]</td><td>buzzer; the shield's status LED = frightened mode on</td></tr>
+<tr><td>JTAG UART in</td><td><code>u l d r</code> steer, <code>s</code> start, <code>p</code> pause toggle, <code>i</code> invincible toggle, <code>m</code> mute toggle; <code>?</code> and <code>F</code> belong to debug_link</td></tr>
+<tr><td>JTAG UART out</td><td>debug_link's status line and frame dump (<code>scripts/de10.py send</code>, <code>screen</code>)</td></tr>
+</table></div>
+
+<h2 id="budget">Budgets</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Logic</td><td>9,504 / 49,760 LEs (19 %); 5,016 registers; 8 of 288 9-bit multipliers</td></tr>
+<tr><td>Memory</td><td>1,063,680 / 1,677,312 bits (63 %), of which the game is 124,928 + 2,048 and the rest is the debug capture, the LCD command ROM and the ADC sample store</td></tr>
+<tr><td>Clocks per frame</td><td>≈ 130 used of 36,000 available in vertical blank (0.4 %)</td></tr>
+<tr><td>Timing</td><td>met on all three clocks with the generated .sdc (<code>create_clock</code> on the 50 MHz input, <code>derive_pll_clocks</code>)</td></tr>
+<tr><td>Headroom</td><td>room for fruit, pop-up scores, a second maze, or dropping the capture buffer (frees 55 % of memory)</td></tr>
+</table></div>
+
+<h2 id="decisions">Design decisions</h2>
+<ul>
+  <li><b>No frame buffer for the game.</b> The picture is computed per pixel from a few hundred bits of state; the only
+  memories are the static wall picture and the 2-bit dot map. Cheap, and nothing can tear.</li>
+  <li><b>Sequential game update.</b> One actor and one pixel per few clocks instead of parallel per-actor logic: a fifth of
+  the logic, one tile-table port, and a state machine you can single-step in a waveform.</li>
+  <li><b>BCD everywhere a number is shown.</b> Score, high score and level never need a divider; the screen and the 7-segment
+  read the same digits.</li>
+  <li><b>Tables generated by Python.</b> The maze is a 31-line text picture in <code>make_maze.py</code>; it writes the Verilog
+  table, the wall picture (with the arcade's inset double lines computed from distance to open tiles) and a preview PNG.
+  Edit the text, run the script, rebuild.</li>
+  <li><b>Letters over USB.</b> Five lines of decode in the top make the whole game testable by a machine.</li>
+  <li><b>Kept out, on purpose:</b> the fruit, the pop-up score, the demo in attract mode. They are easy additions and are
+  listed on the overview page.</li>
+</ul>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="guide.html">user guide</a>.</footer>
+</main>
+</body>
+</html>

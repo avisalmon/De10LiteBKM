@@ -40,8 +40,9 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).
 * A spectrum, an FFT -> `compute-fft` (11). Multiply, MAC, filters, Fmax -> `use-dsp-multipliers` (12).
 * Keep the design after power-off, write the flash -> `flash-design` (13).
-* A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (Pac-Man,
-  built in the user's `my_designs/`).
+* A whole design to publish: a new project, its pages (overview, spec, guide), its review, the portal -> `make-project`
+  (`projects/`, standard folder; Pac-Man is the model).
+* A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (`projects/pacman`).
 
 The map of all documentation is [docs/README.md](../docs/README.md).
 
@@ -81,7 +82,8 @@ The map of all documentation is [docs/README.md](../docs/README.md).
 
 `index.html` the public start page (GitHub Pages, Hebrew + English) · `docs/` journey, gotchas, lessons ·
 `scripts/` doctor, check_updates, sync_skills · `my_designs/` the user's work (git-ignored) · `tests/` ·
-`.claude/skills/` your playbooks.
+`.claude/skills/` your playbooks · `projects/<name>/` whole designs, public, each with index / spec / guide pages
+and a `.qar` (no bitstreams; portal `projects/index.html`).
 Domain toolkit: `examples/NN_name/` (one verified example per capability: page, src, sim, .qar; no prebuilt .sof: build it) ·
 `lib/rtl/` shared tested Verilog · `lib/sim/` its unit tests and models · `lib/board/de10_lite_pins.csv` the pins ·
 `scripts/new_project.py` (Quartus project from a top module) · `scripts/de10.py` (build, program, flash, pack, log,
@@ -101,6 +103,7 @@ Tools: Quartus Prime Lite 17.1 in `C:\intelFPGA_lite\17.1` (ModelSim Starter inc
 | `flash-design` | Make a design stay on the DE10-Lite after power-off: write its .pof into the MAX 10's internal configuration flash (and verify), versus loading a .sof that lasts until power-off. Worked example: examples/13_flash. | "flash", "keep after power off", "survive power cycle", "boot", "start at power up", ".pof", "permanent", "burn the design", "program the flash", "CFM", "UFM", "factory image", "replace the demo". | `.github/skills/flash-design/SKILL.md` |
 | `improve-this-guide` | Turn what went wrong (or a better way found) into a lasting improvement of this BKM: a short post-mortem, a new or updated gotcha, skill or tool, and a line in the lessons log. For users it records a suggestion; for the maintainer it edits the guide, syncs the Copilot copies and runs the tests. | "that was wrong", "remember this", "add this to the guide", "this should be a lesson", "post-mortem", "update the skill", "תוסיף למדריך", "תזכור את זה", "זה צריך להיות לקח", or after you solved a new problem. | `.github/skills/improve-this-guide/SKILL.md` |
 | `lesson-coach` | Run the course (stage 2): lessons in lessons/NN_name/, each a slide page that teaches plus a coach.md that tells you how to coach it in VS Code. Finds the student's lesson in my_designs/lessons/progress.json, opens the slides at the right moment, runs the checks on the real board, records progress and hands out the completion code. Hints, never the answer. | "teach me", "start the course", "next lesson", "start lesson", "lesson 0", "continue the lesson", "I finished the slide", "תלמד אותי", "השיעור הבא", "תתחיל שיעור", "שיעור 0", "בוא נלמד". | `.github/skills/lesson-coach/SKILL.md` |
+| `make-project` | Build a complete design for the DE10-Lite as a public BKM project in the standard folder (projects/<name>/): the workflow from idea to a reviewed, tested, documented project with an overview page (block diagram, flow, tests, review log, status), an architecture spec, a user guide, the Quartus archive (.qar, no bitstreams) and a card on the projects portal; then the learning goes back into the skills. Proven with Pac-Man. | "new project", "build a project", "make a project", "project folder", "document the project", "project page", "architecture spec", "user guide", "project review", "add it to the portal", "publish the project", "standard folder". | `.github/skills/make-project/SKILL.md` |
 | `mentor` | Teach while building: explain what was done in plain words at the user's level, check understanding with small challenges and quizzes, and point to resources for doing it by hand. Hebrew by default. | "explain", "why", "how does it work", "what does this do", "quiz me", "I want to learn", "I want to do it myself", "תסביר", "למה", "איך זה עובד", "תבחן אותי", "אני רוצה ללמוד". | `.github/skills/mentor/SKILL.md` |
 | `read-accelerometer` | Read the DE10-Lite's on-board ADXL345 accelerometer (G-sensor) over SPI: X, Y, Z in g, tilt, a bubble level; plus the reusable SPI master for other SPI chips. Verified: DEVID E5, /g/ = 1.00 at rest. Worked example: examples/07_accelerometer. | "accelerometer", "G-sensor", "gsensor", "ADXL345", "tilt", "gravity", "bubble level", "orientation", "SPI", "SPI master", "sensor over SPI". | `.github/skills/read-accelerometer/SKILL.md` |
 | `read-gamepad` | Read the LCD shield's game pad (joystick, A, B, Select, Start) and wheel through the MAX 10 ADC, debounce it, drive the shield's buzzer and status LED, and report controls to the PC. Includes the verified ADC channel map and the fixes the template's ADC needed. Worked example: examples/04_gamepad. | "game pad", "gamepad", "joystick", "buttons", "A button", "B button", "select", "start", "wheel", "dial", "knob", "potentiometer", "ADC", "analog input", "buzzer", "beep", "status LED", "debounce". | `.github/skills/read-gamepad/SKILL.md` |

@@ -5,6 +5,8 @@ They come from real sessions; most of them came from something going wrong.
 
 ## 2026-10-24
 
+- **Projects have a standard public folder** (overview with block diagram and review log, architecture spec, user guide,
+  .qar, no bitstreams) and a portal; a test keeps every project complete. [make-project](../.claude/skills/make-project/SKILL.md)
 - **A whole arcade game from scratch: Pac-Man** (maze, 4 ghosts with the arcade AI, sound, levels), tested in
   simulation and on the board over USB. The recipe is a skill. [build-arcade-game](../.claude/skills/build-arcade-game/SKILL.md)
 - **Binary files for narrow ROMs, the LCD's white side strips, `inside` is reserved, wide products.**

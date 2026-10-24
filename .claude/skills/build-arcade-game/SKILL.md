@@ -13,22 +13,23 @@ description: >
 
 Proven on the board (2026-10-24): **Pac-Man**, the arcade maze (28 x 31 tiles, 244 dots), four ghosts with the
 arcade's targeting, scatter/chase, frightened mode, eyes going home, levels, lives, high score, the intro tune.
-9,517 LEs (19 %), 8 multipliers, timing met at 25 MHz; built from scratch in one session, tested in simulation and on
-the board without a human. User games live in `my_designs/<game>/` (git-ignored); this skill carries the know-how.
+9,504 LEs (19 %), 8 multipliers, timing met at 25 MHz; built from scratch in one session, tested in simulation and on
+the board without a human. The project, its three pages and its review log: `projects/pacman/` (the `make-project`
+standard); a private try-out can live in `my_designs/<game>/` (git-ignored).
 
 ## The plan (same for every game)
 
 ```
-my_designs/<game>/assets/make_*.py   Python writes the tables: tile map (as a .sv case table), pictures ($readmemb file)
-my_designs/<game>/src/<game>_top.sv   board: pll25, Screens_dispaly, gamepad, debounce, debug_link, jtag_uart
+projects/<game>/assets/make_*.py   Python writes the tables: tile map (as a .sv case table), pictures ($readmemb file)
+projects/<game>/src/<game>_top.sv   board: pll25, Screens_dispaly, gamepad, debounce, debug_link, jtag_uart
                  src/<game>_logic.sv  the game: one update per frame
                  src/<game>_draw.sv   the screen: a colour for every pixel, from the game state
                  src/<game>_sound.sv  buzzer effects
                  sim/tb_<game>.sv     plays the game, renders frames to PPM, checks rules
-python scripts/new_project.py my_designs/<game> <game>_top --lib display gamepad debug font sevenseg debounce
+python scripts/new_project.py projects/<game> <game>_top --lib display gamepad debug font sevenseg debounce
 ```
 `src/extra.qsf`: `set_global_assignment -name MISC_FILE assets/<pic>.bin` (so the .qar carries the data files).
-Loop: `python scripts/sim.py my_designs/<game>/sim/tb_<game>.sv` -> look at the PPMs -> `de10.py build` -> `program`
+Loop: `python scripts/sim.py projects/<game>/sim/tb_<game>.sv` -> look at the PPMs -> `de10.py build` -> `program`
 -> play over USB + `de10.py screen` / `cam` -> hand the joystick to the user.
 
 ## Screen

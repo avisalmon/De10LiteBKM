@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FILL IN name: user guide</title>
+<meta name="description" content="How to build, load, use and test FILL IN on the DE10-Lite.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">FILL IN name</a> / User guide</nav>
+<h1>FILL IN name: user guide</h1>
+<p class="lead">From the repo to the design on your board, and everything you can do with it afterwards. Every command runs from the
+repo's root folder in the <code>env</code> virtualenv; the chat does them for you if you ask.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a class="here" href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#need">What you need</a></li>
+  <li><a href="#build">Build and load it</a></li>
+  <li><a href="#use">Use it</a></li>
+  <li><a href="#usb">Test over USB</a></li>
+  <li><a href="#flash">Keep it after power-off</a></li>
+  <li><a href="#sim">Run the simulation</a></li>
+  <li><a href="#change">Change it</a></li>
+  <li><a href="#trouble">When something looks wrong</a></li>
+</ol>
+
+<h2 id="need">What you need</h2>
+<ul>
+  <li>FILL IN: the board, the shield or not, wires or sensors.</li>
+  <li>Quartus Prime Lite 17.1 installed as in stage 1 of the BKM (<code>python scripts/doctor.py</code> shows no FAIL).</li>
+</ul>
+
+<h2 id="build">Build and load it</h2>
+<pre><code>python scripts/de10.py build   projects/FILL IN name      # a few minutes; ends with the resource and timing summary
+python scripts/de10.py program projects/FILL IN name      # loads it over the USB-Blaster; runs until power-off</code></pre>
+<p>From the archive instead: Quartus <i>Project → Restore Archived Project</i> → <code>FILL IN name.qar</code>, compile, program.</p>
+<p>What you should see right after loading: FILL IN.</p>
+
+<h2 id="use">Use it</h2>
+<div class="tablewrap"><table>
+<tr><th>Control</th><th>Does</th></tr>
+<tr><td>FILL IN</td><td>FILL IN</td></tr>
+</table></div>
+
+<h2 id="usb">Test over USB</h2>
+<pre><code>python scripts/de10.py send "?"      # the debug link's status line
+python scripts/de10.py screen x.png  # the screen as the board shows it (if the design has the debug link)
+python scripts/de10.py log 10        # FILL IN: what the design prints</code></pre>
+
+<h2 id="flash">Keep it after power-off</h2>
+<pre><code>python scripts/de10.py flash projects/FILL IN name        # writes and verifies the .pof, about 15 s</code></pre>
+<p>It replaces whatever was in the flash before (the chat asks first).</p>
+
+<h2 id="sim">Run the simulation</h2>
+<pre><code>python scripts/sim.py projects/FILL IN name/sim/tb_FILL IN.sv          # ends with PASS
+python scripts/sim.py projects/FILL IN name/sim/tb_FILL IN.sv --gui    # with the waveform</code></pre>
+<p>FILL IN: what it writes next to the testbench and how to look at it.</p>
+
+<h2 id="change">Change it</h2>
+<div class="tablewrap"><table>
+<tr><th>You want</th><th>Where</th></tr>
+<tr><td>FILL IN</td><td>FILL IN: the file, the constant, the script to re-run</td></tr>
+</table></div>
+
+<h2 id="trouble">When something looks wrong</h2>
+<div class="tablewrap"><table>
+<tr><th>You see</th><th>Likely</th><th>Do</th></tr>
+<tr><td>Nothing on the screen, LEDs dark</td><td>the board is not programmed, or the PLL did not lock</td><td><code>python scripts/de10.py jtag</code>, then <code>program</code> again</td></tr>
+<tr><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="spec.html">architecture spec</a>.</footer>
+</main>
+</body>
+</html>

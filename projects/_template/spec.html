@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FILL IN name: architecture spec</title>
+<meta name="description" content="Architecture specification of FILL IN: modules, interfaces, clock domains, memories, state encodings, budgets.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">FILL IN name</a> / Architecture spec</nav>
+<h1>FILL IN name: architecture spec</h1>
+<p class="lead">What each module is, what crosses between them, where every bit of state lives, and the budgets. Written for
+someone who will change the design or build the next one on it.</p>
+<nav class="pages"><a href="index.html">Overview</a><a class="here" href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#req">Requirements</a></li>
+  <li><a href="#modules">Modules and hierarchy</a></li>
+  <li><a href="#clocks">Clock domains and crossings</a></li>
+  <li><a href="#mem">Memories and tables</a></li>
+  <li><a href="#state">State machines and encodings</a></li>
+  <li><a href="#io">Board I/O and protocols</a></li>
+  <li><a href="#budget">Budgets</a></li>
+  <li><a href="#decisions">Design decisions</a></li>
+</ol>
+
+<h2 id="req">Requirements</h2>
+<ul>
+  <li>FILL IN: what it must do, measurable where possible.</li>
+  <li>FILL IN: the board, the shield, the tools it must run with.</li>
+  <li>FILL IN: how it must be testable (simulation, USB, read-back).</li>
+</ul>
+
+<h2 id="modules">Modules and hierarchy</h2>
+<pre><code>FILL IN_top                     board level, clocks
+├─ pll25 / pll_de10 (lib)       clocks
+├─ FILL IN module               what it does
+└─ ...</code></pre>
+<h3>FILL IN: the main module's ports</h3>
+<div class="tablewrap"><table>
+<tr><th>Port</th><th>Dir</th><th>Width</th><th>Meaning</th></tr>
+<tr><td>clk, rst_n</td><td>in</td><td>1</td><td>FILL IN</td></tr>
+</table></div>
+
+<h2 id="clocks">Clock domains and crossings</h2>
+<div class="tablewrap"><table>
+<tr><th>Domain</th><th>What runs there</th><th>Crossing</th></tr>
+<tr><td>FILL IN MHz</td><td>FILL IN</td><td>FILL IN: two flip-flops / byte_cdc / handshake, and why it is safe</td></tr>
+</table></div>
+
+<h2 id="mem">Memories and tables</h2>
+<div class="tablewrap"><table>
+<tr><th>Memory</th><th>Size</th><th>Where</th><th>Ports</th><th>Content</th></tr>
+<tr><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+</table></div>
+
+<h2 id="state">State machines and encodings</h2>
+<div class="tablewrap"><table>
+<tr><th>State</th><th>Name</th><th>Does</th><th>Next</th></tr>
+<tr><td>0</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+</table></div>
+
+<h2 id="io">Board I/O and protocols</h2>
+<div class="tablewrap"><table>
+<tr><th>Pin / channel</th><th>Use</th></tr>
+<tr><td>FILL IN</td><td>FILL IN</td></tr>
+</table></div>
+
+<h2 id="budget">Budgets</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Logic</td><td>FILL IN</td></tr>
+<tr><td>Memory</td><td>FILL IN</td></tr>
+<tr><td>Timing</td><td>FILL IN</td></tr>
+<tr><td>Headroom</td><td>FILL IN</td></tr>
+</table></div>
+
+<h2 id="decisions">Design decisions</h2>
+<ul>
+  <li><b>FILL IN.</b> What was chosen, what the alternative was, why.</li>
+</ul>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="guide.html">user guide</a>.</footer>
+</main>
+</body>
+</html>
