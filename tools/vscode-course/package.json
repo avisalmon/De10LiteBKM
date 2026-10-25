@@ -1,0 +1,16 @@
+{
+  "name": "de10-course",
+  "displayName": "DE10-Lite Course",
+  "description": "Shows the DE10-Lite course's lesson slides inside VS Code, opened and turned by the chat.",
+  "version": "0.1.2",
+  "publisher": "avisalmon",
+  "license": "MIT",
+  "engines": { "vscode": "^1.80.0" },
+  "categories": ["Education"],
+  "capabilities": { "untrustedWorkspaces": { "supported": true }, "virtualWorkspaces": false },
+  "activationEvents": ["onStartupFinished"],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [{ "command": "de10course.show", "title": "DE10 Course: Show the lesson slides" }]
+  }
+}

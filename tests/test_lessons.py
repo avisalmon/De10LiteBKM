@@ -1,5 +1,5 @@
 """The course's lessons (lessons/NN_name/): each one is a slide page, a coach file and a lesson.json, and the page
-accepts exactly the completion code that scripts/lesson.py hands out."""
+carries no completion code any more: the chat tracks progress."""
 
 import json
 import re
@@ -28,13 +28,11 @@ def test_a_lesson_has_its_three_parts(folder):
         assert f"lesson.py check {meta['id']} {name}" in coach, f"coach.md never records the check '{name}'"
 
 
-@pytest.mark.parametrize("folder", LESSONS, ids=lambda p: p.name)
-def test_the_page_accepts_the_code_the_chat_gives(folder):
-    meta = course.lesson(json.loads((folder / "lesson.json").read_text(encoding="utf-8"))["id"])
-    html = (folder / "index.html").read_text(encoding="utf-8")
-    embedded = int(re.search(r"var CODE_HASH = (\d+);", html).group(1))
-    assert embedded == course.fnv1a(course.code(meta)), "run: python scripts/lesson.py code-hash N, paste into the page"
 
+@pytest.mark.parametrize("folder", LESSONS, ids=lambda p: p.name)
+def test_no_completion_code_left(folder):
+    html = (folder / "index.html").read_text(encoding="utf-8")
+    assert "CODE_HASH" not in html and "code-form" not in html
 
 @pytest.mark.parametrize("folder", LESSONS, ids=lambda p: p.name)
 def test_the_page_works_with_blocked_storage(folder):

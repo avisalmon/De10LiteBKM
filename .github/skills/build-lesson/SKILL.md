@@ -29,7 +29,7 @@ lessons/NN_slug/
   coach.md         the chat's script: goal, the answer it must not give away, numbered steps that open slides
                    (lesson.py open N slide), run checkers, record each check with "python scripts/lesson.py check N <name>"
                    (the test greps for every check name), the quiz table, Traps seen
-  index.html       the slides; CODE_HASH from "python scripts/lesson.py code-hash N"; localStorage only inside try {}
+  index.html       the slides (the chat lectures from them in a VS Code tab); localStorage only inside try {}
   <work>/          the student's starter files, laid out like every project: src/ (into the chip), sim/ (testbench)
   check_*.py       the checker: plain-language OK / FAIL lines a student can act on, exit 0 only when all OK
   checker/         the checker's own reference designs, mutants and testbenches (never copied to the student)
@@ -38,8 +38,8 @@ lessons/NN_slug/
 
 ## The page: reuse, don't redesign
 
-Assemble `index.html` from the previous lesson's page: keep its `<head>` (style), the last "completion code" slide and
-the script; replace the title, description, bar text, slide count, `LESSON`, `CODE_HASH`, the "what you learned"
+Assemble `index.html` from the previous lesson's page: keep its `<head>` (style), the last "The end of lesson N" slide and
+the script (it must keep the `#dots` slide buttons: the VS Code viewer turns slides through them); replace the title, description, bar text, slide count, `LESSON`, the "what you learned"
 list and every "Lesson N" string; put the new `<section class="slide" data-title=...>` blocks in between. Lesson 2
 was built this way by a short Python script (find `<main class="deck" id="deck">` and the last slide's comment);
 check for leftover "Lesson N-1" strings. Classes available: `.cols`, `.term` (dark terminal box with `.ok` /

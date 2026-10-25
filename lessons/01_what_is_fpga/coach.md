@@ -33,7 +33,7 @@ on the board and the shield. **No design work in this lesson**: they write their
    | Why is your design gone when the board loses power, and what does that mean for you? | The FPGA keeps its configuration in memory that needs power (SRAM), so it is loaded again after power-up; we program it again with one command (a design can also be stored in the chip's flash, later in the course). |
 
    When all three are answered well: `python scripts/lesson.py check 1 quiz`.
-5. **Done.** `python scripts/lesson.py done 1`. Open slide 13, they type the code. Update `my_designs/PROGRESS.md`.
+5. **Done.** `python scripts/lesson.py done 1`. Open slide 13 (what they learned). Update `my_designs/PROGRESS.md`.
    Close with one sentence on what made it work (the board read every input you touched, and the chip did it all
    at once) and what comes next (lesson 2: their first simulation, a circuit tested before it goes to the board).
 

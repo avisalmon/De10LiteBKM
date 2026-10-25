@@ -67,8 +67,8 @@ The paths below use `ALARM=my_designs/lessons/02_first_simulation/alarm` for sho
     | Your first testbench said PASS on designs that were wrong. How can that happen, and what did you do? | A testbench only checks the cases in its list; a mistake in an untested case passes. I added the missing rows of the truth table, so now every combination is checked. |
 
     Both answered: `python scripts/lesson.py check 2 quiz`.
-12. **Done.** `python scripts/lesson.py done 2`. Open the last slide (`python scripts/lesson.py open 2 15`) and tell
-    them to type the code. Write "Lesson 2 done" in `my_designs/PROGRESS.md`. Close with what made it work (the
+12. **Done.** `python scripts/lesson.py done 2`. Open the last slide (`python scripts/lesson.py open 2 15`): what they
+    learned. Write "Lesson 2 done" in `my_designs/PROGRESS.md`. Close with what made it work (the
     testbench tried every case the board never would) and one thing to try: change one expected value in their
     testbench to a wrong one and watch the FAIL; or break the design a new way and see which test catches it.
 

@@ -10,7 +10,27 @@ Status: lesson 0 built (`lessons/00_setup/`, verified on the board 2026-10-24). 
 chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. The Quartus-by-hand lesson 2 (`02_first_project/`) was built 2026-10-25 and deleted the same day (no Quartus window in the course; it is in git history). Lesson 2 (= 0.3, `02_first_simulation/`, the door alarm) built 2026-10-25 as lesson 3 with ModelSim by hand, then reworked the same day under the no-windows rule: a buggy door alarm (`armed & door | window`, an operator-precedence bug); the chat runs every simulation (`sim.py`) and opens only ModelSim's wave view (`sim.py --gui`), where the student finds the wrong moment; they fix the design in VS Code, then add the 2 missing truth-table rows to the testbench (a checker runs it against 2 wrong designs only those rows catch), then the board (SW2/SW1/SW0 -> LEDR0, built and loaded by the chat) and a quiz. It also introduces the loop every later lesson uses: write, simulate, build and load, try it. The rest is the agreed topic list;
 each lesson is discussed with Avi before it is built.
 
-## How a lesson works (agreed 2026-10-24)
+## How a lesson works (agreed 2026-10-24, reshaped 2026-10-25)
+
+**The model since 2026-10-25: the chat is the teacher, VS Code is the classroom.** It replaces "two windows side by
+side" and "slides for self-study" below wherever they disagree.
+
+- The student stays in VS Code and talks to the chat ("what now?"). The chat knows their personal progress (lesson,
+  step, and short notes on what they found hard) and leads the lesson as a conversation, following `coach.md`.
+- A lesson is a sequence of moments: **lecture** (the chat opens the slides inside VS Code and goes through them
+  with the student), **reading code** (a ready file with comments, explained together), **tasks** (change the
+  behaviour, find a bug, add a feature: the chat hints and guides but never writes the student's code),
+  **build and burn** (the chat compiles, tests and programs the board when the student is done), **waves** (the
+  chat may open ModelSim's wave window with the signals it chose), and **checking understanding** by talking.
+- Understanding over syntax and procedures. More fun.
+- Slides are the chat's teaching aid: shorter and more visual; still useful to review alone.
+- No completion codes: the chat tracks progress in `my_designs/lessons/`.
+- Slides open in a VS Code tab through the course's own small extension (`tools/vscode-course`, installed by
+  `scripts/course_extension.py install` in lesson 0); `scripts/lesson.py open N slide` asks it, and falls back to
+  the browser when no VS Code tab answers.
+- Lessons 0-2 are reshaped to this model.
+
+The original model (2026-10-24), kept for the parts still true:
 
 - **Two windows side by side.** The HTML page teaches: it has illustrations, explanations, what to do in VS Code,
   and how to tell that you succeeded. VS Code, with Claude Code on this same repo, coaches: it runs the tasks with
@@ -31,8 +51,7 @@ each lesson is discussed with Avi before it is built.
   and the lesson's code and checkers. The student's own work goes in `my_designs/lessons/NN_name/` (git-ignored).
 - **Coaching:** one `lesson-coach` skill. "start lesson N" makes it read that lesson's `coach.md`.
 - **Progress, two sides:** in VS Code, Claude tracks progress in a file under `my_designs/`. On the page,
-  localStorage; the checker prints a short completion code that the student types into the page to mark the step
-  done.
+  localStorage. (Completion codes were dropped on 2026-10-25: the chat tracks progress.)
 - **Simulator: ModelSim** (ModelSim-Intel Starter, installed with Quartus 17.1) for all lesson tests.
 - **The board from day 1** (decided 2026-10-25, after weighing a simulation-first start): every student has the
   DE10-Lite from lesson 0, and every lesson ends on the board. Simulation still comes first in each lesson, but the

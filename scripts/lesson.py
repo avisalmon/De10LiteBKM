@@ -2,11 +2,10 @@
 """The course's progress file and lesson helpers (stage 2 lessons in lessons/NN_name/). Standard library only.
 
   python scripts/lesson.py status                 where the student is: current lesson, checks passed
-  python scripts/lesson.py open  <N> [slide]      open lesson N's slides in the browser (at a slide)
+  python scripts/lesson.py open  <N> [slide]      show lesson N's slides in VS Code (or the browser), at a slide
   python scripts/lesson.py start <N>              copy the lesson's work files to my_designs/lessons/NN_name/
   python scripts/lesson.py check <N> <name>       record that check <name> passed (only after you verified it)
-  python scripts/lesson.py done  <N>              all checks passed -> mark the lesson done, print the completion code
-  python scripts/lesson.py code-hash <N>          (maintainer) the hash the lesson page embeds to accept the code
+  python scripts/lesson.py done  <N>              all checks passed -> mark the lesson done
 
 Progress lives in my_designs/lessons/progress.json (git-ignored, the student's own). Each lesson's checks are
 listed in lessons/NN_name/lesson.json; its coaching script is lessons/NN_name/coach.md.
@@ -17,6 +16,7 @@ import json
 import os
 import shutil
 import sys
+import time
 import webbrowser
 from pathlib import Path
 
@@ -24,7 +24,6 @@ ROOT = Path(__file__).resolve().parent.parent
 LESSONS = ROOT / "lessons"
 WORK = ROOT / "my_designs" / "lessons"
 PROGRESS = WORK / "progress.json"
-ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I: easy to read off the screen
 # Never copied to the student: build output and generated project files (the coach regenerates those)
 SKIP = {"db", "incremental_db", "output_files", "logs", "work", "transcript", "greybox_tmp"}
 
@@ -53,20 +52,6 @@ def entry(progress, n):
     return progress["lessons"].setdefault(str(int(n)), {"started": None, "checks": [], "done": None})
 
 
-def fnv1a(text):
-    """32-bit FNV-1a: the same few lines run in the lesson page's JavaScript."""
-    h = 0x811C9DC5
-    for byte in text.encode("utf-8"):
-        h = ((h ^ byte) * 0x01000193) & 0xFFFFFFFF
-    return h
-
-
-def code(meta):
-    h = fnv1a(f"de10lite/{meta['slug']}")
-    chars = "".join(ALPHABET[(h >> (5 * i)) & 31] for i in range(5))
-    return f"L{meta['id']:02d}-{chars}"
-
-
 def today():
     return datetime.date.today().isoformat()
 
@@ -84,11 +69,26 @@ def cmd_status():
     return 0
 
 
-def cmd_open(n, slide=None):
-    """Windows drops '#slide' from a file URL it opens, so open a one-line redirect page instead."""
+def cmd_open(n, slide=None, *flags):
+    """In a VS Code tab when the course extension runs (tools/vscode-course: it watches show.json and answers in
+    slides.json), else in the browser. --browser skips VS Code."""
     meta = lesson(n)
     page = (meta["dir"] / "index.html").relative_to(ROOT).as_posix()
     WORK.mkdir(parents=True, exist_ok=True)
+    if slide == "--browser":
+        slide, flags = None, ("--browser",)
+    if "--browser" not in flags:
+        answer = WORK / "slides.json"
+        before = answer.stat().st_mtime if answer.exists() else 0
+        (WORK / "show.json").write_text(json.dumps({"lesson": meta["id"], "slide": int(slide) if slide else None,
+                                                    "at": datetime.datetime.now().isoformat()}) + "\n", encoding="utf-8")
+        for _ in range(20):  # the extension answers within a second
+            time.sleep(0.25)
+            if answer.exists() and answer.stat().st_mtime > before:
+                print(f"OK: lesson {meta['id']} is showing in VS Code{f' at slide {slide}' if slide else ''}")
+                return 0
+        print("(no VS Code tab answered: opening the browser instead; scripts/course_extension.py install fixes that)")
+    # Windows drops '#slide' from a file URL it opens, so open a one-line redirect page instead
     jump = WORK / "open.html"
     target = "../../" + page + (f"#{int(slide)}" if slide else "")
     jump.write_text(f'<!doctype html><meta charset="utf-8"><title>Opening lesson {meta["id"]}</title>'
@@ -148,19 +148,12 @@ def cmd_done(n):
     e["done"] = e["done"] or today()
     progress["current"] = max(progress["current"], meta["id"] + 1)
     save(progress)
-    print(f"OK: lesson {meta['id']} done. Completion code: {code(meta)}")
-    return 0
-
-
-def cmd_code_hash(n):
-    meta = lesson(n)
-    print(f"code {code(meta)}  page hash {fnv1a(code(meta))}")
+    print(f"OK: lesson {meta['id']} done")
     return 0
 
 
 def main(argv):
-    commands = {"status": cmd_status, "open": cmd_open, "start": cmd_start, "check": cmd_check, "done": cmd_done,
-                "code-hash": cmd_code_hash}
+    commands = {"status": cmd_status, "open": cmd_open, "start": cmd_start, "check": cmd_check, "done": cmd_done}
     if not argv or argv[0] not in commands:
         print(__doc__)
         return 2

@@ -48,7 +48,7 @@ ModelSim, the USB-Blaster driver, the board. Three checks: `computer`, `sim`, `b
      "Quartus is broken" (`python scripts/de10.py build lessons/00_setup/ready`, then
      `python scripts/de10.py program lessons/00_setup/ready`). No .sof ships in the repo, so there is always a build
      first. Do not record `board` until their own build runs.
-7. **Done.** `python scripts/lesson.py done 0`. Open slide 14 and tell them to type the completion code there. Write
+7. **Done.** `python scripts/lesson.py done 0`. Open slide 14 (what they proved, what comes next). Write
    "Lesson 0 done" in `my_designs/PROGRESS.md`. Close with what they proved (every tool works, end to end) and what
    comes next (lesson 0.1: what an FPGA is).
 

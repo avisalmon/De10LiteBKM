@@ -101,16 +101,10 @@
   .tick input { width: 22px; height: 22px; accent-color: var(--ok); }
   .tick:has(input:checked) { border-style: solid; border-color: var(--ok); background: var(--ok-soft); }
 
-  /* completion code */
-  .code-form { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
-  .code-form input { font: inherit; font-family: Consolas, monospace; font-size: 24px; letter-spacing: .08em; text-transform: uppercase; padding: 8px 14px; border: 2px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); width: 14ch; }
   .btn { font: inherit; font-weight: 600; border: 1px solid var(--accent); border-radius: 10px; padding: 10px 20px; cursor: pointer; background: var(--accent); color: var(--accent-ink); min-height: 44px; }
   .btn.ghost { background: transparent; color: var(--accent); }
   .msg { margin-top: 10px; font-weight: 600; min-height: 1.6em; }
   .msg.bad { color: var(--warm); } .msg.good { color: var(--ok); }
-  .done-banner { display: none; }
-  .is-done .done-banner { display: block; }
-  .is-done .code-entry { display: none; }
 
   /* bottom navigation */
   .nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px 14px; }
@@ -505,15 +499,7 @@ a=1 b=1 -&gt; y=1  ok
 <!-- 14 -->
 <section class="slide" data-title="Done" id="last">
   <span class="tag">Lesson 0 · finish</span>
-  <h2>Enter your completion code</h2>
-  <div class="code-entry">
-    <p>When all three checks pass, the chat gives you a code. Type it here to finish lesson 0.</p>
-    <form class="code-form" id="code-form" autocomplete="off">
-      <input id="code" aria-label="Completion code" placeholder="L00-....." maxlength="12">
-      <button class="btn" type="submit">Finish lesson 0</button>
-    </form>
-    <div class="msg" id="msg" role="status"></div>
-  </div>
+  <h2>The end of lesson 0</h2>
   <div class="done-banner">
     <div class="box ok" style="font-size:22px"><b class="t">Lesson 0 done!</b>Your computer, the tools, the cable and the board all work together.</div>
     <h3 style="margin-top:22px">What you proved</h3>
@@ -539,7 +525,6 @@ a=1 b=1 -&gt; y=1  ok
 <script>
   (function () {
     var LESSON = "0";
-    var CODE_HASH = 4030959446;   // scripts/lesson.py code-hash 0
     var KEY = "de10-course";
     var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
     var dots = document.getElementById("dots");
@@ -617,31 +602,6 @@ a=1 b=1 -&gt; y=1  ok
       });
     });
 
-    // Completion code: the same 32-bit FNV-1a as scripts/lesson.py
-    function fnv1a(text) {
-      var h = 0x811c9dc5;
-      var bytes = new TextEncoder().encode(text);
-      for (var i = 0; i < bytes.length; i++) {
-        h ^= bytes[i];
-        h = Math.imul(h, 0x01000193) >>> 0;
-      }
-      return h >>> 0;
-    }
-    var last = document.getElementById("last");
-    function showDone(when) { last.classList.toggle("is-done", !!when); }
-    showDone(state.done);
-    document.getElementById("code-form").addEventListener("submit", function (e) {
-      e.preventDefault();
-      var typed = document.getElementById("code").value.trim().toUpperCase().replace(/\s+/g, "");
-      var msg = document.getElementById("msg");
-      if (fnv1a(typed) === CODE_HASH) {
-        var p = update(function (p) { p.done = new Date().toISOString().slice(0, 10); });
-        showDone(p.done);
-      } else {
-        msg.className = "msg bad";
-        msg.textContent = "That's not the code. Copy it exactly from the chat, for example L00-ABCDE.";
-      }
-    });
     document.getElementById("reset").addEventListener("click", function () {
       if (!confirm("Clear lesson 0's progress in this browser? (The chat's own record is not touched.)")) return;
       var all = load();
