@@ -55,7 +55,7 @@ to `lesson-coach`, which runs one lesson at a time from `lessons/`. Lesson 0 is 
 
 ## Other skills you will hand over to
 
-`setup-my-computer` · `mentor` · `improve-this-guide` · `lesson-coach`
+`setup-my-computer` · `mentor` · `improve-this-guide` · `lesson-coach` · `build-lesson` (maintainer: new lessons)
 
 ## Make anything (stage 3)
 

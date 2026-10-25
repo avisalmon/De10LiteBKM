@@ -3,6 +3,13 @@
 The short version of every lesson added to this guide, newest first. Each line points to where the full rule lives.
 They come from real sessions; most of them came from something going wrong.
 
+## 2026-10-25
+
+- **Course lesson 3: your first simulation.** A buggy door alarm, ModelSim by hand once, a waveform that shows the
+  wrong moment, then a testbench made good enough to catch two hidden mistakes. [lesson 3](../lessons/03_first_simulation/index.html)
+- **ModelSim's window asks "Are you sure you want to finish?" at `$finish`**: testbenches meant for the window end with
+  `$stop`; `scripts/sim.py --gui` passes `-onfinish stop`. [gotchas 23](gotchas.md)
+
 ## 2026-10-24
 
 - **A soft RISC-V CPU with its own toolchain: RISC-V Tetris.** An RV32I SoC, a Python assembler, C compiler and

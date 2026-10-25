@@ -17,6 +17,7 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * Python, pip, PATH or "command not found" trouble -> `setup-my-computer`.
 * **"Teach me"**, "next lesson", "start lesson N" -> `lesson-coach`: the course (stage 2), slides in `lessons/` and
   coaching here.
+* (Maintainer) building the next lesson: slides, coach.md, checker, screenshots -> `build-lesson`.
 * "Explain", "why", "quiz me" -> `mentor`. **Teach as you build** (rule 6).
 * Something went wrong and you found the fix, or the user corrected you -> `improve-this-guide`.
 * Clocks, a PLL, a frequency, crossing between clocks -> `set-pll-clocks` (examples/01).

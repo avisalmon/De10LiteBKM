@@ -45,3 +45,6 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     Icarus also rejects a declaration inside an unnamed `begin ... end` of a loop: declare at module scope.
 22. **Parallel shell calls share the working directory.** Two commands run at once, one `cd` moved the other:
     absolute paths in every command (`make-project`).
+23. **ModelSim's window stops with "Are you sure you want to finish?"** at a `$finish`. End a testbench meant for the
+    window with `$stop` (it pauses; batch runs still quit), or start vsim with `-onfinish stop` (`scripts/sim.py --gui`
+    does). Commands typed in its Transcript are Tcl: forward slashes in paths.

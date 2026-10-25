@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 3 · First Simulation</title>
+<meta name="description" content="DE10-Lite course, lesson 3: run a testbench in ModelSim, read the waveform, find and fix a bug in a door alarm, make the test catch more mistakes, prove it on the board.">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --slide: #ffffff;
+    --ink: #17202e;
+    --muted: #556173;
+    --line: #dfe4ec;
+    --accent: #0a7f8f;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2f4f6;
+    --warm: #b4580c;
+    --warm-soft: #fdf0e3;
+    --ok: #1f8a4c;
+    --ok-soft: #e3f5ea;
+    --code-bg: #101722;
+    --code-ink: #e6edf5;
+    --pcb: #1d5c3a;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 28px rgba(16, 24, 40, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1017; --slide: #161d28; --ink: #e9eef5; --muted: #a3afc0; --line: #273142;
+      --accent: #4cc9d9; --accent-ink: #062228; --accent-soft: #11303a; --warm: #f2a65a; --warm-soft: #33251a;
+      --ok: #5fd08f; --ok-soft: #13301f; --code-bg: #0a0f16; --pcb: #1f6b43; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1017; --slide: #161d28; --ink: #e9eef5; --muted: #a3afc0; --line: #273142;
+    --accent: #4cc9d9; --accent-ink: #062228; --accent-soft: #11303a; --warm: #f2a65a; --warm-soft: #33251a;
+    --ok: #5fd08f; --ok-soft: #13301f; --code-bg: #0a0f16; --pcb: #1f6b43; --shadow: none;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, Arial, sans-serif; font-size: 18px; line-height: 1.6;
+    display: flex; flex-direction: column;
+  }
+  a { color: var(--accent); }
+  code, kbd, .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+  code { background: var(--accent-soft); border-radius: 4px; padding: 0 5px; font-size: .92em; }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; font-size: .85em; background: var(--bg); }
+
+  /* top bar */
+  .bar { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--slide); }
+  .bar .course { font-weight: 700; white-space: nowrap; }
+  .bar .course span { color: var(--muted); font-weight: 400; }
+  .progress { flex: 1; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+  .count { color: var(--muted); font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* the deck */
+  .deck { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 20px; min-height: 0; }
+  .slide {
+    display: none; width: min(1100px, 100%); min-height: min(640px, 100%); max-height: 100%; overflow-y: auto;
+    background: var(--slide); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 32px 48px;
+  }
+  .slide.on { display: block; }
+  .tag { display: inline-block; font-size: 14px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 99px; padding: 2px 12px; margin-bottom: 10px; }
+  .tag.web { color: var(--warm); background: var(--warm-soft); }
+  h1 { font-size: clamp(30px, 4.6vw, 48px); line-height: 1.15; margin-bottom: 14px; }
+  h2 { font-size: clamp(24px, 3.2vw, 34px); line-height: 1.2; margin-bottom: 14px; }
+  h3 { font-size: 19px; margin: 14px 0 4px; }
+  p + p { margin-top: 10px; }
+  .lead { font-size: 21px; color: var(--muted); max-width: 40em; }
+  .muted { color: var(--muted); }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; align-items: center; margin-top: 18px; }
+  .cols.top { align-items: start; }
+  ol.steps, ul.list { padding-left: 24px; margin-top: 8px; }
+  ol.steps li, ul.list li { margin-top: 8px; }
+  .box { background: var(--accent-soft); border-radius: 10px; padding: 14px 18px; margin-top: 16px; }
+  .box.warm { background: var(--warm-soft); }
+  .box.ok { background: var(--ok-soft); }
+  .box b.t { display: block; margin-bottom: 2px; }
+  .say { margin-top: 18px; background: var(--accent-soft); border-left: 6px solid var(--accent); border-radius: 10px; padding: 18px 22px; font-size: 30px; font-weight: 700; }
+  .term { background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 16px 18px; font-size: 15px; line-height: 1.7; overflow-x: auto; white-space: pre; }
+  .term .ok { color: #5fd08f; } .term .dim { color: #8b98aa; }
+  .figure { width: 100%; }
+  .figure svg { width: 100%; height: auto; display: block; }
+  .shot { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card svg { width: 100%; height: 90px; display: block; margin-bottom: 8px; }
+  .card h3 { margin-top: 0; font-size: 17px; }
+  .card p { font-size: 15px; color: var(--muted); }
+  table { border-collapse: collapse; margin-top: 8px; }
+  th, td { border: 1px solid var(--line); padding: 4px 16px; text-align: center; font-family: Consolas, monospace; }
+  th { background: var(--accent-soft); }
+
+  /* "I did it" ticks, saved in this browser */
+  .tick { display: flex; gap: 10px; align-items: center; margin-top: 18px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 10px; cursor: pointer; width: fit-content; }
+  .tick input { width: 22px; height: 22px; accent-color: var(--ok); }
+  .tick:has(input:checked) { border-style: solid; border-color: var(--ok); background: var(--ok-soft); }
+
+  /* completion code */
+  .code-form { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .code-form input { font: inherit; font-family: Consolas, monospace; font-size: 24px; letter-spacing: .08em; text-transform: uppercase; padding: 8px 14px; border: 2px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); width: 14ch; }
+  .btn { font: inherit; font-weight: 600; border: 1px solid var(--accent); border-radius: 10px; padding: 10px 20px; cursor: pointer; background: var(--accent); color: var(--accent-ink); min-height: 44px; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .msg { margin-top: 10px; font-weight: 600; min-height: 1.6em; }
+  .msg.bad { color: var(--warm); } .msg.good { color: var(--ok); }
+  .done-banner { display: none; }
+  .is-done .done-banner { display: block; }
+  .is-done .code-entry { display: none; }
+
+  /* bottom navigation */
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px 14px; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .dots button { width: 12px; height: 12px; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+  .dots button.seen { background: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .dots button.cur { background: var(--accent); transform: scale(1.3); }
+
+  /* SVG drawing classes */
+  .s-line { stroke: var(--muted); fill: none; stroke-width: 2; }
+  .s-acc { stroke: var(--accent); fill: none; stroke-width: 3; }
+  .s-box { fill: var(--slide); stroke: var(--line); stroke-width: 2; }
+  .s-soft { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+  .s-txt { fill: var(--ink); font: 600 15px "Segoe UI", sans-serif; }
+  .s-small { fill: var(--muted); font: 13px "Segoe UI", sans-serif; }
+  .s-pcb { fill: var(--pcb); }
+
+  /* lessons 2-3: screenshots open full size, three cards, the commands table */
+  .shot { cursor: zoom-in; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 18px; }
+  .steps-table td, .steps-table th { text-align: left; font-family: inherit; padding: 8px 14px; }
+  .quiz li { font-size: 21px; margin-top: 14px; }
+  @media (max-width: 760px) {
+    .grid3 { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  @media (max-width: 760px) {
+    body { font-size: 16px; }
+    .bar .course span { display: none; }
+    .deck { padding: 10px 16px; }
+    .slide { padding: 24px 20px; }
+    .cols { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .say { font-size: 22px; }
+    .nav { padding: 8px 16px 12px; }
+    .nav .btn { padding: 8px 12px; white-space: nowrap; }
+    .count { display: none; }
+    .lead { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="course">DE10-Lite Course <span>· Lesson 3 · Your first simulation</span></div>
+  <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+  <div class="count" id="count">1 / 18</div>
+</header>
+
+<main class="deck" id="deck">
+
+<!-- 1 -->
+<section class="slide" data-title="Welcome">
+  <span class="tag">Lesson 3</span>
+  <h1>Your first simulation</h1>
+  <p class="lead">Today you test a design on the computer, before it ever reaches the chip. You will run a <b>testbench</b> in
+  <b>ModelSim</b>, read a <b>waveform</b>, find a bug, fix it, and then make the test itself better.</p>
+  <div class="cols">
+    <div>
+      <h3>The design: a door alarm</h3>
+      <p>Somebody wrote it in a hurry. It compiles. It even works when you try it on the board with the switches you
+      happen to flip. But it has a bug, and the simulator will find it in one second.</p>
+      <p class="muted" style="margin-top:12px">About 50 minutes. The chat opens ModelSim for you and checks every step.</p>
+    </div>
+    <div class="figure" aria-label="A house with a door, a window and an alarm bell on the wall.">
+      <svg viewBox="0 0 360 230" role="img">
+        <title>The house: a door, a window, an alarm</title>
+        <path d="M40 100 L180 20 L320 100 Z" fill="var(--warm-soft)" stroke="var(--warm)" stroke-width="3"/>
+        <rect x="60" y="100" width="240" height="120" fill="var(--slide)" stroke="var(--muted)" stroke-width="3"/>
+        <rect x="90" y="140" width="50" height="80" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"/>
+        <circle cx="130" cy="182" r="4" fill="var(--accent)"/>
+        <rect x="200" y="130" width="70" height="50" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"/>
+        <path d="M235 130 V180 M200 155 H270" stroke="var(--accent)" stroke-width="2"/>
+        <circle cx="290" cy="60" r="18" fill="#e33"/><path d="M276 40 l-10 -10 M304 40 l10 -10 M290 36 v-14" stroke="#e33" stroke-width="3"/>
+        <text class="s-small" x="95" y="134">door</text><text class="s-small" x="210" y="124">window</text><text class="s-small" x="316" y="64">alarm</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-title="Why simulate">
+  <span class="tag">Lesson 3 · the idea</span>
+  <h2>Why test on the computer first?</h2>
+  <div class="cols top">
+    <div>
+      <h3>On the board you see what you try</h3>
+      <ul class="list">
+        <li>Only the switch positions you happen to flip.</li>
+        <li>Only the outputs you can see (an LED, a digit).</li>
+        <li>Every change costs a compile and a program.</li>
+      </ul>
+      <h3 style="margin-top:18px">In the simulator you see everything</h3>
+      <ul class="list">
+        <li>Every input combination, in order, automatically.</li>
+        <li>Every signal, at every moment, as a waveform.</li>
+        <li>A program checks the answers and says <b>PASS</b> or <b>FAIL</b>.</li>
+      </ul>
+    </div>
+    <div class="figure">
+      <svg viewBox="0 0 400 260" role="img" aria-label="The testbench drives the inputs of the design under test and reads its output, then prints PASS or FAIL.">
+        <title>A testbench around the design</title>
+        <rect x="10" y="20" width="380" height="220" rx="14" fill="var(--warm-soft)" stroke="var(--warm)" stroke-width="2"/>
+        <text class="s-txt" x="26" y="46">testbench (only in the simulator)</text>
+        <rect x="150" y="80" width="140" height="100" rx="10" class="s-soft"/>
+        <text class="s-txt" x="168" y="122">door_alarm</text><text class="s-small" x="168" y="144">the design</text><text class="s-small" x="168" y="162">under test</text>
+        <path class="s-acc" d="M60 100 H150 M60 130 H150 M60 160 H150 M290 130 H350"/>
+        <text class="s-small" x="40" y="96">armed</text><text class="s-small" x="40" y="126">door</text><text class="s-small" x="40" y="156">window</text>
+        <text class="s-small" x="300" y="122">alarm</text>
+        <text class="s-txt" x="160" y="215">PASS / FAIL</text>
+      </svg>
+    </div>
+  </div>
+  <div class="box"><b class="t">Engineers' rule</b>Simulate first, then build. A bug found in simulation costs seconds; on a chip in a
+  product it can cost a recall.</div>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-title="The rule">
+  <span class="tag">Lesson 3 · the specification</span>
+  <h2>What the alarm must do</h2>
+  <div class="say">Alarm when the system is armed AND the door OR the window is open.</div>
+  <div class="cols top">
+    <div>
+      <p>Three inputs, so 2 × 2 × 2 = <b>8</b> combinations. This table is the whole truth about the alarm: any correct design
+      gives exactly this column.</p>
+      <p style="margin-top:12px">In logic: <code>alarm = armed AND (door OR window)</code></p>
+      <p class="muted" style="margin-top:12px">1 means on / open, 0 means off / closed.</p>
+    </div>
+    <table aria-label="Truth table of the door alarm">
+      <tr><th>armed</th><th>door</th><th>window</th><th>alarm</th></tr>
+      <tr><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+      <tr><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+      <tr><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+      <tr><td>0</td><td>1</td><td>1</td><td>0</td></tr>
+      <tr><td>1</td><td>0</td><td>0</td><td>0</td></tr>
+      <tr><td>1</td><td>0</td><td>1</td><td><b>1</b></td></tr>
+      <tr><td>1</td><td>1</td><td>0</td><td><b>1</b></td></tr>
+      <tr><td>1</td><td>1</td><td>1</td><td><b>1</b></td></tr>
+    </table>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-title="The design">
+  <span class="tag">Lesson 3 · the design</span>
+  <h2>Read the design</h2>
+  <p>The chat put the lesson's files into <code>my_designs\lessons\03_first_simulation\alarm</code>. Open
+  <code>src\door_alarm.sv</code> in VS Code:</p>
+  <div class="term" style="margin-top:12px">module door_alarm (
+	input  logic armed,
+	input  logic door,
+	input  logic window,
+	output logic alarm
+);
+
+	assign alarm = armed &amp; door | window;
+
+endmodule</div>
+  <div class="cols top" style="margin-top:6px">
+    <div><p><code>&amp;</code> is AND, <code>|</code> is OR. The <code>assign</code> line says how the output is computed from the inputs.</p></div>
+    <div><p><b>Does it look right to you?</b> Keep your answer; in a few minutes ModelSim will tell you.</p></div>
+  </div>
+  <div class="box"><b class="t">The folder</b><code>src\</code> holds what goes into the chip (the design). <code>sim\</code> holds what
+  only the simulator runs (the testbench). Every project in this course uses these two folders.</div>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-title="The testbench">
+  <span class="tag">Lesson 3 · the testbench</span>
+  <h2>A testbench: a module that tests a module</h2>
+  <p>Open <code>sim\tb_door_alarm.sv</code>. The important parts:</p>
+  <div class="term" style="margin-top:10px"><span class="dim">// 1. a copy of the design, with wires plugged into it</span>
+door_alarm dut (.armed(armed), .door(door), .window(window), .alarm(alarm));
+
+<span class="dim">// 2. one test case: set the inputs, wait 10 ns, compare with what we expect</span>
+task check(input logic a, input logic d, input logic w, input logic expected);
+	armed = a; door = d; window = w;
+	#10;
+	if (alarm === expected)  $display("ok    ...");
+	else begin               $display("WRONG ..."); errors = errors + 1; end
+endtask
+
+<span class="dim">// 3. the list of test cases, run once from the start</span>
+initial begin
+	check(0, 0, 0,   0);     <span class="dim">// off, all closed: quiet</span>
+	check(0, 0, 1,   0);     <span class="dim">// off, window open: quiet</span>
+	<span class="dim">... six cases in all ...</span>
+	if (errors == 0) $display("PASS ...");  else $display("FAIL ...");
+	$stop;
+end</div>
+  <p style="margin-top:10px"><code>#10</code> means "wait 10 nanoseconds" (simulated time, not real time). <code>$display</code> prints a line.
+  <code>$stop</code> pauses the simulation so you can look around.</p>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-title="Open ModelSim">
+  <span class="tag">Lesson 3 · step 1</span>
+  <h2>Open ModelSim</h2>
+  <p>ModelSim came with Quartus in lesson 0; it is free and needs no license. The chat starts it for you (it takes a few seconds).</p>
+  <p style="margin-top:10px"><b>The very first time</b> a welcome notice appears. Tick <b>Don't show this dialog again</b> if you like, and click
+  <b>Close</b> (bottom right).</p>
+  <img class="shot" src="media/01_welcome.png" alt="The ModelSim welcome notice: Welcome to version 10.5b, with Jumpstart and Close buttons at the bottom." style="margin-top:14px">
+</section>
+
+<!-- 7 -->
+<section class="slide" data-title="Four commands">
+  <span class="tag">Lesson 3 · step 2</span>
+  <h2>Tell ModelSim what to simulate: four commands</h2>
+  <p>At the bottom of the ModelSim window is the <b>Transcript</b>, with a prompt <code>ModelSim&gt;</code>. Type each line there and
+  press <kbd>Enter</kbd>. The chat gives you the exact first line (it depends on where your course folder is).</p>
+  <table class="steps-table" style="margin-top:12px">
+    <tr><th>You type</th><th>What it does</th></tr>
+    <tr><td><code>cd C:/.../my_designs/lessons/03_first_simulation/alarm/sim</code></td><td>go to the testbench folder (forward slashes)</td></tr>
+    <tr><td><code>vlib work</code></td><td>make a library called <code>work</code>, where compiled designs live</td></tr>
+    <tr><td><code>vlog ../src/door_alarm.sv tb_door_alarm.sv</code></td><td>compile the design and the testbench</td></tr>
+    <tr><td><code>vsim tb_door_alarm</code></td><td>load the testbench, ready to run</td></tr>
+  </table>
+  <p style="margin-top:12px">After <code>vlog</code> the Transcript says:</p>
+  <div class="term">-- Compiling module door_alarm
+-- Compiling module tb_door_alarm
+
+Top level modules:
+	tb_door_alarm
+<span class="ok">Errors: 0, Warnings: 0</span></div>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-title="Run it">
+  <span class="tag">Lesson 3 · step 3</span>
+  <h2>Run it</h2>
+  <p>Two more commands: <code>add wave *</code> (show every signal of the testbench in a waveform) and <code>run -all</code> (run until <code>$stop</code>).</p>
+  <div class="term" style="margin-top:12px"><span class="ok">ok</span>    armed=0 door=0 window=0  -&gt;  alarm=0
+<span style="color:#ff8a65">WRONG</span> armed=0 door=0 window=1  -&gt;  alarm=1, expected 0
+<span class="ok">ok</span>    armed=0 door=1 window=0  -&gt;  alarm=0
+<span class="ok">ok</span>    armed=1 door=0 window=0  -&gt;  alarm=0
+<span class="ok">ok</span>    armed=1 door=0 window=1  -&gt;  alarm=1
+<span class="ok">ok</span>    armed=1 door=1 window=0  -&gt;  alarm=1
+<span style="color:#ff8a65">FAIL: 1 test case(s) wrong</span>
+** Note: $stop    : tb_door_alarm.sv(43)</div>
+  <p style="margin-top:12px"><b>The testbench found a bug.</b> With the system <b>off</b> and only the window open, the alarm sounds. Your
+  neighbours will not be happy. ModelSim also opens the testbench source at the <code>$stop</code> line, with a blue arrow.</p>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-title="The window">
+  <span class="tag">Lesson 3 · the window</span>
+  <h2>What you are looking at</h2>
+  <img class="shot" src="media/02_main.png" alt="ModelSim after the run: the sim pane with the design hierarchy on the left, Objects with the signal values in the middle, the Wave pane on the right, and the Transcript at the bottom.">
+  <div class="grid3">
+    <div class="card"><h3>sim (left)</h3><p>The hierarchy: <code>tb_door_alarm</code> with <code>dut</code> inside it, your design.</p></div>
+    <div class="card"><h3>Objects (middle)</h3><p>The signals of what you clicked on the left, with their values now.</p></div>
+    <div class="card"><h3>Wave (right)</h3><p>The signals over time. Click its tab at the bottom of the right pane if the source file is in front.</p></div>
+  </div>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-title="The waveform">
+  <span class="tag">Lesson 3 · step 4</span>
+  <h2>Read the waveform</h2>
+  <img class="shot" src="media/03_wave_bug.png" alt="The wave window from 0 to 70 ns. A yellow cursor at 15 ns crosses armed at 0, door at 0, window at 1 and alarm at 1.">
+  <div class="cols top" style="margin-top:8px">
+    <div>
+      <ul class="list">
+        <li>Each row is one signal. High line = 1, low line = 0.</li>
+        <li>Time runs to the right; every 10 ns the testbench sets new inputs.</li>
+        <li><b>Click</b> in the waves to put the yellow cursor there; the <b>Msgs</b> column shows the values at the cursor.</li>
+      </ul>
+    </div>
+    <div>
+      <ul class="list">
+        <li>Too small? Toolbar <b>Zoom Full</b> (the magnifier), or type <code>wave zoom full</code>.</li>
+        <li><b>Find the wrong moment yourself</b>: where is <code>alarm</code> 1 while <code>armed</code> is 0? Tell the chat the time you found.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-title="Why it's wrong">
+  <span class="tag">Lesson 3 · the bug</span>
+  <h2>Why: AND goes before OR</h2>
+  <div class="cols">
+    <div>
+      <p>In Verilog, like in math, some operators go first. <code>&amp;</code> (AND) goes before <code>|</code> (OR), just as × goes before +:</p>
+      <div class="term" style="margin-top:10px">2 × 3 + 4      is   (2 × 3) + 4      = 10
+armed &amp; door | window   is   (armed &amp; door) | window</div>
+      <p style="margin-top:12px">So the window alone sets off the alarm, armed or not. The rule needs the OR done first.</p>
+      <p style="margin-top:10px"><b>How would you make the OR happen first?</b> (The same way you would in math.)</p>
+    </div>
+    <div class="figure">
+      <svg viewBox="0 0 380 250" role="img" aria-label="Two circuits. Wrong: armed and door go into an AND gate, its output and window go into an OR gate. Right: door and window go into an OR gate, its output and armed go into an AND gate.">
+        <title>The wrong circuit and the right one</title>
+        <text class="s-txt" x="10" y="22">what was written</text>
+        <path d="M70 40 h30 a22 22 0 0 1 0 44 h-30 z" class="s-soft"/><text class="s-small" x="78" y="66">AND</text>
+        <path d="M190 60 q20 0 40 22 q-20 22 -40 22 q12 -22 0 -44 z" class="s-soft"/><text class="s-small" x="200" y="86">OR</text>
+        <path class="s-line" d="M10 52 H70 M10 72 H70 M122 62 H160 V70 H196 M10 100 H196 M230 82 H290"/>
+        <text class="s-small" x="12" y="48">armed</text><text class="s-small" x="12" y="68">door</text><text class="s-small" x="12" y="96">window</text><text class="s-small" x="296" y="86">alarm</text>
+        <text class="s-txt" x="10" y="150">what the rule says</text>
+        <path d="M80 170 q20 0 40 22 q-20 22 -40 22 q12 -22 0 -44 z" class="s-soft"/><text class="s-small" x="90" y="196">OR</text>
+        <path d="M190 180 h30 a22 22 0 0 1 0 44 h-30 z" class="s-soft"/><text class="s-small" x="198" y="206">AND</text>
+        <path class="s-acc" d="M10 182 H86 M10 202 H86 M120 192 H150 V212 H190 M10 238 H170 V194 H190 M242 202 H290"/>
+        <text class="s-small" x="12" y="178">door</text><text class="s-small" x="12" y="198">window</text><text class="s-small" x="12" y="234">armed</text><text class="s-small" x="296" y="206">alarm</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-title="Fix it">
+  <span class="tag">Lesson 3 · step 5</span>
+  <h2>Fix it, and simulate again</h2>
+  <ol class="steps">
+    <li>In VS Code, change the <code>assign</code> line in <code>src\door_alarm.sv</code> and save. (One small change.)</li>
+    <li>Back in ModelSim, three commands: compile the design again, restart the simulation (the waveform stays), run.</li>
+  </ol>
+  <div class="term" style="margin-top:12px">vlog ../src/door_alarm.sv
+restart -f
+run -all</div>
+  <p style="margin-top:12px">Six <code>ok</code> lines and <span class="mono">PASS: door_alarm passed every test case</span>. Then tell the chat:
+  it runs its own check on your design, with <b>all 8</b> combinations of the truth table.</p>
+  <div class="box warm"><b class="t">Still WRONG?</b>Read the WRONG line: which inputs, what came out, what was expected. Then the truth table on slide 3.</div>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-title="The fast way">
+  <span class="tag">Lesson 3 · the fast way</span>
+  <h2>The same thing, in one command</h2>
+  <p>You just did a simulation by hand: <code>vlib</code>, <code>vlog</code>, <code>vsim</code>, <code>run</code>. From now on the chat does it with one command:</p>
+  <div class="term" style="margin-top:12px">python scripts/sim.py my_designs/lessons/03_first_simulation/alarm/sim/tb_door_alarm.sv --modelsim
+<span class="dim">...</span>
+<span class="ok"># PASS: door_alarm passed every test case</span>
+<span class="ok">OK: testbench passed</span></div>
+  <p style="margin-top:12px">How does it know which design files to compile? The testbench says so in one comment line at its top:</p>
+  <div class="term">// sim-sources: ../src/door_alarm.sv</div>
+  <p style="margin-top:12px">Add <code>--gui</code> and it opens ModelSim with the waveform, like you did by hand.</p>
+</section>
+
+<!-- 14 -->
+<section class="slide" data-title="Is the test good?">
+  <span class="tag">Lesson 3 · the twist</span>
+  <h2>PASS. But is the test good enough?</h2>
+  <div class="cols top">
+    <div>
+      <p>The chat has two more door alarms, each with a different hidden mistake. Run against them, your testbench says...
+      <b>PASS</b>. Both times.</p>
+      <p style="margin-top:12px">A testbench only checks the cases in its list. A mistake that hides in a case nobody wrote down
+      goes straight through.</p>
+      <div class="say" style="font-size:24px">A PASS is only as good as the test cases behind it.</div>
+    </div>
+    <div>
+      <p><b>Your job:</b> compare the testbench's list of <code>check(...)</code> lines with the truth table on slide 3.
+      Which rows are not tested yet?</p>
+      <div class="box"><b class="t">Hint</b>Count them: the table has 8 rows, the list has 6 lines.</div>
+    </div>
+  </div>
+</section>
+
+<!-- 15 -->
+<section class="slide" data-title="Two more cases">
+  <span class="tag">Lesson 3 · step 6 · make it yours</span>
+  <h2>Add the two missing test cases</h2>
+  <p>Where the testbench says <code>// (two more cases go here)</code>, add two lines that follow the same pattern:</p>
+  <div class="term" style="margin-top:10px">check(armed, door, window,   expected alarm);</div>
+  <p style="margin-top:12px">Take the inputs and the expected alarm from the truth table. Save, run again (in ModelSim or ask the chat), then ask the
+  chat to check your testbench: it runs it on your design, on a right one, and on the two wrong ones.</p>
+  <img class="shot" src="media/04_wave_fixed.png" alt="The wave window after the fix with eight test cases, 0 to 80 ns; errors stays 0 the whole time." style="margin-top:12px;max-width:760px">
+  <p class="muted" style="margin-top:6px">With all 8 cases: the waveform runs to 80 ns and <code>errors</code> stays 0.</p>
+</section>
+
+<!-- 16 -->
+<section class="slide" data-title="On the board">
+  <span class="tag">Lesson 3 · step 7</span>
+  <h2>Now prove it on the board</h2>
+  <div class="cols">
+    <div>
+      <p>The chat builds the fixed design and loads it into the board (the commands from lesson 2's last slides). The switches:</p>
+      <table class="steps-table" style="margin-top:10px">
+        <tr><th>Switch</th><th>Means</th></tr>
+        <tr><td>SW2</td><td>armed (up = on)</td></tr>
+        <tr><td>SW1</td><td>door open</td></tr>
+        <tr><td>SW0</td><td>window open</td></tr>
+        <tr><td>LEDR0</td><td>the alarm</td></tr>
+      </table>
+    </div>
+    <div>
+      <ol class="steps">
+        <li>All three down: LEDR0 off.</li>
+        <li>SW0 up (window), SW2 down (off): <b>LEDR0 stays off</b>. This was the bug.</li>
+        <li>SW2 up too: LEDR0 on.</li>
+        <li>Try a few more and compare with the truth table.</li>
+      </ol>
+      <p style="margin-top:12px">Tell the chat what you saw.</p>
+    </div>
+  </div>
+  <div class="box">The board agrees with the simulation, because the simulation already tried every case. That is the whole point.</div>
+</section>
+
+<!-- 17 -->
+<section class="slide" data-title="Two questions">
+  <span class="tag">Lesson 3 · quiz</span>
+  <h2>Two questions, in the chat</h2>
+  <p>Answer in your own words. The chat may give you a hint first.</p>
+  <ol class="quiz">
+    <li>We have a real board. Why simulate at all?</li>
+    <li>Your first testbench said PASS on designs that were wrong. How can that happen, and what did you do about it?</li>
+  </ol>
+</section>
+
+<!-- 18 -->
+<section class="slide" data-title="Done" id="last">
+  <span class="tag">Lesson 3 · finish</span>
+  <h2>Enter your completion code</h2>
+  <div class="code-entry">
+    <p>When the waveform, your fix, your two test cases, the board and the quiz all pass, the chat gives you a code. Type it here.</p>
+    <form class="code-form" id="code-form" autocomplete="off">
+      <input id="code" aria-label="Completion code" placeholder="L03-....." maxlength="12">
+      <button class="btn" type="submit">Finish lesson 3</button>
+    </form>
+    <div class="msg" id="msg" role="status"></div>
+  </div>
+  <div class="done-banner">
+    <div class="box ok" style="font-size:22px"><b class="t">Lesson 3 done!</b>You found a bug before the chip did, and made the test itself better.</div>
+    <h3 style="margin-top:22px">What you learned</h3>
+    <ul class="list">
+      <li>A testbench is a module that drives your design's inputs and checks its outputs; only the simulator runs it.</li>
+      <li>ModelSim: <code>vlib</code>, <code>vlog</code>, <code>vsim</code>, <code>add wave</code>, <code>run -all</code>; the waveform shows every signal at every moment.</li>
+      <li>Operators have an order: <code>&amp;</code> before <code>|</code>. Parentheses say what you mean.</li>
+      <li>A PASS is only as good as the test cases: cover every case that matters.</li>
+    </ul>
+    <h3 style="margin-top:18px">Next: lesson 4, Verilog basics</h3>
+    <p>Go to the chat and type <b>teach me</b>.</p>
+    <button class="btn ghost" type="button" id="reset" style="margin-top:16px">Reset this lesson's progress</button>
+  </div>
+</section>
+
+</main>
+
+<nav class="nav">
+  <button class="btn ghost" type="button" id="prev" aria-label="Previous slide">&larr; Back</button>
+  <div class="dots" id="dots" aria-label="Slides"></div>
+  <button class="btn" type="button" id="next" aria-label="Next slide">Next &rarr;</button>
+</nav>
+
+<script>
+  (function () {
+    var LESSON = "3";
+    var CODE_HASH = 2467768214;   // scripts/lesson.py code-hash 3
+    var KEY = "de10-course";
+    var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+    var dots = document.getElementById("dots");
+    var cur = 0;
+
+    // Progress lives in this browser only. Private windows and some school browsers block storage: the deck still works.
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+    }
+    function save(all) {
+      try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) {}
+    }
+    function mine() {
+      var all = load();
+      all[LESSON] = all[LESSON] || { slide: 0, seen: [], ticks: {}, done: null };
+      return all;
+    }
+    function update(fn) {
+      var all = mine();
+      fn(all[LESSON]);
+      save(all);
+      return all[LESSON];
+    }
+
+    slides.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.title = (i + 1) + ". " + s.getAttribute("data-title");
+      b.setAttribute("aria-label", b.title);
+      b.addEventListener("click", function () { go(i); });
+      dots.appendChild(b);
+    });
+
+    function go(i) {
+      cur = Math.max(0, Math.min(slides.length - 1, i));
+      slides.forEach(function (s, k) { s.classList.toggle("on", k === cur); });
+      var st = update(function (p) {
+        p.slide = cur;
+        if (p.seen.indexOf(cur) < 0) p.seen.push(cur);
+      });
+      Array.prototype.forEach.call(dots.children, function (b, k) {
+        b.classList.toggle("cur", k === cur);
+        b.classList.toggle("seen", st.seen.indexOf(k) >= 0);
+      });
+      document.getElementById("count").textContent = (cur + 1) + " / " + slides.length;
+      document.getElementById("progress").style.width = (100 * (cur + 1) / slides.length) + "%";
+      document.getElementById("prev").disabled = cur === 0;
+      document.getElementById("next").disabled = cur === slides.length - 1;
+      slides[cur].scrollTop = 0;
+      if (location.hash !== "#" + (cur + 1)) history.replaceState(null, "", "#" + (cur + 1));
+    }
+
+    document.getElementById("prev").addEventListener("click", function () { go(cur - 1); });
+    document.getElementById("next").addEventListener("click", function () { go(cur + 1); });
+    document.addEventListener("keydown", function (e) {
+      if (e.target.tagName === "INPUT") return;
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); go(cur + 1); }
+      if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
+      if (e.key === "Home") go(0);
+      if (e.key === "End") go(slides.length - 1);
+    });
+    // The chat opens the deck at a slide with #N (scripts/lesson.py open 3 N)
+    window.addEventListener("hashchange", function () {
+      var n = parseInt(location.hash.slice(1), 10);
+      if (n) go(n - 1);
+    });
+
+    // "I did it" ticks
+    var state = mine()[LESSON];
+    document.querySelectorAll("[data-tick]").forEach(function (box) {
+      var name = box.getAttribute("data-tick");
+      box.checked = !!state.ticks[name];
+      box.addEventListener("change", function () {
+        update(function (p) { p.ticks[name] = box.checked; });
+      });
+    });
+
+    // Completion code: the same 32-bit FNV-1a as scripts/lesson.py
+    function fnv1a(text) {
+      var h = 0x811c9dc5;
+      var bytes = new TextEncoder().encode(text);
+      for (var i = 0; i < bytes.length; i++) {
+        h ^= bytes[i];
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      return h >>> 0;
+    }
+    var last = document.getElementById("last");
+    function showDone(when) { last.classList.toggle("is-done", !!when); }
+    showDone(state.done);
+    document.getElementById("code-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var typed = document.getElementById("code").value.trim().toUpperCase().replace(/\s+/g, "");
+      var msg = document.getElementById("msg");
+      if (fnv1a(typed) === CODE_HASH) {
+        var p = update(function (p) { p.done = new Date().toISOString().slice(0, 10); });
+        showDone(p.done);
+      } else {
+        msg.className = "msg bad";
+        msg.textContent = "That's not the code. Copy it exactly from the chat, for example L03-ABCDE.";
+      }
+    });
+    document.getElementById("reset").addEventListener("click", function () {
+      if (!confirm("Clear lesson 3's progress in this browser? (The chat's own record is not touched.)")) return;
+      var all = load();
+      delete all[LESSON];
+      save(all);
+      location.hash = "#1";
+      location.reload();
+    });
+
+    // Screenshots are small on a slide: click one to see it full size
+    document.querySelectorAll("img.shot").forEach(function (img) {
+      img.title = "Click to see it full size";
+      img.addEventListener("click", function () { window.open(img.src, "_blank"); });
+    });
+
+    var start = parseInt(location.hash.slice(1), 10);
+    go(start ? start - 1 : (state.slide || 0));
+  })();
+</script>
+</body>
+</html>

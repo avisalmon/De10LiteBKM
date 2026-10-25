@@ -7,7 +7,7 @@ nature of the practice differs per lesson). The DE10-Lite and its shield are ass
 
 Status: lesson 0 built (`lessons/00_setup/`, verified on the board 2026-10-24). Lesson 1 (= 0.1, folder
 `01_what_is_fpga/`) built 2026-10-24: slides, the board hunt (13 challenges, checked by the board) and a quiz in the
-chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. Lesson 2 (= 0.2, `02_first_project/`) built 2026-10-25: the whole Quartus flow by hand in the GUI, real 17.1 screenshots, a .qsf checker, SW9->LED9 change, quiz; no simulation (ModelSim comes in lesson 3). The rest is the agreed topic list;
+chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. Lesson 2 (= 0.2, `02_first_project/`) built 2026-10-25: the whole Quartus flow by hand in the GUI, real 17.1 screenshots, a .qsf checker, SW9->LED9 change, quiz; no simulation (ModelSim comes in lesson 3). Lesson 3 (= 0.3, `03_first_simulation/`) built 2026-10-25, agreed with Avi: a buggy door alarm (`armed & door | window`, an operator-precedence bug); ModelSim by hand in its window once (vlib / vlog / vsim / add wave / run, real 10.5b screenshots), the waveform shows the wrong moment, the student fixes the design, then adds the 2 missing truth-table rows to the testbench (a checker runs it against 2 wrong designs only those rows catch), then the board (SW2/SW1/SW0 -> LEDR0) and a quiz; from lesson 4 the chat simulates with `scripts/sim.py`. The rest is the agreed topic list;
 each lesson is discussed with Avi before it is built.
 
 ## How a lesson works (agreed 2026-10-24)

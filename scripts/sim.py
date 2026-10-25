@@ -88,7 +88,8 @@ def modelsim(tb, defines, gui):
         return rc, ""
     libs = [x for l in ALTERA_LIBS for x in ("-L", l)]
     if gui:
-        subprocess.Popen([exe("vsim"), *libs, name, "-do", "add wave -r /*; run -all"], cwd=here)
+        # -onfinish stop: a $finish pauses instead of asking "Are you sure you want to finish?" in a dialog
+        subprocess.Popen([exe("vsim"), *libs, "-onfinish", "stop", name, "-do", "add wave -r /*; run -all"], cwd=here)
         return 0, "PASS (gui)"
     return run([exe("vsim"), "-c", *libs, name, "-do", "run -all; quit -f"], here)
 
