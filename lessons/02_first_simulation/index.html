@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 3 · First Simulation</title>
-<meta name="description" content="DE10-Lite course, lesson 3: run a testbench in ModelSim, read the waveform, find and fix a bug in a door alarm, make the test catch more mistakes, prove it on the board.">
+<title>Lesson 2 · First Simulation</title>
+<meta name="description" content="DE10-Lite course, lesson 2: run a testbench, read the waveform, find and fix a bug in a door alarm, make the test catch more mistakes, prove it on the board.">
 <style>
   :root {
     --bg: #eef1f6;
@@ -155,25 +155,25 @@
 <body>
 
 <header class="bar">
-  <div class="course">DE10-Lite Course <span>· Lesson 3 · Your first simulation</span></div>
+  <div class="course">DE10-Lite Course <span>· Lesson 2 · Your first simulation</span></div>
   <div class="progress" aria-hidden="true"><i id="progress"></i></div>
-  <div class="count" id="count">1 / 18</div>
+  <div class="count" id="count">1 / 15</div>
 </header>
 
 <main class="deck" id="deck">
 
 <!-- 1 -->
 <section class="slide" data-title="Welcome">
-  <span class="tag">Lesson 3</span>
+  <span class="tag">Lesson 2</span>
   <h1>Your first simulation</h1>
-  <p class="lead">Today you test a design on the computer, before it ever reaches the chip. You will run a <b>testbench</b> in
-  <b>ModelSim</b>, read a <b>waveform</b>, find a bug, fix it, and then make the test itself better.</p>
+  <p class="lead">Today you test a design on the computer, before it ever reaches the chip. A <b>testbench</b> tries every case,
+  a <b>waveform</b> shows you the moment it goes wrong, you fix it in VS Code, and then you make the test itself better.</p>
   <div class="cols">
     <div>
       <h3>The design: a door alarm</h3>
       <p>Somebody wrote it in a hurry. It compiles. It even works when you try it on the board with the switches you
       happen to flip. But it has a bug, and the simulator will find it in one second.</p>
-      <p class="muted" style="margin-top:12px">About 50 minutes. The chat opens ModelSim for you and checks every step.</p>
+      <p class="muted" style="margin-top:12px">About 40 minutes. You work in VS Code; the chat runs the simulator and the board for you and checks every step.</p>
     </div>
     <div class="figure" aria-label="A house with a door, a window and an alarm bell on the wall.">
       <svg viewBox="0 0 360 230" role="img">
@@ -185,7 +185,7 @@
         <rect x="200" y="130" width="70" height="50" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="3"/>
         <path d="M235 130 V180 M200 155 H270" stroke="var(--accent)" stroke-width="2"/>
         <circle cx="290" cy="60" r="18" fill="#e33"/><path d="M276 40 l-10 -10 M304 40 l10 -10 M290 36 v-14" stroke="#e33" stroke-width="3"/>
-        <text class="s-small" x="95" y="134">door</text><text class="s-small" x="210" y="124">window</text><text class="s-small" x="316" y="64">alarm</text>
+        <text class="s-small" x="95" y="134">door</text><text class="s-small" x="210" y="124">window</text><text class="s-small" x="270" y="98">alarm</text>
       </svg>
     </div>
   </div>
@@ -193,7 +193,7 @@
 
 <!-- 2 -->
 <section class="slide" data-title="Why simulate">
-  <span class="tag">Lesson 3 · the idea</span>
+  <span class="tag">Lesson 2 · the idea</span>
   <h2>Why test on the computer first?</h2>
   <div class="cols top">
     <div>
@@ -230,7 +230,7 @@
 
 <!-- 3 -->
 <section class="slide" data-title="The rule">
-  <span class="tag">Lesson 3 · the specification</span>
+  <span class="tag">Lesson 2 · the specification</span>
   <h2>What the alarm must do</h2>
   <div class="say">Alarm when the system is armed AND the door OR the window is open.</div>
   <div class="cols top">
@@ -256,9 +256,9 @@
 
 <!-- 4 -->
 <section class="slide" data-title="The design">
-  <span class="tag">Lesson 3 · the design</span>
+  <span class="tag">Lesson 2 · the design</span>
   <h2>Read the design</h2>
-  <p>The chat put the lesson's files into <code>my_designs\lessons\03_first_simulation\alarm</code>. Open
+  <p>The chat put the lesson's files into <code>my_designs\lessons\02_first_simulation\alarm</code>. Open
   <code>src\door_alarm.sv</code> in VS Code:</p>
   <div class="term" style="margin-top:12px">module door_alarm (
 	input  logic armed,
@@ -280,7 +280,7 @@ endmodule</div>
 
 <!-- 5 -->
 <section class="slide" data-title="The testbench">
-  <span class="tag">Lesson 3 · the testbench</span>
+  <span class="tag">Lesson 2 · the testbench</span>
   <h2>A testbench: a module that tests a module</h2>
   <p>Open <code>sim\tb_door_alarm.sv</code>. The important parts:</p>
   <div class="term" style="margin-top:10px"><span class="dim">// 1. a copy of the design, with wires plugged into it</span>
@@ -303,75 +303,40 @@ initial begin
 	$stop;
 end</div>
   <p style="margin-top:10px"><code>#10</code> means "wait 10 nanoseconds" (simulated time, not real time). <code>$display</code> prints a line.
-  <code>$stop</code> pauses the simulation so you can look around.</p>
+  <code>$stop</code> ends the run (it pauses, so the waveform stays open for you to read).</p>
 </section>
 
 <!-- 6 -->
-<section class="slide" data-title="Open ModelSim">
-  <span class="tag">Lesson 3 · step 1</span>
-  <h2>Open ModelSim</h2>
-  <p>ModelSim came with Quartus in lesson 0; it is free and needs no license. The chat starts it for you (it takes a few seconds).</p>
-  <p style="margin-top:10px"><b>The very first time</b> a welcome notice appears. Tick <b>Don't show this dialog again</b> if you like, and click
-  <b>Close</b> (bottom right).</p>
-  <img class="shot" src="media/01_welcome.png" alt="The ModelSim welcome notice: Welcome to version 10.5b, with Jumpstart and Close buttons at the bottom." style="margin-top:14px">
-</section>
-
-<!-- 7 -->
-<section class="slide" data-title="Four commands">
-  <span class="tag">Lesson 3 · step 2</span>
-  <h2>Tell ModelSim what to simulate: four commands</h2>
-  <p>At the bottom of the ModelSim window is the <b>Transcript</b>, with a prompt <code>ModelSim&gt;</code>. Type each line there and
-  press <kbd>Enter</kbd>. The chat gives you the exact first line (it depends on where your course folder is).</p>
-  <table class="steps-table" style="margin-top:12px">
-    <tr><th>You type</th><th>What it does</th></tr>
-    <tr><td><code>cd C:/.../my_designs/lessons/03_first_simulation/alarm/sim</code></td><td>go to the testbench folder (forward slashes)</td></tr>
-    <tr><td><code>vlib work</code></td><td>make a library called <code>work</code>, where compiled designs live</td></tr>
-    <tr><td><code>vlog ../src/door_alarm.sv tb_door_alarm.sv</code></td><td>compile the design and the testbench</td></tr>
-    <tr><td><code>vsim tb_door_alarm</code></td><td>load the testbench, ready to run</td></tr>
-  </table>
-  <p style="margin-top:12px">After <code>vlog</code> the Transcript says:</p>
-  <div class="term">-- Compiling module door_alarm
--- Compiling module tb_door_alarm
-
-Top level modules:
-	tb_door_alarm
-<span class="ok">Errors: 0, Warnings: 0</span></div>
-</section>
-
-<!-- 8 -->
-<section class="slide" data-title="Run it">
-  <span class="tag">Lesson 3 · step 3</span>
-  <h2>Run it</h2>
-  <p>Two more commands: <code>add wave *</code> (show every signal of the testbench in a waveform) and <code>run -all</code> (run until <code>$stop</code>).</p>
-  <div class="term" style="margin-top:12px"><span class="ok">ok</span>    armed=0 door=0 window=0  -&gt;  alarm=0
+<section class="slide" data-title="Run the test">
+  <span class="tag">Lesson 2 · step 1</span>
+  <h2>Run the test</h2>
+  <p>In the chat, say <b>run my test</b>. The chat runs the simulator for you:</p>
+  <div class="term" style="margin-top:12px"><span class="dim">python scripts/sim.py my_designs/lessons/02_first_simulation/alarm/sim/tb_door_alarm.sv --modelsim</span>
+<span class="ok">ok</span>    armed=0 door=0 window=0  -&gt;  alarm=0
 <span style="color:#ff8a65">WRONG</span> armed=0 door=0 window=1  -&gt;  alarm=1, expected 0
 <span class="ok">ok</span>    armed=0 door=1 window=0  -&gt;  alarm=0
 <span class="ok">ok</span>    armed=1 door=0 window=0  -&gt;  alarm=0
 <span class="ok">ok</span>    armed=1 door=0 window=1  -&gt;  alarm=1
 <span class="ok">ok</span>    armed=1 door=1 window=0  -&gt;  alarm=1
-<span style="color:#ff8a65">FAIL: 1 test case(s) wrong</span>
-** Note: $stop    : tb_door_alarm.sv(43)</div>
-  <p style="margin-top:12px"><b>The testbench found a bug.</b> With the system <b>off</b> and only the window open, the alarm sounds. Your
-  neighbours will not be happy. ModelSim also opens the testbench source at the <code>$stop</code> line, with a blue arrow.</p>
-</section>
-
-<!-- 9 -->
-<section class="slide" data-title="The window">
-  <span class="tag">Lesson 3 · the window</span>
-  <h2>What you are looking at</h2>
-  <img class="shot" src="media/02_main.png" alt="ModelSim after the run: the sim pane with the design hierarchy on the left, Objects with the signal values in the middle, the Wave pane on the right, and the Transcript at the bottom.">
-  <div class="grid3">
-    <div class="card"><h3>sim (left)</h3><p>The hierarchy: <code>tb_door_alarm</code> with <code>dut</code> inside it, your design.</p></div>
-    <div class="card"><h3>Objects (middle)</h3><p>The signals of what you clicked on the left, with their values now.</p></div>
-    <div class="card"><h3>Wave (right)</h3><p>The signals over time. Click its tab at the bottom of the right pane if the source file is in front.</p></div>
+<span style="color:#ff8a65">FAIL: 1 test case(s) wrong</span></div>
+  <div class="cols top">
+    <div>
+      <p><b>The testbench found a bug.</b> With the system <b>off</b> and only the window open, the alarm sounds. Your
+      neighbours will not be happy.</p>
+    </div>
+    <div>
+      <p class="muted">Behind that command is <b>ModelSim</b>, the simulator that came with Quartus. It compiles your two files and
+      runs the testbench; you never have to open it.</p>
+    </div>
   </div>
 </section>
 
-<!-- 10 -->
+<!-- 7 -->
 <section class="slide" data-title="The waveform">
-  <span class="tag">Lesson 3 · step 4</span>
-  <h2>Read the waveform</h2>
-  <img class="shot" src="media/03_wave_bug.png" alt="The wave window from 0 to 70 ns. A yellow cursor at 15 ns crosses armed at 0, door at 0, window at 1 and alarm at 1.">
+  <span class="tag">Lesson 2 · step 2</span>
+  <h2>See it happen: the waveform</h2>
+  <p>Now say <b>show me the waveform</b>. The chat runs the same test and opens one window: the <b>wave</b> view.</p>
+  <img class="shot" src="media/wave_bug.png" alt="The wave window from 0 to 70 ns. A yellow cursor at 15 ns crosses armed at 0, door at 0, window at 1 and alarm at 1." style="margin-top:12px">
   <div class="cols top" style="margin-top:8px">
     <div>
       <ul class="list">
@@ -382,16 +347,16 @@ Top level modules:
     </div>
     <div>
       <ul class="list">
-        <li>Too small? Toolbar <b>Zoom Full</b> (the magnifier), or type <code>wave zoom full</code>.</li>
+        <li>Too small? The toolbar's <b>Zoom Full</b> magnifier fits the whole run.</li>
         <li><b>Find the wrong moment yourself</b>: where is <code>alarm</code> 1 while <code>armed</code> is 0? Tell the chat the time you found.</li>
       </ul>
     </div>
   </div>
 </section>
 
-<!-- 11 -->
+<!-- 8 -->
 <section class="slide" data-title="Why it's wrong">
-  <span class="tag">Lesson 3 · the bug</span>
+  <span class="tag">Lesson 2 · the bug</span>
   <h2>Why: AND goes before OR</h2>
   <div class="cols">
     <div>
@@ -419,39 +384,47 @@ armed &amp; door | window   is   (armed &amp; door) | window</div>
   </div>
 </section>
 
-<!-- 12 -->
+<!-- 9 -->
 <section class="slide" data-title="Fix it">
-  <span class="tag">Lesson 3 · step 5</span>
-  <h2>Fix it, and simulate again</h2>
+  <span class="tag">Lesson 2 · step 3</span>
+  <h2>Fix it, and test again</h2>
   <ol class="steps">
     <li>In VS Code, change the <code>assign</code> line in <code>src\door_alarm.sv</code> and save. (One small change.)</li>
-    <li>Back in ModelSim, three commands: compile the design again, restart the simulation (the waveform stays), run.</li>
+    <li>In the chat: <b>run my test again</b>.</li>
   </ol>
-  <div class="term" style="margin-top:12px">vlog ../src/door_alarm.sv
-restart -f
-run -all</div>
-  <p style="margin-top:12px">Six <code>ok</code> lines and <span class="mono">PASS: door_alarm passed every test case</span>. Then tell the chat:
-  it runs its own check on your design, with <b>all 8</b> combinations of the truth table.</p>
+  <div class="term" style="margin-top:12px"><span class="ok">ok</span>    armed=0 door=0 window=0  -&gt;  alarm=0
+<span class="ok">ok</span>    armed=0 door=0 window=1  -&gt;  alarm=0
+<span class="dim">...</span>
+<span class="ok">PASS: door_alarm passed every test case</span></div>
+  <p style="margin-top:12px">Then the chat runs its own check on your design, with <b>all 8</b> combinations of the truth table.</p>
   <div class="box warm"><b class="t">Still WRONG?</b>Read the WRONG line: which inputs, what came out, what was expected. Then the truth table on slide 3.</div>
 </section>
 
-<!-- 13 -->
-<section class="slide" data-title="The fast way">
-  <span class="tag">Lesson 3 · the fast way</span>
-  <h2>The same thing, in one command</h2>
-  <p>You just did a simulation by hand: <code>vlib</code>, <code>vlog</code>, <code>vsim</code>, <code>run</code>. From now on the chat does it with one command:</p>
-  <div class="term" style="margin-top:12px">python scripts/sim.py my_designs/lessons/03_first_simulation/alarm/sim/tb_door_alarm.sv --modelsim
-<span class="dim">...</span>
-<span class="ok"># PASS: door_alarm passed every test case</span>
-<span class="ok">OK: testbench passed</span></div>
-  <p style="margin-top:12px">How does it know which design files to compile? The testbench says so in one comment line at its top:</p>
-  <div class="term">// sim-sources: ../src/door_alarm.sv</div>
-  <p style="margin-top:12px">Add <code>--gui</code> and it opens ModelSim with the waveform, like you did by hand.</p>
+<!-- 10 -->
+<section class="slide" data-title="The loop">
+  <span class="tag">Lesson 2 · how it works</span>
+  <h2>The loop you will use in every lesson</h2>
+  <div class="cols top">
+    <div>
+      <ol class="steps">
+        <li><b>Write</b> the design and its testbench in VS Code.</li>
+        <li><b>Simulate</b>: the chat runs the testbench. PASS, or a WRONG line and a waveform.</li>
+        <li><b>Build and load</b>: the chat compiles the design for the chip and loads it into the board.</li>
+        <li><b>Try it</b> on the board with your own hands.</li>
+      </ol>
+    </div>
+    <div>
+      <p>How does the chat know which files to simulate? The testbench says so, in one comment line at its top:</p>
+      <div class="term" style="margin-top:8px">// sim-sources: ../src/door_alarm.sv</div>
+      <p style="margin-top:12px">And which pins? The board's own names: a port called <code>SW</code> is the switches, <code>LEDR</code>
+      the red LEDs, <code>HEX0</code> a digit. Use those names in the top module and the chat's build finds every pin.</p>
+    </div>
+  </div>
 </section>
 
-<!-- 14 -->
+<!-- 11 -->
 <section class="slide" data-title="Is the test good?">
-  <span class="tag">Lesson 3 · the twist</span>
+  <span class="tag">Lesson 2 · the twist</span>
   <h2>PASS. But is the test good enough?</h2>
   <div class="cols top">
     <div>
@@ -469,25 +442,26 @@ run -all</div>
   </div>
 </section>
 
-<!-- 15 -->
+<!-- 12 -->
 <section class="slide" data-title="Two more cases">
-  <span class="tag">Lesson 3 · step 6 · make it yours</span>
+  <span class="tag">Lesson 2 · step 6 · make it yours</span>
   <h2>Add the two missing test cases</h2>
   <p>Where the testbench says <code>// (two more cases go here)</code>, add two lines that follow the same pattern:</p>
   <div class="term" style="margin-top:10px">check(armed, door, window,   expected alarm);</div>
-  <p style="margin-top:12px">Take the inputs and the expected alarm from the truth table. Save, run again (in ModelSim or ask the chat), then ask the
-  chat to check your testbench: it runs it on your design, on a right one, and on the two wrong ones.</p>
-  <img class="shot" src="media/04_wave_fixed.png" alt="The wave window after the fix with eight test cases, 0 to 80 ns; errors stays 0 the whole time." style="margin-top:12px;max-width:760px">
+  <p style="margin-top:12px">Take the inputs and the expected alarm from the truth table. Save, say <b>run my test again</b>, then <b>check my testbench</b>:
+  the chat runs it on your design, on a right one, and on the two wrong ones.</p>
+  <img class="shot" src="media/wave_fixed.png" alt="The wave window after the fix with eight test cases, 0 to 80 ns; errors stays 0 the whole time." style="margin-top:12px">
   <p class="muted" style="margin-top:6px">With all 8 cases: the waveform runs to 80 ns and <code>errors</code> stays 0.</p>
 </section>
 
-<!-- 16 -->
+<!-- 13 -->
 <section class="slide" data-title="On the board">
-  <span class="tag">Lesson 3 · step 7</span>
+  <span class="tag">Lesson 2 · step 7</span>
   <h2>Now prove it on the board</h2>
   <div class="cols">
     <div>
-      <p>The chat builds the fixed design and loads it into the board (the commands from lesson 2's last slides). The switches:</p>
+      <p>Say <b>put it on the board</b>. The chat compiles <code>alarm_top</code> (about 30 seconds) and loads it. In
+      <code>src\alarm_top.sv</code> the switches and LEDs carry the board's names, <code>SW</code> and <code>LEDR</code>:</p>
       <table class="steps-table" style="margin-top:10px">
         <tr><th>Switch</th><th>Means</th></tr>
         <tr><td>SW2</td><td>armed (up = on)</td></tr>
@@ -509,9 +483,9 @@ run -all</div>
   <div class="box">The board agrees with the simulation, because the simulation already tried every case. That is the whole point.</div>
 </section>
 
-<!-- 17 -->
+<!-- 14 -->
 <section class="slide" data-title="Two questions">
-  <span class="tag">Lesson 3 · quiz</span>
+  <span class="tag">Lesson 2 · quiz</span>
   <h2>Two questions, in the chat</h2>
   <p>Answer in your own words. The chat may give you a hint first.</p>
   <ol class="quiz">
@@ -520,28 +494,28 @@ run -all</div>
   </ol>
 </section>
 
-<!-- 18 -->
+<!-- 15 -->
 <section class="slide" data-title="Done" id="last">
-  <span class="tag">Lesson 3 · finish</span>
+  <span class="tag">Lesson 2 · finish</span>
   <h2>Enter your completion code</h2>
   <div class="code-entry">
     <p>When the waveform, your fix, your two test cases, the board and the quiz all pass, the chat gives you a code. Type it here.</p>
     <form class="code-form" id="code-form" autocomplete="off">
-      <input id="code" aria-label="Completion code" placeholder="L03-....." maxlength="12">
-      <button class="btn" type="submit">Finish lesson 3</button>
+      <input id="code" aria-label="Completion code" placeholder="L02-....." maxlength="12">
+      <button class="btn" type="submit">Finish lesson 2</button>
     </form>
     <div class="msg" id="msg" role="status"></div>
   </div>
   <div class="done-banner">
-    <div class="box ok" style="font-size:22px"><b class="t">Lesson 3 done!</b>You found a bug before the chip did, and made the test itself better.</div>
+    <div class="box ok" style="font-size:22px"><b class="t">Lesson 2 done!</b>You found a bug before the chip did, and made the test itself better.</div>
     <h3 style="margin-top:22px">What you learned</h3>
     <ul class="list">
       <li>A testbench is a module that drives your design's inputs and checks its outputs; only the simulator runs it.</li>
-      <li>ModelSim: <code>vlib</code>, <code>vlog</code>, <code>vsim</code>, <code>add wave</code>, <code>run -all</code>; the waveform shows every signal at every moment.</li>
+      <li>The loop: write in VS Code, simulate (PASS or a WRONG line and a waveform), build and load, try it on the board.</li>
       <li>Operators have an order: <code>&amp;</code> before <code>|</code>. Parentheses say what you mean.</li>
       <li>A PASS is only as good as the test cases: cover every case that matters.</li>
     </ul>
-    <h3 style="margin-top:18px">Next: lesson 4, Verilog basics</h3>
+    <h3 style="margin-top:18px">Next: Part 1, Boolean logic</h3>
     <p>Go to the chat and type <b>teach me</b>.</p>
     <button class="btn ghost" type="button" id="reset" style="margin-top:16px">Reset this lesson's progress</button>
   </div>
@@ -557,8 +531,8 @@ run -all</div>
 
 <script>
   (function () {
-    var LESSON = "3";
-    var CODE_HASH = 2467768214;   // scripts/lesson.py code-hash 3
+    var LESSON = "2";
+    var CODE_HASH = 3796416217;   // scripts/lesson.py code-hash 2
     var KEY = "de10-course";
     var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
     var dots = document.getElementById("dots");
@@ -620,7 +594,7 @@ run -all</div>
       if (e.key === "Home") go(0);
       if (e.key === "End") go(slides.length - 1);
     });
-    // The chat opens the deck at a slide with #N (scripts/lesson.py open 3 N)
+    // The chat opens the deck at a slide with #N (scripts/lesson.py open 2 N)
     window.addEventListener("hashchange", function () {
       var n = parseInt(location.hash.slice(1), 10);
       if (n) go(n - 1);
@@ -658,11 +632,11 @@ run -all</div>
         showDone(p.done);
       } else {
         msg.className = "msg bad";
-        msg.textContent = "That's not the code. Copy it exactly from the chat, for example L03-ABCDE.";
+        msg.textContent = "That's not the code. Copy it exactly from the chat, for example L02-ABCDE.";
       }
     });
     document.getElementById("reset").addEventListener("click", function () {
-      if (!confirm("Clear lesson 3's progress in this browser? (The chat's own record is not touched.)")) return;
+      if (!confirm("Clear lesson 2's progress in this browser? (The chat's own record is not touched.)")) return;
       var all = load();
       delete all[LESSON];
       save(all);

@@ -1,7 +1,7 @@
 // Testbench for door_alarm: a module that is never built into the chip. It plays with the inputs and checks
 // the output, and ModelSim runs it.
 //
-// Run it in the chat:   python scripts/sim.py my_designs/lessons/03_first_simulation/alarm/sim/tb_door_alarm.sv --modelsim
+// The chat runs it:   python scripts/sim.py my_designs/lessons/02_first_simulation/alarm/sim/tb_door_alarm.sv --modelsim
 // (add --gui to see the waveform)
 // sim-sources: ../src/door_alarm.sv
 `timescale 1ns/1ns
@@ -40,7 +40,7 @@ module tb_door_alarm;
 
 		if (errors == 0) $display("PASS: door_alarm passed every test case");
 		else             $display("FAIL: %0d test case(s) wrong", errors);
-		$stop;		// pause here: in ModelSim's window you can look around; the chat's command then quits
+		$stop;		// the end: the run pauses here (the waveform stays open; a plain run just quits)
 	end
 
 endmodule

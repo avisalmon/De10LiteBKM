@@ -1,10 +1,12 @@
 {
-  "id": 3,
-  "slug": "03_first_simulation",
+  "id": 2,
+  "slug": "02_first_simulation",
   "title": "Your first simulation in ModelSim: a testbench, a waveform, PASS or FAIL",
-  "work": ["alarm"],
+  "work": [
+    "alarm"
+  ],
   "checks": {
-    "gui": "the student ran the testbench in the ModelSim window by hand and, in the waveform, found the moment the alarm is wrong (15 ns: armed 0, window 1, alarm 1)",
+    "wave": "the chat opened the waveform (scripts/sim.py --gui); the student found the moment the alarm is wrong (10-20 ns: armed 0, window 1, alarm 1) and said it",
     "fixed": "the student fixed door_alarm.sv; check_alarm.py --design says all 8 combinations are right",
     "tests": "the student added two test cases; check_alarm.py --tests: PASS on the right designs, FAIL on both wrong ones",
     "board": "the chat built and programmed alarm_top; the student flipped SW2 / SW1 / SW0 and LEDR0 follows the rule, also with the system off",

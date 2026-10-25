@@ -43,8 +43,9 @@ function Find-Window($pattern) {
     return $true }, [IntPtr]::Zero) | Out-Null
   return $script:found
 }
-if ($Args) { $p = Start-Process -FilePath $Exe -ArgumentList $Args -WorkingDirectory $WorkDir -PassThru }
-else       { $p = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru }
+if ($Exe -eq "none") { $p = $null }       # -Exe none: capture a window something else already opened
+elseif ($Args) { $p = Start-Process -FilePath $Exe -ArgumentList $Args -WorkingDirectory $WorkDir -PassThru }
+else           { $p = Start-Process -FilePath $Exe -WorkingDirectory $WorkDir -PassThru }
 Start-Sleep -Seconds $Wait
 $h = Find-Window $Title
 if ($h -eq [IntPtr]::Zero) { Write-Output "FAIL: no window like '$Title'"; Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue; exit 1 }
@@ -61,5 +62,5 @@ $dc = $g.GetHdc()
 $g.ReleaseHdc($dc)
 $bmp.Save($Out, [System.Drawing.Imaging.ImageFormat]::Png)
 Write-Output "OK: $Out $($bmp.Width)x$($bmp.Height)"
-Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+if ($p) { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
 Get-Process vish, vsimk -ErrorAction SilentlyContinue | Stop-Process -Force

@@ -7,7 +7,7 @@ nature of the practice differs per lesson). The DE10-Lite and its shield are ass
 
 Status: lesson 0 built (`lessons/00_setup/`, verified on the board 2026-10-24). Lesson 1 (= 0.1, folder
 `01_what_is_fpga/`) built 2026-10-24: slides, the board hunt (13 challenges, checked by the board) and a quiz in the
-chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. The Quartus-by-hand lesson 2 (`02_first_project/`) was built 2026-10-25 and deleted the same day (no Quartus window in the course; it is in git history). Lesson 3 (= 0.3, `03_first_simulation/`) built 2026-10-25, agreed with Avi: a buggy door alarm (`armed & door | window`, an operator-precedence bug); ModelSim by hand in its window once (vlib / vlog / vsim / add wave / run, real 10.5b screenshots), the waveform shows the wrong moment, the student fixes the design, then adds the 2 missing truth-table rows to the testbench (a checker runs it against 2 wrong designs only those rows catch), then the board (SW2/SW1/SW0 -> LEDR0) and a quiz; from lesson 4 the chat simulates with `scripts/sim.py`. The rest is the agreed topic list;
+chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. The Quartus-by-hand lesson 2 (`02_first_project/`) was built 2026-10-25 and deleted the same day (no Quartus window in the course; it is in git history). Lesson 2 (= 0.3, `02_first_simulation/`, the door alarm) built 2026-10-25 as lesson 3 with ModelSim by hand, then reworked the same day under the no-windows rule: a buggy door alarm (`armed & door | window`, an operator-precedence bug); the chat runs every simulation (`sim.py`) and opens only ModelSim's wave view (`sim.py --gui`), where the student finds the wrong moment; they fix the design in VS Code, then add the 2 missing truth-table rows to the testbench (a checker runs it against 2 wrong designs only those rows catch), then the board (SW2/SW1/SW0 -> LEDR0, built and loaded by the chat) and a quiz. It also introduces the loop every later lesson uses: write, simulate, build and load, try it. The rest is the agreed topic list;
 each lesson is discussed with Avi before it is built.
 
 ## How a lesson works (agreed 2026-10-24)
@@ -42,8 +42,8 @@ each lesson is discussed with Avi before it is built.
   slides and the chat, all practice in VS Code. Waveforms are shown in VS Code, not in the ModelSim window. No
   lessons on device selection or pins: ports use the board's names (`SW`, `LEDR`, `HEX0`...) and `new_project.py`
   fills in the pins. Get to logic fast: pure engineering.
-  * Done: lesson 2 (Quartus by hand) deleted. Planned (the other session): rework lesson 3 to drop the ModelSim window
-    and keep the door-alarm design, the bug, the waveform and the testbench checker; after lesson 1 go straight to
+  * Done: lesson 2 (Quartus by hand) deleted; the door-alarm lesson reworked without the ModelSim window and renumbered
+    lesson 2 (`02_first_simulation/`), keeping the design, the bug, the waveform and the testbench checker. Planned: after lesson 1 go straight to
     Part 1, teaching Verilog basics and the simulate / build / program loop inside the first logic lessons.
   * Decided: waveforms may be seen in ModelSim's wave window (the one window that is OK); the other session
     reworks lesson 3; the door-alarm lesson becomes the new lesson 2 (folder `02_first_simulation/`).

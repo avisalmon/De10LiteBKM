@@ -1,7 +1,7 @@
-"""Lesson 3 checker: is the student's door alarm right, and is their testbench good enough to catch mistakes?
+"""Lesson 2 checker: is the student's door alarm right, and is their testbench good enough to catch mistakes?
 
-    python lessons/03_first_simulation/check_alarm.py my_designs/lessons/03_first_simulation/alarm --design
-    python lessons/03_first_simulation/check_alarm.py my_designs/lessons/03_first_simulation/alarm --tests
+    python lessons/02_first_simulation/check_alarm.py my_designs/lessons/02_first_simulation/alarm --design
+    python lessons/02_first_simulation/check_alarm.py my_designs/lessons/02_first_simulation/alarm --tests
 
 The folder is the student's alarm project: src/door_alarm.sv (the design) and sim/tb_door_alarm.sv (their testbench).
 --design  runs the checker's own testbench (all 8 combinations) on the student's door_alarm.sv.
@@ -27,7 +27,7 @@ CHECKER = HERE / "checker"
 def simulate(tb, design, simulator):
     """Copy a testbench (to sim/) and a door_alarm.sv (to src/) into a scratch folder, simulate, return
     (passed, output, compiled)."""
-    with tempfile.TemporaryDirectory(prefix="lesson3_") as tmp:
+    with tempfile.TemporaryDirectory(prefix="lesson2_") as tmp:
         tmp = Path(tmp)
         (tmp / "sim").mkdir()
         (tmp / "src").mkdir()

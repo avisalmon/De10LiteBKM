@@ -10,7 +10,8 @@ It runs in the testbench's folder, so its output files ($dumpfile, $fopen) land 
 Simulators:
   default      Icarus Verilog (OSS CAD Suite, C:\\oss-cad-suite-20261009); waves in the .vcd -> GTKWave (--gui)
   --modelsim   ModelSim-Intel Starter (Quartus 17.1) with the Altera libraries (altpll, altsyncram, lpm,
-               MAX 10 atoms), so testbenches that include IP run too; --gui opens the wave window.
+               MAX 10 atoms), so testbenches that include IP run too; --gui runs it and shows ONLY the wave
+               window, in front, zoomed to the whole run (the course shows no other ModelSim window).
 A testbench passes when it prints PASS and never FAIL.
 """
 import os
@@ -75,6 +76,17 @@ def icarus(tb, defines, gui):
     return rc, out
 
 
+def no_welcome_notice():
+    """ModelSim's GUI blocks on a "Welcome to version 10.5b" notice until it is closed; this is the registry value its
+    "Don't show this dialog again" box writes (found by diffing the registry). Windows only, best effort."""
+    try:
+        import winreg
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, r"Software\Model Technology Incorporated\ModelSim") as k:
+            winreg.SetValueEx(k, "noWelcomeVersion", 0, winreg.REG_SZ, "10.5b")
+    except (ImportError, OSError):
+        pass
+
+
 def modelsim(tb, defines, gui):
     here = os.path.dirname(os.path.abspath(tb))
     name = os.path.splitext(os.path.basename(tb))[0]
@@ -88,8 +100,14 @@ def modelsim(tb, defines, gui):
         return rc, ""
     libs = [x for l in ALTERA_LIBS for x in ("-L", l)]
     if gui:
-        # -onfinish stop: a $finish pauses instead of asking "Are you sure you want to finish?" in a dialog
-        subprocess.Popen([exe("vsim"), *libs, "-onfinish", "stop", name, "-do", "add wave -r /*; run -all"], cwd=here)
+        no_welcome_notice()
+        # -onfinish stop: a $finish pauses instead of asking "Are you sure you want to finish?" in a dialog.
+        # The testbench's own signals (short names); the wave window undocked, sized and raised above ModelSim's main
+        # window, then zoomed to the whole run.
+        show = ("config wave -signalnamewidth 1; add wave /*; run -all; view -undock wave; update; "
+                "wm geometry [winfo toplevel [view wave]] 1300x460+60+60; raise [winfo toplevel [view wave]]; "
+                "update; wave zoom full")
+        subprocess.Popen([exe("vsim"), *libs, "-onfinish", "stop", name, "-do", show], cwd=here)
         return 0, "PASS (gui)"
     return run([exe("vsim"), "-c", *libs, name, "-do", "run -all; quit -f"], here)
 

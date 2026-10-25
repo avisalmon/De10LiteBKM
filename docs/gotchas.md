@@ -48,3 +48,6 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
 23. **ModelSim's window stops with "Are you sure you want to finish?"** at a `$finish`. End a testbench meant for the
     window with `$stop` (it pauses; batch runs still quit), or start vsim with `-onfinish stop` (`scripts/sim.py --gui`
     does). Commands typed in its Transcript are Tcl: forward slashes in paths.
+24. **ModelSim's window opens and does nothing.** A "Welcome to version 10.5b" notice blocks it until someone clicks
+    Close (it hides behind other windows). Its "Don't show again" box writes `noWelcomeVersion = 10.5b` under
+    `HKCU\Software\Model Technology Incorporated\ModelSim`; `scripts/sim.py --gui` sets it first.

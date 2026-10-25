@@ -5,8 +5,11 @@ They come from real sessions; most of them came from something going wrong.
 
 ## 2026-10-25
 
-- **Course lesson 3: your first simulation.** A buggy door alarm, ModelSim by hand once, a waveform that shows the
-  wrong moment, then a testbench made good enough to catch two hidden mistakes. [lesson 3](../lessons/03_first_simulation/index.html)
+- **Course lesson 2: your first simulation.** A buggy door alarm: the chat simulates, the wave view shows the wrong
+  moment, the student fixes it in VS Code, then makes the testbench good enough to catch two hidden mistakes, and the
+  board. (Built as lesson 3 with ModelSim by hand, reworked under the no-windows rule.) [lesson 2](../lessons/02_first_simulation/index.html)
+- **`sim.py --gui` shows only the wave window** and turns off ModelSim's blocking welcome notice (registry value
+  `noWelcomeVersion`, found by diffing the registry). [gotcha 24](gotchas.md)
 - **ModelSim's window asks "Are you sure you want to finish?" at `$finish`**: testbenches meant for the window end with
   `$stop`; `scripts/sim.py --gui` passes `-onfinish stop`. [gotchas 23](gotchas.md)
 
