@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 · What Is an FPGA</title>
+<meta name="description" content="DE10-Lite course, lesson 1: what an FPGA is, what a LUT is, and a hands-on hunt through every input on the board and the shield.">
+<style>
+  :root {
+    --bg: #eef1f6;
+    --slide: #ffffff;
+    --ink: #17202e;
+    --muted: #556173;
+    --line: #dfe4ec;
+    --accent: #0a7f8f;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2f4f6;
+    --warm: #b4580c;
+    --warm-soft: #fdf0e3;
+    --ok: #1f8a4c;
+    --ok-soft: #e3f5ea;
+    --code-bg: #101722;
+    --code-ink: #e6edf5;
+    --pcb: #1d5c3a;
+    --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 8px 28px rgba(16, 24, 40, .08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b1017; --slide: #161d28; --ink: #e9eef5; --muted: #a3afc0; --line: #273142;
+      --accent: #4cc9d9; --accent-ink: #062228; --accent-soft: #11303a; --warm: #f2a65a; --warm-soft: #33251a;
+      --ok: #5fd08f; --ok-soft: #13301f; --code-bg: #0a0f16; --pcb: #1f6b43; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b1017; --slide: #161d28; --ink: #e9eef5; --muted: #a3afc0; --line: #273142;
+    --accent: #4cc9d9; --accent-ink: #062228; --accent-soft: #11303a; --warm: #f2a65a; --warm-soft: #33251a;
+    --ok: #5fd08f; --ok-soft: #13301f; --code-bg: #0a0f16; --pcb: #1f6b43; --shadow: none;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, Arial, sans-serif; font-size: 18px; line-height: 1.6;
+    display: flex; flex-direction: column;
+  }
+  a { color: var(--accent); }
+  code, kbd, .mono { font-family: Consolas, "Cascadia Mono", monospace; }
+  code { background: var(--accent-soft); border-radius: 4px; padding: 0 5px; font-size: .92em; }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 6px; font-size: .85em; background: var(--bg); }
+
+  /* top bar */
+  .bar { display: flex; align-items: center; gap: 16px; padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--slide); }
+  .bar .course { font-weight: 700; white-space: nowrap; }
+  .bar .course span { color: var(--muted); font-weight: 400; }
+  .progress { flex: 1; height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+  .count { color: var(--muted); font-size: 15px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* the deck */
+  .deck { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); place-items: center; padding: 20px; min-height: 0; }
+  .slide {
+    display: none; width: min(1100px, 100%); min-height: min(640px, 100%); max-height: 100%; overflow-y: auto;
+    background: var(--slide); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+    padding: 32px 48px;
+  }
+  .slide.on { display: block; }
+  .tag { display: inline-block; font-size: 14px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 99px; padding: 2px 12px; margin-bottom: 10px; }
+  .tag.web { color: var(--warm); background: var(--warm-soft); }
+  h1 { font-size: clamp(30px, 4.6vw, 48px); line-height: 1.15; margin-bottom: 14px; }
+  h2 { font-size: clamp(24px, 3.2vw, 34px); line-height: 1.2; margin-bottom: 14px; }
+  h3 { font-size: 19px; margin: 14px 0 4px; }
+  p + p { margin-top: 10px; }
+  .lead { font-size: 21px; color: var(--muted); max-width: 40em; }
+  .muted { color: var(--muted); }
+  .cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 36px; align-items: center; margin-top: 18px; }
+  .cols.top { align-items: start; }
+  ol.steps, ul.list { padding-left: 24px; margin-top: 8px; }
+  ol.steps li, ul.list li { margin-top: 8px; }
+  .box { background: var(--accent-soft); border-radius: 10px; padding: 14px 18px; margin-top: 16px; }
+  .box.warm { background: var(--warm-soft); }
+  .box.ok { background: var(--ok-soft); }
+  .box b.t { display: block; margin-bottom: 2px; }
+  .say { margin-top: 18px; background: var(--accent-soft); border-left: 6px solid var(--accent); border-radius: 10px; padding: 18px 22px; font-size: 30px; font-weight: 700; }
+  .term { background: var(--code-bg); color: var(--code-ink); border-radius: 10px; padding: 16px 18px; font-size: 15px; line-height: 1.7; overflow-x: auto; white-space: pre; }
+  .term .ok { color: #5fd08f; } .term .dim { color: #8b98aa; }
+  .figure { width: 100%; }
+  .figure svg { width: 100%; height: auto; display: block; }
+  .shot { width: 100%; border-radius: 10px; border: 1px solid var(--line); display: block; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card svg { width: 100%; height: 90px; display: block; margin-bottom: 8px; }
+  .card h3 { margin-top: 0; font-size: 17px; }
+  .card p { font-size: 15px; color: var(--muted); }
+  table { border-collapse: collapse; margin-top: 8px; }
+  th, td { border: 1px solid var(--line); padding: 4px 16px; text-align: center; font-family: Consolas, monospace; }
+  th { background: var(--accent-soft); }
+
+  /* "I did it" ticks, saved in this browser */
+  .tick { display: flex; gap: 10px; align-items: center; margin-top: 18px; padding: 10px 14px; border: 1px dashed var(--line); border-radius: 10px; cursor: pointer; width: fit-content; }
+  .tick input { width: 22px; height: 22px; accent-color: var(--ok); }
+  .tick:has(input:checked) { border-style: solid; border-color: var(--ok); background: var(--ok-soft); }
+
+  /* completion code */
+  .code-form { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+  .code-form input { font: inherit; font-family: Consolas, monospace; font-size: 24px; letter-spacing: .08em; text-transform: uppercase; padding: 8px 14px; border: 2px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); width: 14ch; }
+  .btn { font: inherit; font-weight: 600; border: 1px solid var(--accent); border-radius: 10px; padding: 10px 20px; cursor: pointer; background: var(--accent); color: var(--accent-ink); min-height: 44px; }
+  .btn.ghost { background: transparent; color: var(--accent); }
+  .msg { margin-top: 10px; font-weight: 600; min-height: 1.6em; }
+  .msg.bad { color: var(--warm); } .msg.good { color: var(--ok); }
+  .done-banner { display: none; }
+  .is-done .done-banner { display: block; }
+  .is-done .code-entry { display: none; }
+
+  /* bottom navigation */
+  .nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px 14px; }
+  .dots { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+  .dots button { width: 12px; height: 12px; border-radius: 50%; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+  .dots button.seen { background: color-mix(in srgb, var(--accent) 40%, var(--line)); }
+  .dots button.cur { background: var(--accent); transform: scale(1.3); }
+
+  /* SVG drawing classes */
+  .s-line { stroke: var(--muted); fill: none; stroke-width: 2; }
+  .s-acc { stroke: var(--accent); fill: none; stroke-width: 3; }
+  .s-box { fill: var(--slide); stroke: var(--line); stroke-width: 2; }
+  .s-soft { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+  .s-txt { fill: var(--ink); font: 600 15px "Segoe UI", sans-serif; }
+  .s-small { fill: var(--muted); font: 13px "Segoe UI", sans-serif; }
+  .s-pcb { fill: var(--pcb); }
+
+  /* lesson 1: the LUT demo, the part explorers, chip numbers */
+  .lut { display: grid; grid-template-columns: auto auto minmax(0, 1fr); gap: 28px; align-items: center; margin-top: 18px; }
+  .lut-in { display: flex; flex-direction: column; gap: 12px; }
+  .bit { font: inherit; font-family: Consolas, monospace; font-weight: 700; border: 2px solid var(--line); border-radius: 8px; background: var(--slide); color: var(--ink); cursor: pointer; min-width: 44px; min-height: 40px; padding: 4px 12px; }
+  .bit.in[aria-pressed="true"], .bit.store.one { border-color: var(--accent); background: var(--accent-soft); }
+  .lut-table td, .lut-table th { padding: 4px 14px; }
+  .lut-table tr.pick td { background: var(--warm-soft); }
+  .lamp { font: 700 28px Consolas, monospace; border-radius: 12px; padding: 14px 20px; border: 2px solid var(--line); width: fit-content; }
+  .lamp.lit { border-color: #e33; background: #ffe3e0; color: #b00; box-shadow: 0 0 18px rgba(230, 50, 50, .45); }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .presets .btn { padding: 6px 14px; min-height: 38px; }
+  .parts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  .part { font: inherit; font-weight: 600; border: 2px solid var(--line); border-radius: 99px; padding: 8px 16px; background: var(--slide); color: var(--ink); cursor: pointer; min-height: 44px; }
+  .part.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .info { margin-top: 18px; background: var(--accent-soft); border-left: 6px solid var(--accent); border-radius: 10px; padding: 18px 22px; font-size: 20px; min-height: 5.5em; }
+  .stat b { display: block; font-size: 30px; color: var(--accent); }
+  .stat span { color: var(--muted); font-size: 15px; }
+  .usage { display: grid; grid-template-columns: 220px minmax(0, 1fr) 110px; gap: 14px; align-items: center; margin-top: 10px; }
+  .meter { height: 16px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .meter i { display: block; height: 100%; background: var(--accent); }
+  .quiz li { font-size: 21px; margin-top: 14px; }
+  @media (max-width: 760px) {
+    .lut { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+    .lut-in { flex-direction: row; }
+    .usage { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .info { font-size: 17px; }
+  }
+
+  @media (max-width: 760px) {
+    body { font-size: 16px; }
+    .bar .course span { display: none; }
+    .deck { padding: 10px 16px; }
+    .slide { padding: 24px 20px; }
+    .cols { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .say { font-size: 22px; }
+    .nav { padding: 8px 16px 12px; }
+    .nav .btn { padding: 8px 12px; white-space: nowrap; }
+    .count { display: none; }
+    .lead { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="course">DE10-Lite Course <span>· Lesson 1 · What is an FPGA</span></div>
+  <div class="progress" aria-hidden="true"><i id="progress"></i></div>
+  <div class="count" id="count">1 / 13</div>
+</header>
+
+<main class="deck" id="deck">
+
+<!-- 1 -->
+<section class="slide" data-title="Welcome">
+  <span class="tag">Lesson 1</span>
+  <h1>What is an FPGA?</h1>
+  <p class="lead">Your board's big black chip is an FPGA. Today you find out what's inside it, why it's so different from
+  the processor in your phone, and you meet every switch, button and knob you will use in this course.</p>
+  <div class="cols">
+    <div>
+      <h3>By the end of this lesson you can</h3>
+      <ul class="list">
+        <li>explain the difference between a CPU and an FPGA,</li>
+        <li>explain what a LUT is (the FPGA's basic building block),</li>
+        <li>find every input on the board and the shield.</li>
+      </ul>
+      <p class="muted" style="margin-top:12px">No circuit design today: that starts in lesson 4. About 45 minutes.</p>
+    </div>
+    <div class="figure" aria-label="A chip drawn as a grid of small logic blocks.">
+      <svg viewBox="0 0 320 220" role="img">
+        <title>An FPGA: a grid of logic blocks</title>
+        <rect x="40" y="20" width="240" height="180" rx="10" fill="#222"/>
+        <g fill="#333" stroke="#4cc9d9" stroke-width="1.5">
+          <rect x="62" y="42" width="34" height="28" rx="3"/><rect x="108" y="42" width="34" height="28" rx="3"/><rect x="154" y="42" width="34" height="28" rx="3"/><rect x="200" y="42" width="34" height="28" rx="3"/>
+          <rect x="62" y="82" width="34" height="28" rx="3"/><rect x="108" y="82" width="34" height="28" rx="3"/><rect x="154" y="82" width="34" height="28" rx="3"/><rect x="200" y="82" width="34" height="28" rx="3"/>
+          <rect x="62" y="122" width="34" height="28" rx="3"/><rect x="108" y="122" width="34" height="28" rx="3"/><rect x="154" y="122" width="34" height="28" rx="3"/><rect x="200" y="122" width="34" height="28" rx="3"/>
+          <rect x="62" y="162" width="34" height="18" rx="3"/><rect x="108" y="162" width="34" height="18" rx="3"/><rect x="154" y="162" width="34" height="18" rx="3"/><rect x="200" y="162" width="34" height="18" rx="3"/>
+        </g>
+        <g fill="#999"><rect x="20" y="40" width="20" height="6"/><rect x="20" y="70" width="20" height="6"/><rect x="20" y="100" width="20" height="6"/><rect x="20" y="130" width="20" height="6"/><rect x="20" y="160" width="20" height="6"/>
+        <rect x="280" y="40" width="20" height="6"/><rect x="280" y="70" width="20" height="6"/><rect x="280" y="100" width="20" height="6"/><rect x="280" y="130" width="20" height="6"/><rect x="280" y="160" width="20" height="6"/></g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="slide" data-title="CPU or FPGA">
+  <span class="tag">Lesson 1 · the big idea</span>
+  <h2>Two ways to make a chip do a job</h2>
+  <div class="cols top">
+    <div class="card">
+      <svg viewBox="0 0 300 150" style="height:150px" role="img" aria-label="A CPU reads a list of instructions one by one.">
+        <title>A CPU: one instruction after another</title>
+        <rect class="s-soft" x="10" y="45" width="90" height="60" rx="8"/><text class="s-txt" x="34" y="80">CPU</text>
+        <g class="s-small"><text x="150" y="30">1. read A</text><text x="150" y="55">2. read B</text><text x="150" y="80">3. add</text><text x="150" y="105">4. store</text><text x="150" y="130">5. go to 1</text></g>
+        <path class="s-acc" d="M100 75 H140"/>
+      </svg>
+      <h3>A CPU follows a recipe</h3>
+      <p>A processor (CPU) reads <b>instructions</b> from memory and does them <b>one after another</b>, very fast.
+      To change what it does, you change the list of instructions: the software. Your phone and laptop work like this.</p>
+    </div>
+    <div class="card">
+      <svg viewBox="0 0 300 150" style="height:150px" role="img" aria-label="An FPGA is wired as several circuits that all work at the same time.">
+        <title>An FPGA: the circuit itself, all at once</title>
+        <g class="s-soft"><rect x="20" y="20" width="70" height="40" rx="6"/><rect x="115" y="20" width="70" height="40" rx="6"/><rect x="210" y="20" width="70" height="40" rx="6"/>
+        <rect x="20" y="90" width="70" height="40" rx="6"/><rect x="115" y="90" width="70" height="40" rx="6"/><rect x="210" y="90" width="70" height="40" rx="6"/></g>
+        <path class="s-acc" d="M90 40 H115 M185 40 H210 M90 110 H115 M185 110 H210 M150 60 V90"/>
+      </svg>
+      <h3>An FPGA becomes the circuit</h3>
+      <p>An FPGA has no list of instructions. You describe a <b>circuit</b>, and the chip <b>wires itself</b> into that
+      circuit. Every part of it works <b>at the same time</b>, all the time.</p>
+    </div>
+  </div>
+  <div class="box"><b class="t">That's why we use one</b>When you build a circuit, you want to see your circuit. An FPGA lets you build any
+  digital circuit you can describe, from one gate to a whole computer, and change it as often as you like.</div>
+</section>
+
+<!-- 3 -->
+<section class="slide" data-title="The name">
+  <span class="tag">Lesson 1 · the name</span>
+  <h2>Field-Programmable Gate Array</h2>
+  <div class="cols">
+    <div>
+      <ul class="list">
+        <li><b>Gate Array</b>: the chip is a big grid (an <i>array</i>) of small logic blocks that can act like logic gates.</li>
+        <li><b>Programmable</b>: what each block does, and how the blocks are wired to each other, is set by a file you load.</li>
+        <li><b>Field</b>: you do it yourself, at your desk ("in the field"), not in a chip factory.</li>
+      </ul>
+      <div class="box"><b class="t">Think of it as</b>a huge breadboard full of tiny parts, where the wires are not wires but switches
+      inside the chip. Loading a file flips all the switches at once.</div>
+    </div>
+    <div class="figure">
+      <svg viewBox="0 0 360 240" role="img" aria-label="A file goes into the chip and sets the switches between blocks.">
+        <title>A file sets every switch</title>
+        <path d="M20 30 h70 l20 20 v80 h-90 z" fill="var(--warm-soft)" stroke="var(--warm)" stroke-width="2"/>
+        <text class="s-small" x="30" y="90">design</text><text class="s-small" x="30" y="108">file</text>
+        <path class="s-acc" d="M110 90 H150"/>
+        <rect x="150" y="20" width="200" height="200" rx="10" fill="#222"/>
+        <g fill="#333" stroke="#4cc9d9" stroke-width="1.5"><rect x="170" y="40" width="50" height="40" rx="4"/><rect x="280" y="40" width="50" height="40" rx="4"/><rect x="170" y="160" width="50" height="40" rx="4"/><rect x="280" y="160" width="50" height="40" rx="4"/></g>
+        <g stroke="#f2a65a" stroke-width="3"><path d="M220 60 H280"/><path d="M195 80 V160"/></g>
+        <g stroke="#555" stroke-width="3" stroke-dasharray="4 4"><path d="M220 180 H280"/><path d="M305 80 V160"/></g>
+        <text x="228" y="125" fill="#ccc" font-size="12">on / off</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="slide" data-title="Inside the chip">
+  <span class="tag">Lesson 1 · inside the chip</span>
+  <h2>What's inside an FPGA</h2>
+  <div class="cols">
+    <div class="figure">
+      <svg viewBox="0 0 400 300" role="img" aria-label="The chip: I/O pins around the edge, a grid of logic elements, columns of block memory and multipliers, and a PLL in the corner.">
+        <title>Parts of an FPGA</title>
+        <rect x="20" y="20" width="360" height="260" rx="12" fill="#222"/>
+        <g fill="#f2a65a"><rect x="30" y="30" width="340" height="10"/><rect x="30" y="260" width="340" height="10"/><rect x="30" y="40" width="10" height="220"/><rect x="360" y="40" width="10" height="220"/></g>
+        <g fill="#333" stroke="#4cc9d9" stroke-width="1"><rect x="56" y="56" width="26" height="22"/><rect x="88" y="56" width="26" height="22"/><rect x="56" y="84" width="26" height="22"/><rect x="88" y="84" width="26" height="22"/><rect x="56" y="112" width="26" height="22"/><rect x="88" y="112" width="26" height="22"/><rect x="56" y="140" width="26" height="22"/><rect x="88" y="140" width="26" height="22"/><rect x="56" y="168" width="26" height="22"/><rect x="88" y="168" width="26" height="22"/><rect x="56" y="196" width="26" height="22"/><rect x="88" y="196" width="26" height="22"/>
+        <rect x="186" y="56" width="26" height="22"/><rect x="218" y="56" width="26" height="22"/><rect x="186" y="84" width="26" height="22"/><rect x="218" y="84" width="26" height="22"/><rect x="186" y="112" width="26" height="22"/><rect x="218" y="112" width="26" height="22"/><rect x="186" y="140" width="26" height="22"/><rect x="218" y="140" width="26" height="22"/><rect x="186" y="168" width="26" height="22"/><rect x="218" y="168" width="26" height="22"/><rect x="186" y="196" width="26" height="22"/><rect x="218" y="196" width="26" height="22"/></g>
+        <rect x="128" y="56" width="20" height="162" fill="#3a5f9a"/>
+        <rect x="156" y="56" width="20" height="162" fill="#9a3a7a"/>
+        <rect x="262" y="56" width="20" height="162" fill="#3a5f9a"/>
+        <rect x="300" y="190" width="46" height="46" rx="4" fill="#3a8a4a"/>
+        <text x="306" y="218" fill="#fff" font-size="13">PLL</text>
+      </svg>
+    </div>
+    <ul class="list" style="margin-top:0">
+      <li><b style="color:#4cc9d9">Logic elements</b>: tens of thousands of small blocks. Each one can be any small piece of logic. This is where your circuits live.</li>
+      <li><b>Wiring</b> (routing): switchable connections between all the blocks.</li>
+      <li><b style="color:var(--warm)">I/O pins</b>: around the edge, connected to the switches, LEDs, screen and so on.</li>
+      <li><b style="color:#6a8fd0">Block memory</b>: ready-made memory, for pictures, text and later your CPU's RAM.</li>
+      <li><b style="color:#c06aa0">Multipliers</b>: fast ready-made math.</li>
+      <li><b style="color:#5aaa6a">PLL</b>: makes new clock speeds from the board's clock.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 5 -->
+<section class="slide" data-title="The LUT">
+  <span class="tag">Lesson 1 · the key idea</span>
+  <h2>A logic element = a LUT + a flip-flop</h2>
+  <div class="cols">
+    <div>
+      <p>The heart of every logic element is a <b>LUT</b>, a <i>Look-Up Table</i>. A LUT is a tiny memory that holds
+      a <b>truth table</b>: for every combination of inputs, the output you want.</p>
+      <p>The inputs pick a row. The bit stored in that row comes out. That's all.</p>
+      <p>So one LUT can be <b>any</b> gate: store the AND truth table and it's an AND gate. Store the XOR table and the
+      same LUT is an XOR gate. Our chip's LUTs have 4 inputs, so each can be any function of 4 signals.</p>
+      <div class="box"><b class="t">And the flip-flop?</b>It remembers one bit from one clock tick to the next. You'll meet it in Part 3,
+      when circuits start to remember.</div>
+    </div>
+    <div class="figure">
+      <svg viewBox="0 0 360 260" role="img" aria-label="A 2-input LUT: inputs a and b select one of four stored bits, which becomes the output y.">
+        <title>Inside a 2-input LUT</title>
+        <rect class="s-soft" x="90" y="30" width="170" height="200" rx="10"/>
+        <text class="s-txt" x="140" y="22">LUT</text>
+        <g class="s-txt"><text x="110" y="70">a=0 b=0</text><text x="110" y="115">a=0 b=1</text><text x="110" y="160">a=1 b=0</text><text x="110" y="205">a=1 b=1</text></g>
+        <g><rect x="210" y="52" width="28" height="28" rx="4" class="s-box"/><rect x="210" y="97" width="28" height="28" rx="4" class="s-box"/><rect x="210" y="142" width="28" height="28" rx="4" class="s-box"/><rect x="210" y="187" width="28" height="28" rx="4" fill="var(--ok-soft)" stroke="var(--ok)" stroke-width="2"/></g>
+        <g class="s-txt"><text x="219" y="72">0</text><text x="219" y="117">0</text><text x="219" y="162">0</text><text x="219" y="207">1</text></g>
+        <path class="s-line" d="M20 90 H90 M20 170 H90"/><text class="s-txt" x="24" y="84">a</text><text class="s-txt" x="24" y="164">b</text>
+        <path class="s-acc" d="M260 130 H340"/><text class="s-txt" x="300" y="122">y</text>
+        <text class="s-small" x="96" y="250">stored bits 0 0 0 1 = AND</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 6 -->
+<section class="slide" data-title="Try a LUT">
+  <span class="tag">Lesson 1 · try it</span>
+  <h2>Program a LUT yourself</h2>
+  <p>Click the <b>stored bits</b> to change what the LUT does. Click <b>a</b> and <b>b</b> to change the inputs.
+  Can you make an OR gate? An XOR gate? A gate that ignores <b>a</b> and just copies <b>b</b>?</p>
+  <div class="lut" id="lut">
+    <div class="lut-in">
+      <button type="button" class="bit in" data-in="a" aria-pressed="false">a = <span>0</span></button>
+      <button type="button" class="bit in" data-in="b" aria-pressed="false">b = <span>0</span></button>
+    </div>
+    <table class="lut-table" aria-label="The LUT's truth table">
+      <tr><th>a</th><th>b</th><th>stored bit (click)</th></tr>
+      <tr data-row="0"><td>0</td><td>0</td><td><button type="button" class="bit store">0</button></td></tr>
+      <tr data-row="1"><td>0</td><td>1</td><td><button type="button" class="bit store">0</button></td></tr>
+      <tr data-row="2"><td>1</td><td>0</td><td><button type="button" class="bit store">0</button></td></tr>
+      <tr data-row="3"><td>1</td><td>1</td><td><button type="button" class="bit store">1</button></td></tr>
+    </table>
+    <div class="lut-out">
+      <div class="lamp" id="lamp" aria-live="polite">y = 0</div>
+      <div class="muted" id="lut-name">This LUT is an <b>AND</b> gate</div>
+      <div class="presets">
+        <button type="button" class="btn ghost" data-preset="0001">AND</button>
+        <button type="button" class="btn ghost" data-preset="0111">OR</button>
+        <button type="button" class="btn ghost" data-preset="0110">XOR</button>
+        <button type="button" class="btn ghost" data-preset="1110">NAND</button>
+      </div>
+    </div>
+  </div>
+  <p class="muted" style="margin-top:14px">The highlighted row is the one the inputs pick right now. Quartus does exactly this for you: it
+  fills thousands of LUTs with the right bits for your circuit.</p>
+</section>
+
+<!-- 7 -->
+<section class="slide" data-title="Our chip">
+  <span class="tag">Lesson 1 · our chip</span>
+  <h2>Your chip: Intel MAX 10 (10M50)</h2>
+  <div class="grid4">
+    <div class="card stat"><b>49,760</b><span>logic elements</span></div>
+    <div class="card stat"><b>1.6 Mbit</b><span>block memory</span></div>
+    <div class="card stat"><b>144</b><span>hardware multipliers (18&times;18)</span></div>
+    <div class="card stat"><b>4</b><span>PLLs (clock makers)</span></div>
+  </div>
+  <h3 style="margin-top:22px">How much of it did we use?</h3>
+  <div class="usage"><span>Lesson 0: the READY test</span><div class="meter"><i style="width:2%"></i></div><b>987 (2%)</b></div>
+  <div class="usage"><span>This lesson's board hunt</span><div class="meter"><i style="width:11%"></i></div><b>5,499 (11%)</b></div>
+  <p style="margin-top:14px">The hunt you'll play in a minute draws text on the screen, reads 20 inputs, beeps, and talks to the
+  computer, and it fills only a tenth of the chip. A complete computer (your CPU at the end of Path A) fits easily.</p>
+  <p class="muted">Quartus prints these numbers after every build; the chat shows them to you.</p>
+</section>
+
+<!-- 8 -->
+<section class="slide" data-title="From code to chip">
+  <span class="tag">Lesson 1 · from code to chip</span>
+  <h2>From your Verilog to a working chip</h2>
+  <div class="figure" style="margin-top:6px">
+    <svg viewBox="0 0 1000 150" role="img" aria-label="Verilog goes through synthesis, the fitter and the assembler to a file that is loaded into the chip over USB.">
+      <title>The build flow</title>
+      <g class="s-soft"><rect x="10" y="40" width="150" height="64" rx="10"/><rect x="210" y="40" width="150" height="64" rx="10"/><rect x="410" y="40" width="150" height="64" rx="10"/><rect x="610" y="40" width="150" height="64" rx="10"/></g>
+      <rect class="s-pcb" x="820" y="30" width="160" height="84" rx="10"/>
+      <g class="s-txt"><text x="40" y="70">Verilog</text><text x="234" y="70">Synthesis</text><text x="452" y="70">Fitter</text><text x="636" y="70">Assembler</text></g>
+      <text x="868" y="78" fill="#fff" font-size="16" font-weight="600">chip</text>
+      <g class="s-small"><text x="40" y="92">you write it</text><text x="226" y="92">logic for LUTs</text><text x="420" y="92">places + wires</text><text x="630" y="92">the .sof file</text></g>
+      <path class="s-acc" d="M160 72 H210 M360 72 H410 M560 72 H610 M760 72 H820"/>
+      <text class="s-small" x="772" y="62">USB</text>
+    </svg>
+  </div>
+  <div class="cols top">
+    <div>
+      <h3>You've seen this already</h3>
+      <p>In lesson 0, the chat ran these steps when it built the READY test. From lesson 4 on, the Verilog going in will be yours.</p>
+    </div>
+    <div class="box warm" style="margin-top:6px"><b class="t">Gone at power-off</b>The FPGA keeps its wiring in memory that needs power (SRAM). Unplug the board and the
+    design is gone; load it again with one command. A design can also be stored in the chip's own flash memory so it starts
+    by itself: we'll do that later in the course.</div>
+  </div>
+</section>
+
+<!-- 9 -->
+<section class="slide" data-title="Board tour">
+  <span class="tag">Lesson 1 · board tour</span>
+  <h2>The DE10-Lite: what's on it</h2>
+  <p>Click a part to read what it does and when you'll use it.</p>
+  <div class="parts" data-group="board">
+    <button type="button" class="part on" data-info="10 slide switches, named SW0 to SW9. Each one gives your circuit a 0 (down) or a 1 (up). Your first inputs: you'll use them in almost every lesson.">Switches</button>
+    <button type="button" class="part" data-info="2 push buttons, KEY0 and KEY1. They read 0 while pressed and 1 when released (that surprises everyone once). Later they become your 'step' button and reset.">Push buttons</button>
+    <button type="button" class="part" data-info="10 red LEDs, LEDR0 to LEDR9: one output bit each. The simplest way to see what your circuit does.">LEDs</button>
+    <button type="button" class="part" data-info="6 seven-segment digits, HEX0 to HEX5. Each digit is 7 small LEDs (plus a dot). In Part 1 you'll build the circuit that shows numbers on them.">7-segment</button>
+    <button type="button" class="part" data-info="A 50 MHz clock: 50 million ticks per second. Every circuit that remembers or counts marches to it (Part 3).">50 MHz clock</button>
+    <button type="button" class="part" data-info="A VGA port: plug in a computer monitor and it shows the same picture as the shield's LCD. Path B builds its games on it.">VGA port</button>
+    <button type="button" class="part" data-info="An accelerometer (tilt sensor). It knows which way is down: good for games and bubble levels.">Accelerometer</button>
+    <button type="button" class="part" data-info="64 MB of SDRAM: a big external memory, for when the chip's own 1.6 Mbit isn't enough.">SDRAM</button>
+    <button type="button" class="part" data-info="The Arduino header: rows of sockets where the shield plugs in. Its pins carry the LCD data, the buzzer and more.">Arduino header</button>
+    <button type="button" class="part" data-info="The USB-Blaster: the USB port and the chip behind it. It powers the board, loads your designs, and lets the chat read the screen and messages from the board.">USB-Blaster</button>
+  </div>
+  <div class="info" id="info-board" aria-live="polite">10 slide switches, named SW0 to SW9. Each one gives your circuit a 0 (down) or a 1 (up). Your first inputs: you'll use them in almost every lesson.</div>
+</section>
+
+<!-- 10 -->
+<section class="slide" data-title="Shield tour">
+  <span class="tag">Lesson 1 · shield tour</span>
+  <h2>The shield: screen, game pad, wheel, buzzer</h2>
+  <p>Click a part to read what it does.</p>
+  <div class="parts" data-group="shield">
+    <button type="button" class="part on" data-info="A 4-inch colour LCD. Your designs draw a 640 x 480 picture, the same one that goes out of the VGA port. Every pixel's colour comes from your circuit, 25 million pixels per second.">LCD screen</button>
+    <button type="button" class="part" data-info="A joystick: up, down, left, right. Path B's games are steered with it.">Joystick</button>
+    <button type="button" class="part" data-info="Four buttons: A, B, Select and Start, like on a game console.">A, B, Select, Start</button>
+    <button type="button" class="part" data-info="The wheel: a big metal knob (a potentiometer). It gives a number from 0 to 4095 depending on how far it is turned. Great for paddles and speed controls.">Wheel</button>
+    <button type="button" class="part" data-info="A buzzer: your circuit makes sound by switching it on and off fast. Switch it 2,000 times a second and you hear a 2 kHz beep.">Buzzer</button>
+    <button type="button" class="part" data-info="Clever trick: the joystick and buttons don't each have a wire. Each pair shares one wire through different resistors, and the chip's ADC measures the voltage to tell which one you press. The course's library does this for you.">How it's read</button>
+  </div>
+  <div class="info" id="info-shield" aria-live="polite">A 4-inch colour LCD. Your designs draw a 640 x 480 picture, the same one that goes out of the VGA port. Every pixel's colour comes from your circuit, 25 million pixels per second.</div>
+</section>
+
+<!-- 11 -->
+<section class="slide" data-title="The board hunt">
+  <span class="tag">Lesson 1 · your task</span>
+  <h2>The board hunt</h2>
+  <div class="cols top">
+    <div>
+      <p>Time to meet the board for real. The chat loads a game onto it: the screen gives you <b>13 challenges</b>, one at a
+      time. Flip this switch, press that button, turn the wheel...</p>
+      <ol class="steps">
+        <li>Tell the chat you're ready. It loads the hunt.</li>
+        <li>Follow the screen. Hold each answer for a moment: a quick touch doesn't count.</li>
+        <li>The board beeps and moves on when it sees you got it. The red number digits show your step: <b class="mono">St 05</b>.</li>
+        <li>Stuck? Ask the chat for a hint.</li>
+      </ol>
+      <div class="box ok"><b class="t">You're done when</b>the screen says <b>ALL DONE!</b> and the digits say <b class="mono">donE</b>. The board tells the chat by itself.</div>
+    </div>
+    <img class="shot" src="media/hunt_screen.png" alt="The hunt screen: BOARD HUNT, STEP 01 OF 13, a row of progress boxes, the challenge 'PUT ALL 10 SWITCHES DOWN (TOWARD YOU)', ten red boxes showing the switches, and a WHEEL bar.">
+  </div>
+</section>
+
+<!-- 12 -->
+<section class="slide" data-title="Quiz">
+  <span class="tag">Lesson 1 · check yourself</span>
+  <h2>Three questions, in the chat</h2>
+  <p>The chat asks you these, one at a time. Answer in your own words: there's no trick, and a hint is always OK.</p>
+  <ol class="steps quiz">
+    <li>What is the difference between a <b>CPU</b> and an <b>FPGA</b>?</li>
+    <li>What is a <b>LUT</b>, and how can the same LUT be an AND gate or an XOR gate?</li>
+    <li>Why is your design gone when the board loses power, and what does that mean for you?</li>
+  </ol>
+  <p class="muted" style="margin-top:16px">Not sure? Go back to slides 2, 5 and 8.</p>
+</section>
+
+<!-- 13 -->
+<section class="slide" data-title="Done" id="last">
+  <span class="tag">Lesson 1 · finish</span>
+  <h2>Enter your completion code</h2>
+  <div class="code-entry">
+    <p>After the hunt and the quiz, the chat gives you a code. Type it here to finish lesson 1.</p>
+    <form class="code-form" id="code-form" autocomplete="off">
+      <input id="code" aria-label="Completion code" placeholder="L01-....." maxlength="12">
+      <button class="btn" type="submit">Finish lesson 1</button>
+    </form>
+    <div class="msg" id="msg" role="status"></div>
+  </div>
+  <div class="done-banner">
+    <div class="box ok" style="font-size:22px"><b class="t">Lesson 1 done!</b>You know what an FPGA is, and you've touched every input on your board.</div>
+    <h3 style="margin-top:22px">What you learned</h3>
+    <ul class="list">
+      <li>A CPU runs instructions one after another. An FPGA becomes the circuit.</li>
+      <li>A LUT is a tiny memory holding a truth table, so it can be any gate.</li>
+      <li>The design lives in memory that needs power, so you load it again after power-up.</li>
+    </ul>
+    <h3 style="margin-top:18px">Next: lesson 2, your first project in Quartus</h3>
+    <p>Go to the chat and type <b>teach me</b>.</p>
+    <button class="btn ghost" type="button" id="reset" style="margin-top:16px">Reset this lesson's progress</button>
+  </div>
+</section>
+
+</main>
+
+<nav class="nav">
+  <button class="btn ghost" type="button" id="prev" aria-label="Previous slide">&larr; Back</button>
+  <div class="dots" id="dots" aria-label="Slides"></div>
+  <button class="btn" type="button" id="next" aria-label="Next slide">Next &rarr;</button>
+</nav>
+
+<script>
+  (function () {
+    var LESSON = "1";
+    var CODE_HASH = 2482992762;   // scripts/lesson.py code-hash 1
+    var KEY = "de10-course";
+    var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+    var dots = document.getElementById("dots");
+    var cur = 0;
+
+    // Progress lives in this browser only. Private windows and some school browsers block storage: the deck still works.
+    function load() {
+      try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+    }
+    function save(all) {
+      try { localStorage.setItem(KEY, JSON.stringify(all)); } catch (e) {}
+    }
+    function mine() {
+      var all = load();
+      all[LESSON] = all[LESSON] || { slide: 0, seen: [], ticks: {}, done: null };
+      return all;
+    }
+    function update(fn) {
+      var all = mine();
+      fn(all[LESSON]);
+      save(all);
+      return all[LESSON];
+    }
+
+    slides.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.title = (i + 1) + ". " + s.getAttribute("data-title");
+      b.setAttribute("aria-label", b.title);
+      b.addEventListener("click", function () { go(i); });
+      dots.appendChild(b);
+    });
+
+    function go(i) {
+      cur = Math.max(0, Math.min(slides.length - 1, i));
+      slides.forEach(function (s, k) { s.classList.toggle("on", k === cur); });
+      var st = update(function (p) {
+        p.slide = cur;
+        if (p.seen.indexOf(cur) < 0) p.seen.push(cur);
+      });
+      Array.prototype.forEach.call(dots.children, function (b, k) {
+        b.classList.toggle("cur", k === cur);
+        b.classList.toggle("seen", st.seen.indexOf(k) >= 0);
+      });
+      document.getElementById("count").textContent = (cur + 1) + " / " + slides.length;
+      document.getElementById("progress").style.width = (100 * (cur + 1) / slides.length) + "%";
+      document.getElementById("prev").disabled = cur === 0;
+      document.getElementById("next").disabled = cur === slides.length - 1;
+      slides[cur].scrollTop = 0;
+      if (location.hash !== "#" + (cur + 1)) history.replaceState(null, "", "#" + (cur + 1));
+    }
+
+    document.getElementById("prev").addEventListener("click", function () { go(cur - 1); });
+    document.getElementById("next").addEventListener("click", function () { go(cur + 1); });
+    document.addEventListener("keydown", function (e) {
+      if (e.target.tagName === "INPUT") return;
+      if (e.key === "ArrowRight" || e.key === "PageDown" || e.key === " ") { e.preventDefault(); go(cur + 1); }
+      if (e.key === "ArrowLeft" || e.key === "PageUp") { e.preventDefault(); go(cur - 1); }
+      if (e.key === "Home") go(0);
+      if (e.key === "End") go(slides.length - 1);
+    });
+    // The chat opens the deck at a slide with #N (scripts/lesson.py open 1 N)
+    window.addEventListener("hashchange", function () {
+      var n = parseInt(location.hash.slice(1), 10);
+      if (n) go(n - 1);
+    });
+
+    // "I did it" ticks
+    var state = mine()[LESSON];
+    document.querySelectorAll("[data-tick]").forEach(function (box) {
+      var name = box.getAttribute("data-tick");
+      box.checked = !!state.ticks[name];
+      box.addEventListener("change", function () {
+        update(function (p) { p.ticks[name] = box.checked; });
+      });
+    });
+
+    // Completion code: the same 32-bit FNV-1a as scripts/lesson.py
+    function fnv1a(text) {
+      var h = 0x811c9dc5;
+      var bytes = new TextEncoder().encode(text);
+      for (var i = 0; i < bytes.length; i++) {
+        h ^= bytes[i];
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      return h >>> 0;
+    }
+    var last = document.getElementById("last");
+    function showDone(when) { last.classList.toggle("is-done", !!when); }
+    showDone(state.done);
+    document.getElementById("code-form").addEventListener("submit", function (e) {
+      e.preventDefault();
+      var typed = document.getElementById("code").value.trim().toUpperCase().replace(/\s+/g, "");
+      var msg = document.getElementById("msg");
+      if (fnv1a(typed) === CODE_HASH) {
+        var p = update(function (p) { p.done = new Date().toISOString().slice(0, 10); });
+        showDone(p.done);
+      } else {
+        msg.className = "msg bad";
+        msg.textContent = "That's not the code. Copy it exactly from the chat, for example L01-ABCDE.";
+      }
+    });
+    document.getElementById("reset").addEventListener("click", function () {
+      if (!confirm("Clear lesson 1's progress in this browser? (The chat's own record is not touched.)")) return;
+      var all = load();
+      delete all[LESSON];
+      save(all);
+      location.hash = "#1";
+      location.reload();
+    });
+
+    // The LUT demo: the inputs pick a row, the row's stored bit is the output
+    var NAMES = { "0001": "an <b>AND</b> gate", "0111": "an <b>OR</b> gate", "0110": "an <b>XOR</b> gate", "1110": "a <b>NAND</b> gate",
+                  "1000": "a <b>NOR</b> gate", "1001": "an <b>XNOR</b> gate", "0101": "a wire that copies <b>b</b>",
+                  "0011": "a wire that copies <b>a</b>", "0000": "always <b>0</b>", "1111": "always <b>1</b>" };
+    var lutIn = { a: 0, b: 0 };
+    var stores = Array.prototype.slice.call(document.querySelectorAll("#lut .bit.store"));
+    function lutDraw() {
+      var row = lutIn.a * 2 + lutIn.b;
+      var bits = stores.map(function (b) { return b.textContent; }).join("");
+      document.querySelectorAll("#lut tr[data-row]").forEach(function (tr) {
+        tr.classList.toggle("pick", Number(tr.getAttribute("data-row")) === row);
+      });
+      stores.forEach(function (b) { b.classList.toggle("one", b.textContent === "1"); });
+      var y = bits.charAt(row);
+      var lamp = document.getElementById("lamp");
+      lamp.textContent = "y = " + y;
+      lamp.classList.toggle("lit", y === "1");
+      document.getElementById("lut-name").innerHTML = "This LUT is " + (NAMES[bits] || "a gate with no common name") + " (stored bits " + bits + ")";
+    }
+    document.querySelectorAll("#lut .bit.in").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var k = b.getAttribute("data-in");
+        lutIn[k] = 1 - lutIn[k];
+        b.querySelector("span").textContent = lutIn[k];
+        b.setAttribute("aria-pressed", String(lutIn[k] === 1));
+        lutDraw();
+      });
+    });
+    stores.forEach(function (b) {
+      b.addEventListener("click", function () { b.textContent = b.textContent === "1" ? "0" : "1"; lutDraw(); });
+    });
+    document.querySelectorAll("#lut [data-preset]").forEach(function (p) {
+      p.addEventListener("click", function () {
+        var bits = p.getAttribute("data-preset");
+        stores.forEach(function (b, i) { b.textContent = bits.charAt(i); });
+        lutDraw();
+      });
+    });
+    lutDraw();
+
+    // Board and shield tours: click a part, read about it
+    document.querySelectorAll(".parts").forEach(function (group) {
+      var info = document.getElementById("info-" + group.getAttribute("data-group"));
+      group.querySelectorAll(".part").forEach(function (p) {
+        p.addEventListener("click", function () {
+          group.querySelectorAll(".part").forEach(function (q) { q.classList.toggle("on", q === p); });
+          info.textContent = p.getAttribute("data-info");
+        });
+      });
+    });
+
+    var start = parseInt(location.hash.slice(1), 10);
+    go(start ? start - 1 : (state.slide || 0));
+  })();
+</script>
+</body>
+</html>

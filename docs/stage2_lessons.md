@@ -5,7 +5,9 @@ Verilog with the AI as a mentor. Every lesson gets its own HTML tutorial page an
 nature of the practice differs per lesson). The DE10-Lite and its shield are assumed throughout. Lessons marked
 `+` are board-specific additions to the nand2tetris projects.
 
-Status: lesson 0 built (`lessons/00_setup/`, verified on the board 2026-10-24). The rest is the agreed topic list;
+Status: lesson 0 built (`lessons/00_setup/`, verified on the board 2026-10-24). Lesson 1 (= 0.1, folder
+`01_what_is_fpga/`) built 2026-10-24: slides, the board hunt (13 challenges, checked by the board) and a quiz in the
+chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. The rest is the agreed topic list;
 each lesson is discussed with Avi before it is built.
 
 ## How a lesson works (agreed 2026-10-24)

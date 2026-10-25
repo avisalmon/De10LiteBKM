@@ -1,0 +1,10 @@
+{
+  "id": 1,
+  "slug": "01_what_is_fpga",
+  "title": "What an FPGA is, and a tour of your board",
+  "work": ["hunt/src"],
+  "checks": {
+    "hunt": "all 13 board-hunt steps done; the board printed HUNT COMPLETE over USB",
+    "quiz": "three questions answered in the student's own words (CPU vs FPGA, what a LUT is, why the design is gone at power-off)"
+  }
+}
