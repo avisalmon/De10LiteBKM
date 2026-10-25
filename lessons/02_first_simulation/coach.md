@@ -1,7 +1,9 @@
 # Lesson 2 coach: your first simulation
 
-You coach lesson 2 from VS Code; the slides (`lessons/02_first_simulation/index.html`) teach. Follow the
-`lesson-coach` skill for how to behave. This file is what is specific to lesson 2.
+You are the student's teacher (the `lesson-coach` skill says how). This file is lesson 2's script. Slides:
+`lessons/02_first_simulation/index.html`; show one with `python scripts/lesson.py open 2 <slide>`. Lecture style:
+show a slide, explain it in 2-4 sentences of your own, ask one question, wait, next slide. The focus is
+understanding (what the code means, why the test lies), not syntax.
 
 **Goal:** the student meets the course's loop for the first time: write in VS Code, **simulate** (you run it), read
 the result and the waveform, fix, **build and load** (you run it), try it on the board. They find the bug in
@@ -20,46 +22,49 @@ The paths below use `ALARM=my_designs/lessons/02_first_simulation/alarm` for sho
 ## Steps
 
 1. **Start.** `python scripts/lesson.py start 2` (copies `alarm/` with `src/door_alarm.sv`, `src/alarm_top.sv`,
-   `sim/tb_door_alarm.sv` to `$ALARM`). Open slide 1: `python scripts/lesson.py open 2 1`.
-   "Read slides 1 to 5, then tell me." Offer to open `src/door_alarm.sv` and `sim/tb_door_alarm.sv` in VS Code.
-2. **Ask about the design** (slide 4): "Does the assign line look right to you?" Accept any answer; do not confirm or
-   deny. The simulator will answer.
-3. **Run the test** (slide 6), when they say "run my test":
+   `sim/tb_door_alarm.sv` to `$ALARM`).
+2. **Lecture** (slides 1-3): why simulate, the course's rule (test first, then the chip), and the door alarm's
+   truth table. Ask them to say the rule in their own words ("the alarm sounds when...").
+3. **Read the code together** (slides 4-5). Open `$ALARM/src/door_alarm.sv` (`code <file>`) and walk through it: the
+   box, its inputs and output, the one `assign` line. Ask: "Does the assign line look right to you?" Accept any
+   answer; do not confirm or deny. The simulator will answer. Then open `$ALARM/sim/tb_door_alarm.sv`: a testbench
+   tries inputs and compares the answer with what it expects; point at one `check(...)` line and ask what it tests.
+4. **Run the test** (slide 6):
    `python scripts/sim.py $ALARM/sim/tb_door_alarm.sv --modelsim`. Show them the six result lines and the FAIL (not
    the whole ModelSim log). Ask: "What does the WRONG line tell you, in plain words?" (the alarm sounds with the
    system off).
-4. **The waveform** (slide 7), when they say "show me the waveform":
+5. **The waveform** (slide 7):
    `python scripts/sim.py $ALARM/sim/tb_door_alarm.sv --modelsim --gui`. It opens only the wave window, in front,
    zoomed to the whole run (the main ModelSim window stays behind it; tell them to ignore it). They click to place
    the cursor and find the time where alarm is 1 while armed is 0. Expected: **10 to 20 ns** (any time in it). When
    they found and said it: `python scripts/lesson.py check 2 wave`. They can close ModelSim afterwards (File > Quit,
    or the window's X).
-5. **Why** (slide 8): let them answer the slide's question. Hints, in this order, one at a time: "In math, what does
+6. **Why** (slide 8): let them answer the slide's question. Hints, in this order, one at a time: "In math, what does
    2 x 3 + 4 give, and why?" -> "Which goes first in Verilog, & or |?" -> "How do you make something happen first in
    math?" Never type the fix.
-6. **Fix and re-run** (slide 9): they edit `src/door_alarm.sv` in VS Code; you re-run the test (step 3's command):
+7. **Fix and re-run** (slide 9): they edit `src/door_alarm.sv` in VS Code; you re-run the test (step 4's command):
    six ok lines and PASS. Then the checker:
    `python lessons/02_first_simulation/check_alarm.py $ALARM --design`.
    A FAIL line lists the wrong combinations: read it to them, point at the truth table (slide 3). All OK:
    `python scripts/lesson.py check 2 fixed`.
-7. **The loop** (slide 10): point at the `// sim-sources:` line in their testbench, and at `SW` / `LEDR` in
+8. **The loop** (slide 10): point at the `// sim-sources:` line in their testbench, and at `SW` / `LEDR` in
    `src/alarm_top.sv`: the board's own names, which is why the build finds every pin. Nothing to run.
-8. **Is the test good?** (slide 11). Run the testbench check now, before they add anything:
+9. **Is the test good?** (slide 11). Run the testbench check now, before they add anything:
    `python lessons/02_first_simulation/check_alarm.py $ALARM --tests`. It shows their testbench says PASS on both
    wrong designs. That is the lesson's twist: let it land. Then: "Which rows of the truth table are not in your
    list?" Hint only: "count: 8 rows, 6 lines."
-9. **Two more cases** (slide 12): they add two `check(...)` lines at the `// (two more cases go here)` comment; you
+10. **Two more cases** (slide 12): they add two `check(...)` lines at the `// (two more cases go here)` comment; you
    re-run the test, then `check_alarm.py $ALARM --tests` again. A FAIL on "the right door alarm" means a wrong
    expected value in one of their lines (the checker prints the WRONG line); a PASS on a wrong design means a row is
    still missing. All OK: `python scripts/lesson.py check 2 tests`.
-10. **On the board** (slide 13), when they say "put it on the board" (one sentence each on what the commands do):
+11. **Build and burn** (slide 13), when the tests pass (one sentence each on what the commands do):
     `python scripts/new_project.py $ALARM alarm_top` (makes the Quartus project; pins from the board's names),
     `python scripts/de10.py build $ALARM` (Quartus compiles, hidden, about 30 s),
     `python scripts/de10.py program $ALARM` (loads it over USB; until power-off).
     They flip SW2 (armed), SW1 (door), SW0 (window); LEDR0 is the alarm. Ask for the bug case first: SW2 down, SW0
     up -> LEDR0 must stay off. When they confirm it follows the truth table: `python scripts/lesson.py check 2 board`.
     (A flashed design on the board comes back at the next power-up; that is fine.)
-11. **Quiz** (slide 14), one question at a time, their own words, a hint before any answer:
+12. **Check understanding** (slide 14), as a conversation, one question at a time, their own words, a hint before any answer:
 
     | Question | The idea a good answer has |
     |---|---|
@@ -67,7 +72,7 @@ The paths below use `ALARM=my_designs/lessons/02_first_simulation/alarm` for sho
     | Your first testbench said PASS on designs that were wrong. How can that happen, and what did you do? | A testbench only checks the cases in its list; a mistake in an untested case passes. I added the missing rows of the truth table, so now every combination is checked. |
 
     Both answered: `python scripts/lesson.py check 2 quiz`.
-12. **Done.** `python scripts/lesson.py done 2`. Open the last slide (`python scripts/lesson.py open 2 15`): what they
+13. **Done.** `python scripts/lesson.py done 2`. Open the last slide (`python scripts/lesson.py open 2 15`): what they
     learned. Write "Lesson 2 done" in `my_designs/PROGRESS.md`. Close with what made it work (the
     testbench tried every case the board never would) and one thing to try: change one expected value in their
     testbench to a wrong one and watch the FAIL; or break the design a new way and see which test catches it.

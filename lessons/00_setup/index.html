@@ -213,11 +213,11 @@
   <span class="tag">Lesson 0 · how this course works</span>
   <h2>Three things on your desk</h2>
   <div class="figure" style="margin-top:10px">
-    <svg viewBox="0 0 1000 300" role="img" aria-label="The slides teach in the browser, the chat in VS Code coaches and runs the tools, and the board shows the result over a USB cable.">
+    <svg viewBox="0 0 1000 300" role="img" aria-label="In VS Code the chat teaches and opens the slides in a tab next to it, and the board shows the result over a USB cable.">
       <title>Slides, chat and board</title>
       <rect class="s-box" x="20" y="30" width="280" height="190" rx="12"/>
       <rect class="s-soft" x="20" y="30" width="280" height="34" rx="12"/>
-      <text class="s-txt" x="38" y="53">Browser: the slides</text>
+      <text class="s-txt" x="38" y="53">VS Code: the slides</text>
       <rect x="44" y="84" width="200" height="12" rx="6" fill="var(--line)"/><rect x="44" y="108" width="230" height="10" rx="5" fill="var(--line)"/><rect x="44" y="128" width="170" height="10" rx="5" fill="var(--line)"/>
       <rect x="44" y="152" width="90" height="48" rx="6" fill="var(--accent-soft)"/>
       <rect class="s-box" x="360" y="30" width="280" height="190" rx="12"/>
@@ -233,14 +233,15 @@
       <path class="s-acc" d="M640 125 H720" stroke-dasharray="6 5"/>
       <text class="s-small" x="652" y="115">USB</text>
       <path class="s-line" d="M300 125 H360"/>
-      <text class="s-txt" x="40" y="262">Teaches: read and learn</text>
-      <text class="s-txt" x="380" y="262">Coaches: runs tools, checks, hints</text>
+      <text class="s-txt" x="40" y="262">Shown by the chat as it teaches</text>
+      <text class="s-txt" x="380" y="262">Your teacher: explains, asks, hints</text>
       <text class="s-txt" x="720" y="262">Proves it: you see it work</text>
     </svg>
   </div>
   <ul class="list">
-    <li><b>You read a slide here</b>, then go to the chat and do the task. The chat opens the next slides for you when it's time.</li>
-    <li><b>The chat never writes your circuits.</b> It runs the tools, tests your work, explains errors and gives hints. The design is yours.</li>
+    <li><b>The chat is your teacher.</b> You stay in VS Code and talk to it. Ask it "what now?" any time: it knows where you are.</li>
+    <li><b>It teaches with these slides</b>, opened in a tab right next to the chat, and with real code you read and change together.</li>
+    <li><b>It never writes your circuits.</b> It runs the tools, builds, loads the board, explains errors and gives hints. The thinking is yours.</li>
     <li><b>Every lesson ends on the board.</b> First a test in the simulator must pass, then you see it working for real.</li>
   </ul>
 </section>
@@ -334,13 +335,13 @@
   <span class="tag web">Step 5 of 5 · the handover</span>
   <h2>Now go to the chat and type:</h2>
   <div class="say">teach me</div>
-  <p style="margin-top:18px">From here the chat leads. It installs what it can by itself, tells you exactly what to click
-  when it needs you, and opens the next slide in your browser when it's time to read.</p>
+  <p style="margin-top:18px">From here the chat is your teacher. It installs what it can by itself, tells you exactly what to click
+  when it needs you, and from now on shows these slides inside VS Code, next to the chat.</p>
   <div class="box">
     <b class="t">The chat asks before it runs anything</b>Before each command it shows what it wants to run and asks
     permission (<b>Allow</b>). Read it and approve. Not sure what a command does? Ask: "what does this command do?"
   </div>
-  <p class="muted" style="margin-top:14px">Coming back tomorrow? Open VS Code and type <b>teach me</b> again. It continues where you stopped.</p>
+  <p class="muted" style="margin-top:14px">Coming back tomorrow? Open VS Code and ask <b>what now?</b> It continues where you stopped.</p>
 </section>
 
 <!-- 9 -->
@@ -509,7 +510,7 @@ a=1 b=1 -&gt; y=1  ok
       <li>The board runs it.</li>
     </ul>
     <h3 style="margin-top:18px">Next: lesson 0.1, what an FPGA is</h3>
-    <p>Go to the chat and type <b>teach me</b>.</p>
+    <p>Ask the chat <b>what now?</b> and it takes you there.</p>
     <button class="btn ghost" type="button" id="reset" style="margin-top:16px">Reset this lesson's progress</button>
   </div>
 </section>

@@ -28,7 +28,7 @@ side" and "slides for self-study" below wherever they disagree.
 - Slides open in a VS Code tab through the course's own small extension (`tools/vscode-course`, installed by
   `scripts/course_extension.py install` in lesson 0); `scripts/lesson.py open N slide` asks it, and falls back to
   the browser when no VS Code tab answers.
-- Lessons 0-2 are reshaped to this model.
+- Lessons 0-2 reshaped to this model on 2026-10-25: their coach.md files are scripts of moments (lecture slide by slide, read code together, task, build and burn, waves, check understanding by talking), lesson 0 installs the slide viewer, and the slides say "the chat is your teacher". The slides themselves were not shortened yet.
 
 The original model (2026-10-24), kept for the parts still true:
 
