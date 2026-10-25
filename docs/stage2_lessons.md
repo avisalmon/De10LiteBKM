@@ -34,6 +34,9 @@ each lesson is discussed with Avi before it is built.
   localStorage; the checker prints a short completion code that the student types into the page to mark the step
   done.
 - **Simulator: ModelSim** (ModelSim-Intel Starter, installed with Quartus 17.1) for all lesson tests.
+- **The board from day 1** (decided 2026-10-25, after weighing a simulation-first start): every student has the
+  DE10-Lite from lesson 0, and every lesson ends on the board. Simulation still comes first in each lesson, but the
+  board is never optional. Seeing it work for real is the better experience.
 
 ## Two paths, one trunk
 
