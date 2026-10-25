@@ -51,3 +51,18 @@ def test_no_template_blanks_left():
             if "BKM-TODO:" in line or re.search(r"\{\{[A-Z_]+\}\}", line):
                 blanks.append(f"{path.relative_to(ROOT)}:{number}: {line.strip()[:90]}")
     assert not blanks, "fill these in:\n" + "\n".join(blanks)
+
+
+def test_what_a_student_or_a_test_run_leaves_behind_is_ignored():
+    """Trying the course (as a student, or the maintainer testing it) must never show up in git status."""
+    leftovers = [
+        "my_designs/lessons/progress.json", "my_designs/lessons/notes.md", "my_designs/lessons/show.json",
+        "my_designs/lessons/02_first_simulation/alarm/src/door_alarm.sv", "my_designs/PROGRESS.md",
+        "lessons/00_setup/ready/db/x", "lessons/00_setup/ready/output_files/ready.sof", "lessons/00_setup/ready/logs/build.log",
+        "lessons/02_first_simulation/alarm/sim/work/_info", "lessons/02_first_simulation/alarm/sim/transcript",
+        "lessons/02_first_simulation/alarm/sim/vsim.wlf", "lessons/02_first_simulation/alarm/sim/wlft3x8a2b",
+        "lessons/00_setup/ready/ready.qws", "lessons/00_setup/ready/ready.cdf", "logs/de10-course.vsix",
+    ]
+    done = subprocess.run(["git", "check-ignore", "--no-index", *leftovers], cwd=ROOT, capture_output=True, text=True)
+    ignored = set(done.stdout.split())
+    assert ignored == set(leftovers), f"not ignored: {sorted(set(leftovers) - ignored)}"

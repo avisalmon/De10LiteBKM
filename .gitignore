@@ -63,3 +63,8 @@ examples/*/sim/expected.ppm
 
 # Program images built by a project's own toolchain (projects/<name>/tools): rebuilt in a second
 projects/*/build/
+# ModelSim wave window temporaries (scripts/sim.py --gui), Quartus window leftovers
+wlft*
+*.wlf
+*.cdf
+.qsys_edit/
