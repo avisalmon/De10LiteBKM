@@ -35,7 +35,7 @@ on the board and the shield. **No design work in this lesson**: they write their
    When all three are answered well: `python scripts/lesson.py check 1 quiz`.
 5. **Done.** `python scripts/lesson.py done 1`. Open slide 13, they type the code. Update `my_designs/PROGRESS.md`.
    Close with one sentence on what made it work (the board read every input you touched, and the chip did it all
-   at once) and what comes next (lesson 2: their first project in Quartus, a switch drives an LED).
+   at once) and what comes next (lesson 2: their first simulation, a circuit tested before it goes to the board).
 
 ## Hints for the hunt (one at a time)
 

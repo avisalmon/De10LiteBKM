@@ -59,7 +59,7 @@ exhaustive testbench, never with the student's.
   `wave cursor add -time 15ns -name {wrong}`, and capture with `-Title "Wave*" -W 0`. Resizing the window AFTER the
   zoom keeps the time-per-pixel and ruins the range; `after <ms> {...}` callbacks never ran in a do-file.
 * The first ModelSim start shows a "Welcome to version 10.5b" notice: that is a slide too (students see it).
-* Quartus: lesson 2's `media/` holds the wizard and Pin Planner shots (17.1).
+* Quartus GUI shots are not used any more (no Quartus window in the course); the old lesson 2 had them, see git history.
 * Real tool text for `.term` boxes: run the same commands in batch (`vlog ...`, `vsim -c ... -do "run -all; quit -f"`)
   and paste the output.
 
