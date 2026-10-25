@@ -26,7 +26,8 @@ ends on the board. Slides say what to tell the chat ("run my test", "show me the
 ```text
 lessons/NN_slug/
   lesson.json      {"id", "slug" (= folder), "title", "work": [folders copied to the student], "checks": {name: what passes}}
-  coach.md         the chat's script: goal, the answer it must not give away, numbered steps that open slides
+  coach.md         the chat's script (every file the student opens, edits, simulates or builds is their copy in
+                   my_designs/lessons/NN_name/, never lessons/: a test checks): goal, the answer it must not give away, numbered steps that open slides
                    (lesson.py open N slide), run checkers, record each check with "python scripts/lesson.py check N <name>"
                    (the test greps for every check name), the quiz table, Traps seen
   index.html       the slides (the chat lectures from them in a VS Code tab); localStorage only inside try {}

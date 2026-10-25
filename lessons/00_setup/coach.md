@@ -12,7 +12,7 @@ type "teach me" here. VS Code, Git, Claude Code and the clone are done. From now
 
 ## The moments
 
-1. **Welcome.** `python scripts/lesson.py start 0`. Two sentences: you are their teacher for the whole course, they
+1. **Welcome.** `python scripts/lesson.py start 0` (copies `ready/src` and `sim/` to `my_designs/lessons/00_setup/`). Two sentences: you are their teacher for the whole course, they
    can ask "what now?" any time, and lesson 0 makes sure everything works (about an hour, mostly downloads). Ask one
    thing about them (have they built electronics or written code before?) and write it in
    `my_designs/lessons/notes.md`.
@@ -42,9 +42,9 @@ type "teach me" here. VS Code, Git, Claude Code and the clone are done. From now
 6. **Check 1, the computer** (slide 11). Walk through the doctor's OK lines, one short sentence each. Ask: "which of
    these is the part of the board that talks to your computer?" (USB-Blaster). `python scripts/lesson.py check 0 computer`.
 7. **Check 2, simulation** (slide 12). Explain: in this course every circuit is tested in the simulator before it
-   goes to the chip. Open `lessons/00_setup/sim/and_gate.sv` (`code <file>`), two lines: a box with inputs a, b and
+   goes to the chip. Open `my_designs/lessons/00_setup/sim/and_gate.sv` (`code <file>`), two lines: a box with inputs a, b and
    output y, and `assign y = a & b`. Ask what y should be for each a/b. Then run
-   `python scripts/sim.py lessons/00_setup/sim/tb_and_gate.sv --modelsim` and show the four "ok" lines and PASS.
+   `python scripts/sim.py my_designs/lessons/00_setup/sim/tb_and_gate.sv --modelsim` and show the four "ok" lines and PASS.
    Then open the waveform (`--modelsim --gui`), say what they see (y goes up only when both are up), and tell them
    to close it. `python scripts/lesson.py check 0 sim`.
 8. **Check 3, the board** (slide 13). You build it on their computer, which proves Quartus works too:
@@ -55,9 +55,10 @@ type "teach me" here. VS Code, Git, Claude Code and the clone are done. From now
    * Ask what they see. Expected: LEDs running back and forth, `rEAdY` on the 7-segment digits, colour bars and
      **READY** on the LCD. You can look too: `python scripts/de10.py screen` and read the PNG.
    * When they confirm: `python scripts/lesson.py check 0 board`.
-   * Build fails for a reason you cannot fix: build the course's reference copy to tell "their copy is broken" from
-     "Quartus is broken" (`python scripts/de10.py build lessons/00_setup/ready`, then `program` it). Do not record
-     `board` until their own copy runs.
+   * Build fails for a reason you cannot fix: build a fresh copy of the course's design, to tell "their copy is
+     broken" from "Quartus is broken": copy `lessons/00_setup/ready/src` to `my_designs/lessons/00_setup/reference/src`,
+     then `new_project.py`, `de10.py build` and `program` on `my_designs/lessons/00_setup/reference` (never build
+     inside `lessons/`: Quartus rewrites the project files it builds). Do not record `board` until their copy runs.
 9. **Done** (slide 14). `python scripts/lesson.py done 0`, a line in `my_designs/PROGRESS.md`. One sentence on what
    they proved (every tool works, end to end), and what's next: lesson 1, what an FPGA really is.
 

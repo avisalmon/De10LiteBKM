@@ -47,3 +47,14 @@ def test_local_images_exist(folder):
     html = (folder / "index.html").read_text(encoding="utf-8")
     for src in re.findall(r'src="(?!https?:)([^"]+)"', html):
         assert (folder / src).exists(), src
+
+
+@pytest.mark.parametrize("folder", LESSONS, ids=lambda p: p.name)
+def test_the_student_works_only_in_their_copy(folder):
+    """lessons/ is the course itself. A coach.md may show slides and run checkers from it, but every file the student
+    opens, edits, simulates or builds must be their copy under my_designs/ (or they would change the course)."""
+    coach = (folder / "coach.md").read_text(encoding="utf-8")
+    for path in re.findall(r"(?<![\w/])lessons/[\w./-]+", coach):
+        allowed = path.endswith("index.html") or re.fullmatch(r"lessons/\w+/check_\w+\.py", path) \
+            or re.fullmatch(r"lessons/\w+/[\w/]*src", path) or path.rstrip("/") == "lessons"
+        assert allowed, f"{folder.name}/coach.md sends the student into the course itself: {path}"

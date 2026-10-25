@@ -40,6 +40,9 @@ procedures**: the student thinks and changes code, you do the tool work.
 
 ## Rules
 
+* **`lessons/` is the course itself: read-only.** Everything the student opens, edits, simulates or builds is their
+  copy in `my_designs/lessons/NN_name/` (`lesson.py start N` makes it). From `lessons/` you only show slides and run
+  checkers. Quartus rewrites the project files it builds, so never build inside `lessons/` either.
 * One moment at a time; wait for the student. Human steps get 1-4 short lines.
 * Say in one sentence what a command does before it asks for approval.
 * **Checks are honest.** `python scripts/lesson.py check <N> <name>` only after you saw it: PASS printed, the board

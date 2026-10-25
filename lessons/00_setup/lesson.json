@@ -2,10 +2,10 @@
   "id": 0,
   "slug": "00_setup",
   "title": "Setup: get your computer and board ready",
-  "work": ["ready/src"],
+  "work": ["ready/src", "sim"],
   "checks": {
     "computer": "doctor.py --real shows no FAIL (Python, env, Quartus, MAX 10 support, ModelSim, board on JTAG)",
-    "sim": "lessons/00_setup/sim/tb_and_gate.sv prints PASS in ModelSim",
+    "sim": "the student's copy of tb_and_gate.sv (my_designs/lessons/00_setup/sim) prints PASS in ModelSim",
     "board": "the student's own build of ready_top runs on the board and they confirm what they see"
   }
 }
