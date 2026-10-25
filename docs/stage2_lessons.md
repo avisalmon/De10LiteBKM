@@ -37,6 +37,16 @@ each lesson is discussed with Avi before it is built.
 - **The board from day 1** (decided 2026-10-25, after weighing a simulation-first start): every student has the
   DE10-Lite from lesson 0, and every lesson ends on the board. Simulation still comes first in each lesson, but the
   board is never optional. Seeing it work for real is the better experience.
+- **No Quartus or ModelSim windows** (decided 2026-10-25, replacing the "by hand in the GUI" lessons): Quartus and
+  ModelSim run hidden behind the course's commands (`new_project.py`, `sim.py`, `de10.py`). All teaching is in the
+  slides and the chat, all practice in VS Code. Waveforms are shown in VS Code, not in the ModelSim window. No
+  lessons on device selection or pins: ports use the board's names (`SW`, `LEDR`, `HEX0`...) and `new_project.py`
+  fills in the pins. Get to logic fast: pure engineering.
+  * Planned changes (not done yet): delete lesson 2 (Quartus by hand); rework lesson 3 to drop the ModelSim window
+    and keep the door-alarm design, the bug, the waveform and the testbench checker; after lesson 1 go straight to
+    Part 1, teaching Verilog basics and the simulate / build / program loop inside the first logic lessons.
+  * Still to decide: how waveforms appear in VS Code (a course script that draws the .vcd as a picture, the
+    VaporView extension, or both); who reworks lesson 3; whether the door-alarm lesson becomes the new lesson 2.
 
 ## Two paths, one trunk
 
@@ -56,8 +66,8 @@ the CPU.
 ## Part 0: Tools and the board
 Several small lessons, slow pace for high school.
 - 0.1 What an FPGA is, and a tour of the DE10-Lite and the shield
-- 0.2 First project in Quartus: a switch drives an LED (pins, compile, flash)
-- 0.3 First ModelSim simulation: testbench, waveform, pass/fail
+- ~~0.2 First project in Quartus: a switch drives an LED (pins, compile, flash)~~ dropped 2026-10-25: no Quartus window, no pins
+- ~~0.3 First ModelSim simulation in its window~~ becomes simulation from the chat, waveform in VS Code (the door-alarm lesson)
 - 0.4 Verilog basics: module, ports, wire, assign, instantiation
 - 0.5 The AI as a mentor: how to ask for hints, how it checks your work
 
