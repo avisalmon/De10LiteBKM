@@ -7,7 +7,7 @@ nature of the practice differs per lesson). The DE10-Lite and its shield are ass
 
 Status: lesson 0 built (`lessons/00_setup/`, verified on the board 2026-10-24). Lesson 1 (= 0.1, folder
 `01_what_is_fpga/`) built 2026-10-24: slides, the board hunt (13 challenges, checked by the board) and a quiz in the
-chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. The rest is the agreed topic list;
+chat; no design task. Part 0's lessons 0.1-0.5 live in folders `01`-`05`. Lesson 2 (= 0.2, `02_first_project/`) built 2026-10-25: the whole Quartus flow by hand in the GUI, real 17.1 screenshots, a .qsf checker, SW9->LED9 change, quiz; no simulation (ModelSim comes in lesson 3). The rest is the agreed topic list;
 each lesson is discussed with Avi before it is built.
 
 ## How a lesson works (agreed 2026-10-24)
