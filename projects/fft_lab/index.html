@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FFT Lab on the DE10-Lite</title>
+<meta name="description" content="A wave generator, a scope and two FFTs side by side on the DE10-Lite with the LCD shield: our own 256-point FFT against Altera's FFT IP on the same samples, each timed, every pixel checked against a bit-exact Python model.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / FFT Lab</nav>
+<h1>FFT Lab</h1>
+<p class="lead">A small signal lab on one screen. A wave generator makes six shapes at a frequency you set with the shield's
+wheel; the top half of the screen is a scope, the bottom half shows the spectrum twice: our own 256-point FFT on the left,
+Altera's FFT IP on the right. Both get the same samples in the same clocks, and each shows how long it took: 6,145 clocks
+for ours, 1,637 for the IP. Every pixel was checked against a bit-exact Python model, in simulation and on the board.</p>
+<nav class="pages"><a class="here" href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+<div class="badges">
+  <span class="badge ok">Runs on the board</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">Shield required: screen, wheel, game pad, buzzer</span>
+  <span class="badge">7,183 logic elements (14 %)</span>
+  <span class="badge">Altera FFT IP in evaluation mode</span>
+  <span class="badge">Skill: compute-fft</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="fft_lab.qar" download>Download fft_lab.qar (full Quartus project)</a>
+  <a class="btn alt" href="guide.html#build">Build and load it</a>
+</div>
+<p class="note">No bitstream in the repo (a <code>.sof</code> is 3 MB per project): restore the <code>.qar</code> or use the sources here,
+one build makes it in about 4 minutes. The Altera FFT IP runs in evaluation mode in Quartus Lite (free, no license):
+the build writes only a time-limited <code>fft_lab_time_limited.sof</code>, which keeps running while the programmer stays
+connected (without it, one hour by Intel's guide; we saw 32 minutes and stopped watching), and no <code>.pof</code>, so this
+design cannot be flashed. The <a href="guide.html">user guide</a> has every command.</p>
+
+<h2 id="resources">Resources</h2>
+<p class="note">The last build: MAX 10 10M50DAF484C7G, Quartus Prime 17.1.0 Lite, 00:03:03 to build. Made by <code>python scripts/de10.py report projects/fft_lab --html</code>.</p>
+<div class="tablewrap"><table class="res">
+<tr><th>Resource</th><th>Used</th><th>Of the device</th><th>What uses it</th></tr>
+<tr><td>Logic elements (area)</td><td>7,183</td><td>49,760 (14 %)</td><td>core/eng/ip (fft256) 1,734; core/draw (lab_draw) 1,098; debug (debug_link) 515; core/dig (lab_digits) 448; core/ctrl (lab_ctrl) 429</td></tr>
+<tr><td>Registers</td><td>3,929</td><td>-</td><td>core/eng/ip (fft256) 1,425; pad (gamepad) 324; core/dig (lab_digits) 276</td></tr>
+<tr><td>Memory bits</td><td>1,035,592</td><td>1,677,312 (62 %)</td><td>debug (debug_link) 921,600; core/eng/gen (wave_gen) 36,864; core/eng/mrom (mag_rom) 28,672; screens (Screens_dispaly) 16,384</td></tr>
+<tr><td>M9K memory blocks (9 kbit each)</td><td>137</td><td>182 (75 %)</td><td>debug (debug_link) 114; core/eng/gen (wave_gen) 5; core/eng/mrom (mag_rom) 4; core/eng/ip (fft256) 3</td></tr>
+<tr><td>Multipliers (9-bit elements)</td><td>26</td><td>288 (9 %)</td><td>core/eng/ip (fft256) 8; core/eng/diy (fft_r2) 8; mag_px &times;2 8; core/eng/gen (wave_gen) 2</td></tr>
+<tr><td>PLLs</td><td>2</td><td>4 (50 %)</td><td>pad/adc_pll clk[0] 10.0 MHz; pll clk[0] 25.0 MHz; pll clk[1] 50.0 MHz; pll clk[2] 100.0 MHz</td></tr>
+<tr><td>Pins</td><td>101</td><td>360 (28 %)</td><td></td></tr>
+<tr><td>ADC blocks</td><td>1</td><td>2 (50 %)</td><td></td></tr>
+<tr><td>JTAG hub (USB link)</td><td>1</td><td>1 (100 %)</td><td></td></tr>
+</table></div>
+<div class="tablewrap"><table class="res">
+<tr><th>Clock</th><th>Runs at</th><th>Fmax (slow model, 85 &deg;C)</th><th>Setup slack</th></tr>
+<tr><td>altera_reserved_tck</td><td>10.0 MHz</td><td>116.09 MHz</td><td>45.693 ns</td></tr>
+<tr><td>clk50</td><td>50.0 MHz</td><td>-</td><td>-</td></tr>
+<tr><td>pad/adc_pll clk[0]</td><td>10.0 MHz</td><td>-</td><td>-</td></tr>
+<tr><td>pll clk[0]</td><td>25.0 MHz</td><td>38.34 MHz</td><td>13.919 ns</td></tr>
+<tr><td>pll clk[1]</td><td>50.0 MHz</td><td>137.38 MHz</td><td>12.721 ns</td></tr>
+<tr><td>pll clk[2]</td><td>100.0 MHz</td><td>343.88 MHz</td><td>2.850 ns</td></tr>
+</table></div>
+<p class="note">Timing: met, worst slack +0.101 ns (all corners, setup, hold, recovery, removal).</p>
+<p>In plain words: everything the lab does runs on one clock, <b>pll clk[0] at 25 MHz</b> (the pixel clock): the generator,
+both FFTs, the bars, the screen and the USB link. It could run at 38 MHz. The game pad and its debouncer run at 50 MHz,
+the LCD's driver at 100 MHz, the ADC on its own 10 MHz PLL, and <code>altera_reserved_tck</code> is the USB-Blaster's JTAG
+clock. Every setup slack is 2.85 ns or more; the worst slack of all, +0.101 ns, comes from the other checks (hold,
+recovery, removal), and it is met. The biggest block is Altera's FFT IP: 1,734 logic elements and 1,425 registers, against
+398 and 189 for ours (<code>fft_r2</code>). The frame buffer in <code>debug_link</code> (114 M9K blocks, 921,600 bits) is there
+only so the PC can read the screen back for the tests; without it the lab needs 23 M9K blocks and 113,992 bits.</p>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#resources">Resources</a></li>
+  <li><a href="#see">What you will see</a></li>
+  <li><a href="#diagram">Block diagram</a></li>
+  <li><a href="#flow">How it flows</a></li>
+  <li><a href="#numbers">Numbers</a></li>
+  <li><a href="#tests">How it was tested</a></li>
+  <li><a href="#review">Review log</a></li>
+  <li><a href="#status">Status and what is next</a></li>
+  <li><a href="#files">Files</a></li>
+</ol>
+
+<h2 id="see">What you will see</h2>
+<div class="two">
+  <figure><img src="media/screen_sine_rect.png" alt="A 1,050 Hz sine on the scope and two spectra with a wide skirt around the peak"><figcaption>A 1,050 Hz sine
+  without a window (<code>S0 N84 W0</code>): 10.5 cycles in 256 samples falls between two bins, so the energy leaks into a
+  skirt. Both panels agree. Ours took 6,145 clocks (245.80 &micro;s), the IP 1,637 (65.48 &micro;s).</figcaption></figure>
+  <figure><img src="media/screen_sine_hann.png" alt="The same sine with the Hann window: a tapered burst and narrow peaks"><figcaption>The same
+  sine with the Hann window (<code>W1</code>): the burst tapers to zero at both ends and the peak gets narrow. Ours leaves
+  low rounding bars across the floor (16 bits, halved every stage); the IP's block floating point leaves it almost empty.</figcaption></figure>
+  <figure><img src="media/screen_square.png" alt="A 1 kHz square wave and two spectra with a bar on every fourth bin"><figcaption>A 1 kHz square
+  wave (<code>S1 N80</code>), exactly 10 cycles: the energy is on every fourth bin only (2, 6, 10, 14 ...): the odd harmonics
+  of bin 10 and the higher ones folded back.</figcaption></figure>
+  <figure><img src="media/screen_noise.png" alt="Noise on the scope and two flat, ragged spectra"><figcaption>Noise
+  (<code>S5</code>) with the window: a flat, ragged spectrum on both sides, new every frame.</figcaption></figure>
+</div>
+<p>All four pictures were read back from the board over USB (<code>scripts/de10.py screen</code>). Turn the wheel and the
+frequency follows, in steps of 12.5 Hz up to 12,787.5 Hz, on the screen and on the 7-segment display. Left and Right pick
+the shape (sine, square, triangle, saw, spikes, noise), A turns the Hann window on and off, B switches the bars between
+dB and linear, Start freezes the frame, Select plays the frequency on the buzzer, and KEY0 goes back to a 1 kHz sine.
+The top lines of the screen say what is set; under each spectrum is how long it took. The same settings can be sent as
+letters over USB, which is how the tests drive it.</p>
+
+<h2 id="diagram">Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 960 450" role="img" aria-label="Block diagram: the shield's wheel and game pad come in through the ADC and the game pad reader at 50 MHz and cross to 25 MHz into lab_ctrl, which sets the engine. In the engine, wave_gen feeds our FFT and Altera's FFT IP with the same samples; both go through mag_px into bar heights. lab_draw paints every pixel from the bars, the scope trace and the numbers, through the library's display chain to the LCD and VGA. The numbers also go to the 7-segment display and, as the report line, over USB to the PC.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <text class="small" x="12" y="18">50 MHz (the game pad's side)</text>
+  <rect class="pin" x="10" y="30" width="120" height="56" rx="6"/><text x="22" y="54">shield</text><text class="small" x="22" y="72">wheel, game pad</text>
+  <rect class="ip" x="160" y="30" width="120" height="56" rx="8"/><text x="172" y="54">ADC IP</text><text class="small" x="172" y="72">6 channels, 12 bit</text>
+  <rect class="ip" x="310" y="30" width="120" height="56" rx="8"/><text x="322" y="54">gamepad (lib)</text><text class="small" x="322" y="72">8 buttons + wheel</text>
+  <rect class="ip" x="460" y="30" width="114" height="56" rx="8"/><text x="470" y="54">debounce (lib)</text><text class="small" x="470" y="72">5 ms steady</text>
+  <rect class="blk" x="600" y="30" width="100" height="56" rx="8"/><text x="612" y="54">2 FF sync</text><text class="small" x="612" y="72">50 → 25 MHz</text>
+  <rect class="pin" x="800" y="30" width="150" height="56" rx="6"/><text x="812" y="54">KEY0, KEY1</text><text class="small" x="812" y="72">board keys, 2 FF sync</text>
+  <path class="wire" d="M130,58 H160" marker-end="url(#a)"/>
+  <path class="wire" d="M280,58 H310" marker-end="url(#a)"/>
+  <path class="wire" d="M430,58 H460" marker-end="url(#a)"/>
+  <path class="wire" d="M574,58 H600" marker-end="url(#a)"/>
+
+  <text class="small" x="12" y="128">25 MHz (everything the lab does)</text>
+  <path class="wire" d="M650,86 V98 H820 V135" marker-end="url(#a)"/><text class="small" x="705" y="94">buttons</text>
+  <path class="wire" d="M370,86 V114 H780 V135" marker-end="url(#a)"/><text class="small" x="390" y="127">wheel (raw: lab_ctrl takes it when 2 samples agree)</text>
+  <path class="wire" d="M875,86 V135" marker-end="url(#a)"/>
+  <rect class="blk" x="750" y="135" width="200" height="80" rx="8"/><text x="762" y="156">lab_ctrl</text>
+  <text class="small" x="762" y="174">shape, frequency (12.5 Hz steps)</text>
+  <text class="small" x="762" y="189">window, dB/lin, hold, sound</text>
+  <text class="small" x="762" y="204">wheel follow, USB letters</text>
+
+  <rect class="pin" x="10" y="135" width="36" height="92" rx="6"/><text x="33" y="181" text-anchor="middle" transform="rotate(-90 33 181)">LCD / VGA</text>
+  <rect class="ip" x="60" y="135" width="190" height="92" rx="8"/><text x="72" y="156">Screens_dispaly (lib)</text>
+  <text class="small" x="72" y="174">vga_controller: pxl_x, pxl_y</text>
+  <text class="small" x="72" y="190">lcd_ctrl at 100 MHz</text>
+  <text class="small" x="72" y="206">pll25: 25 / 50 / 100 MHz</text>
+  <path class="wire" d="M60,181 H46" marker-end="url(#a)"/>
+  <path class="wire" d="M250,165 H270" stroke-dasharray="4 3" marker-end="url(#a)"/><text class="small" x="275" y="169">tick</text>
+
+  <rect class="wire" x="270" y="135" width="430" height="180" rx="10" stroke-dasharray="6 4"/>
+  <text x="282" y="156">lab_engine</text><text class="small" x="360" y="156">one frame, inside the vertical blanking</text>
+  <rect class="blk" x="285" y="185" width="100" height="60" rx="8"/><text x="295" y="207">wave_gen</text><text class="small" x="295" y="225">6 shapes, Hann</text>
+  <path class="wire" d="M385,215 H400"/><path class="wire" d="M400,197 V265"/>
+  <path class="wire" d="M400,197 H420" marker-end="url(#a)"/><path class="wire" d="M400,265 H420" marker-end="url(#a)"/>
+  <rect class="blk" x="420" y="172" width="125" height="50" rx="8"/><text x="430" y="192">fft_r2 (ours)</text><text class="small" x="430" y="210">6,145 clocks</text>
+  <rect class="ip" x="420" y="240" width="125" height="50" rx="8"/><text x="430" y="260">Altera FFT IP</text><text class="small" x="430" y="278">fft256: 1,637 clocks</text>
+  <path class="wire" d="M545,197 H570" marker-end="url(#a)"/><path class="wire" d="M545,265 H570" marker-end="url(#a)"/>
+  <rect class="blk" x="570" y="172" width="120" height="118" rx="8"/><text x="580" y="192">mag_px ×2</text>
+  <text class="small" x="580" y="210">re² + im²</text>
+  <text class="small" x="580" y="225">→ bar height</text>
+  <text class="small" x="580" y="245">mag_rom:</text>
+  <text class="small" x="580" y="260">dB or linear</text>
+  <text class="small" x="580" y="278">128 bars each</text>
+  <text class="small" x="285" y="306">also: scope spans, both timers, the watchdog, the tallest bars</text>
+  <path class="wire" d="M750,175 H700" marker-end="url(#a)"/><text class="small" x="705" y="168">settings</text>
+
+  <rect class="pin" x="750" y="240" width="165" height="56" rx="6"/><text x="762" y="262">HEX5..0, LEDR, buzzer</text><text class="small" x="762" y="280">Hz, settings, the tone</text>
+  <path class="wire" d="M830,215 V240" marker-end="url(#a)"/>
+
+  <rect class="blk" x="270" y="340" width="300" height="70" rx="8"/><text x="282" y="360">lab_draw</text>
+  <text class="small" x="282" y="378">a colour per pixel: grid, axes, bars, trace, text</text>
+  <text class="small" x="282" y="394">scope RAM 256 × 14, bar RAMs 128 × 7 ×2, font8x8</text>
+  <rect class="blk" x="590" y="340" width="110" height="70" rx="8"/><text x="600" y="360">lab_digits</text>
+  <text class="small" x="600" y="378">12 numbers → BCD</text>
+  <text class="small" x="600" y="394">one at a time</text>
+  <path class="wire" d="M410,315 V340" marker-end="url(#a)"/><text class="small" x="416" y="332">scope, bars</text>
+  <path class="wire" d="M645,315 V340" marker-end="url(#a)"/><text class="small" x="651" y="332">results</text>
+  <path class="wire" d="M590,375 H570" marker-end="url(#a)"/>
+  <path class="wire" d="M270,365 H150 V227" marker-end="url(#a)"/><text class="small" x="156" y="300">rgb</text>
+  <path class="wire" d="M100,227 V390 H270" marker-end="url(#a)"/><text class="small" x="96" y="300" text-anchor="end">pxl_x, pxl_y</text>
+  <path class="wire" d="M700,355 H725 V268 H750" marker-end="url(#a)"/>
+  <path class="wire" d="M700,390 H750" marker-end="url(#a)"/><text class="small" x="706" y="384">report</text>
+
+  <rect class="ip" x="750" y="320" width="200" height="80" rx="8"/><text x="762" y="340">debug_link, jtag_uart</text>
+  <text class="small" x="762" y="358">line_printer: the report line (R)</text>
+  <text class="small" x="762" y="374">'?' status, 'F' screen dump</text>
+  <text class="small" x="762" y="390">letters S N W L H M R D</text>
+  <rect class="pin" x="750" y="410" width="200" height="30" rx="6"/><text x="762" y="430">USB-Blaster → your PC</text>
+  <path class="wire" d="M850,400 V410" marker-end="url(#a)"/>
+  <path class="wire" d="M935,320 V215" stroke-dasharray="4 3" marker-end="url(#a)"/><text class="small" x="947" y="268" text-anchor="middle" transform="rotate(-90 947 268)">letters</text>
+</svg>
+</div>
+<p>Two clock domains meet once. The game pad lives on the 50 MHz side, where the ADC is read: its 8 buttons are debounced
+there (5 ms steady) and each crosses to 25 MHz through two flip-flops. The wheel crosses as a raw 12-bit number, and
+<code>lab_ctrl</code> takes a value only when two samples in a row agree, so a number caught half-changed is never used.
+The keys are synchronised the same way. Everything after that runs on the 25 MHz pixel clock, so the FFTs write straight
+into the drawing memories and the screen reads them in the same clock: no more crossings. The engine is a block of its own
+because it works only in the vertical blanking, once a frame, while <code>lab_draw</code> works on every pixel all the time.
+The block names are the files in <code>src/</code>; the <a href="spec.html">architecture spec</a> has their ports.</p>
+
+<h2 id="flow">How it flows</h2>
+<ol>
+  <li>The frame tick is the start of vertical sync, 59.5 times a second. Unless hold is on, the engine takes the live
+  settings and starts a frame.</li>
+  <li><code>wave_gen</code> makes 256 samples of the shape at the frequency step (times the Hann table when the window is on).
+  Each sample goes to the Altera IP and, in the same clock, to our <code>fft_r2</code>. A sample moves only when the IP is
+  ready, so both see the same input at the same time. Clock 1 is the first sample moving.</li>
+  <li>Each FFT's timer stops at its last output: 1,637 clocks for the IP, which streams, and 6,145 for ours: 256 to load,
+  5,120 for 8 stages × 128 butterflies × 5 clocks, 768 to read out, and 1.</li>
+  <li>Every output goes through <code>mag_px</code>: re² + im², then a table turns it into a bar height (1 pixel per dB, or
+  linear) for bins 0 to 127. The tallest bar of each side is kept.</li>
+  <li>The scope memory gets the 256 samples as vertical spans (sample n to sample n + 1), so the trace has no gaps.</li>
+  <li>When both FFTs are done, the results are published: the bars, the trace, the times and the peaks change together.
+  If the IP does not answer within 20,000 clocks (0.8 ms), it is marked as not running: its panel says IP IS NOT RUNNING,
+  the shield's LED lights, and the frames go on with our FFT alone.</li>
+  <li><code>lab_digits</code> turns 12 numbers into decimal digits, one at a time; <code>lab_draw</code> paints every pixel
+  from the memories and the text. The report line goes out over USB when asked (<code>R</code>).</li>
+  <li>All of this fits in the vertical blanking: 35 lines × 800 = 28,000 clocks. The slowest frame in simulation took
+  20,253 clocks (a silent IP, until the watchdog gives up).</li>
+</ol>
+
+<h2 id="numbers">Numbers</h2>
+<p>The figures that are not resources (those are at the <a href="#resources">top</a>).</p>
+<div class="tablewrap"><table class="kv">
+<tr><td>Speed</td><td>Ours 6,145 clocks = 245.8 &micro;s at 25 MHz. The IP 1,637 clocks = 65.48 &micro;s, 3.75 times faster. Counted
+in the design from the first sample in to the last result out, the same for both, and shown on the screen.</td></tr>
+<tr><td>Precision</td><td>On the same 16-bit input the IP keeps 66.9 dB signal to noise, ours 56.3 dB: ours halves the numbers at
+every stage to stay in 16 bits; the IP's block floating point scales only when it must. Measured in
+<a href="../../examples/11_fft/index.html">examples/11</a>.</td></tr>
+<tr><td>Frame</td><td>A new spectrum every frame: 59.5 per second (800 × 525 clocks of 25 MHz). Work per frame: 28,000 clocks allowed,
+20,253 at most.</td></tr>
+<tr><td>Signal</td><td>256 samples of 16 bits at three quarters of full scale (24,576). Frequency = step × 12.5 Hz, step 0 to 1023,
+for a sample rate of 25.6 kHz: one bin is 100 Hz. (The samples are computed, so the rate is a label: they are made as fast
+as the FFTs take them.)</td></tr>
+<tr><td>Bars</td><td>128 per FFT (bins 0 to 127), 0 to 90 pixels: 1 pixel per dB (10 dB a division), or linear with 90 pixels at full scale.</td></tr>
+<tr><td>Build</td><td>4 min 19 s. 2 critical warnings, the board's own layout (the VGA sync pins sit next to the ADC pins). 112
+warnings, none a mistake: 36 about unused memory bits removed, almost all in the ADC core; 21 width or
+unused-signal notes, 8 of them in <code>fft_r2</code> (kept identical to examples/11) and the rest in library cores; 12 ROM
+nets with no driver (an inferred ROM's unused write side); 16 timing constraints of the JTAG UART core that match nothing
+here; 6 notices about the evaluation IP; 4 pins held constant on purpose; 17 other tool notes (the processor count, the
+ADC's PLL, the unused end of the LCD's command ROM).</td></tr>
+<tr><td>Code</td><td>1,264 lines of SystemVerilog in 10 files (our FFT: 139). Tests: 796 lines of SystemVerilog and 959 of Python.
+The IP generator script: 51 lines.</td></tr>
+</table></div>
+
+<h2 id="tests">How it was tested</h2>
+<h3>Without the board: a bit-exact model and five testbenches</h3>
+<p><code>sim/lab_model.py</code> is the whole lab in Python, bit for bit: the generator, our FFT's rounding, the bar heights,
+the screen picture and the report line. It also writes the tables in <code>assets/</code>. Against it:</p>
+<ul>
+  <li><code>tb_wave_gen</code>: every sample of every shape, with random stalls. <code>tb_fft_r2</code>: every output bit-exact,
+  and the clock count. <code>tb_mag</code>: every (re, im) to its bar height.</li>
+  <li>The real IP: <code>sim/record_ip.py</code> runs Altera's simulation model of the IP in ModelSim on 13 frames, checks every
+  number against the model and records them in <code>sim/ip_vectors.hex</code>. Icarus cannot run the IP, so the system
+  testbench replays the recording (<code>sim/fft256_replay.sv</code>).</li>
+  <li><code>tb_fft_lab</code>, run by <code>sim/check_tb.py</code>: the whole core for 27 frames, 62 checks. 12 screen
+  pictures compared pixel by pixel and 7 report lines compared with the model; the IP silent (the watchdog, IP IS NOT
+  RUNNING) and the IP answering zeros; hold, the wheel and the sound.</li>
+</ul>
+<p>Result: <b>PASS</b>, every check. The system test takes about 4 minutes in Icarus. <code>tests/test_fft_lab.py</code> runs all of
+it and checks that the tables and test vectors are the model's.</p>
+<h3>On the board, over USB</h3>
+<p><code>sim/board_check.py</code> drives the running board with USB letters through 17 settings. For each it reads the report
+line, captures the screen and compares both with the model: every one of the 76,800 pixels and every number. 13 of the
+settings are the ones recorded from the IP in ModelSim, so the IP's panel is compared too; for the other 4 the IP's panel
+is left out, and for noise (new every frame) only the clocks and IP_OK are checked. Result: <b>PASS, 17/17</b>, 0 pixels
+different, in 225 s.</p>
+<h3>Only a person can check</h3>
+<p>The wheel, the joystick, the buttons and the keys by hand (the tests send the same settings as letters, and the simulation
+drives the wheel's input), the buzzer (the AI has no microphone), and the LEDs and 7-segment by eye. These are open; see the
+status below.</p>
+
+<h2 id="review">Review log</h2>
+<p>What went wrong on the way and what the review changed. All of it is also in the skills and the gotchas.</p>
+<div class="tablewrap"><table>
+<tr><th>Found</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>19,381 logic elements at the first build</td><td>Quartus' "resource-aware" RAM inference built the small RAMs from flip-flops</td><td>turned off in <code>scripts/new_project.py</code>: 7,183</td></tr>
+<tr><td>4,172 warning lines</td><td><code>mag_rom</code> loaded 7-bit words from a hex file: one width warning per line</td><td>a binary file and <code>$readmemb</code></td></tr>
+<tr><td>The report line never ended</td><td><code>line_printer</code>'s 7-bit length: a line longer than 126 characters wraps</td><td>the report is exactly 126 characters, and a test checks it</td></tr>
+<tr><td>The board check failed when someone touched the shield</td><td>a turned wheel changed the frequency between the letters and the capture</td><td>the report line is read before and after the capture; up to 4 tries</td></tr>
+<tr><td>12 "no driver" warnings on the ROMs</td><td>an inferred ROM's unused write side</td><td>harmless; left as they are</td></tr>
+<tr><td>8 width warnings in <code>fft_r2</code></td><td>the code copied from examples/11</td><td>kept, so the file stays identical to the tested original</td></tr>
+<tr><td><code>fft_r2</code> was used from examples/11</td><td>a project must stand on its own</td><td>copied into <code>src/</code> with its own unit test; <code>test_project_stands_on_its_own</code> checks every project</td></tr>
+<tr><td>Code that was hard to follow</td><td>signals for the testbench only, the IP's dead flag, the order of the controls</td><td>comments where they are declared</td></tr>
+<tr><td><code>`default_nettype none</code> reached the library files</td><td>the setting carries on into every file read after it</td><td><code>`default_nettype wire</code> at the end of each file</td></tr>
+<tr><td>The board-proof script lived outside the project</td><td>written as a one-off</td><td>moved to <code>sim/board_check.py</code></td></tr>
+<tr><td><code>de10.py program</code> found no .sof</td><td>with evaluation IP, Quartus writes only <code>fft_lab_time_limited.sof</code></td><td><code>program</code> takes it and says that it stays connected</td></tr>
+<tr><td><code>de10.py flash</code> said only ".pof not found"</td><td>with evaluation IP, Quartus makes no <code>.pof</code></td><td><code>flash</code> now says why and what to do instead</td></tr>
+<tr><td>An overnight watch of the IP's time limit saw nothing</td><td>the PC went to sleep and cut the board's USB power</td><td>the watch ran again by day, with the PC awake</td></tr>
+<tr><td>The <code>.qar</code> held 32 files from examples/11</td><td>Quartus archives every file the last build read, and the build's <code>db/</code> still listed the old paths</td><td>a clean build (the same bitstream, checksum 0x0082476A), packed again, restored and built; <code>de10.py pack</code> now refuses such an archive</td></tr>
+</table></div>
+
+<h2 id="status">Status and what is next</h2>
+<div class="tablewrap"><table>
+<tr><th>Item</th><th>Status</th></tr>
+<tr><td>Generator: six shapes, the frequency, the Hann window</td><td><span class="status done">verified: simulation and board</span></td></tr>
+<tr><td>Scope trace</td><td><span class="status done">verified: simulation and board</span></td></tr>
+<tr><td>Both FFTs on the same samples; the bars in dB and linear</td><td><span class="status done">verified: simulation and board</span></td></tr>
+<tr><td>The times (clocks and &micro;s) and the tallest bars</td><td><span class="status done">verified: simulation and board</span></td></tr>
+<tr><td>The report line and the USB letters</td><td><span class="status done">verified: simulation and board</span></td></tr>
+<tr><td>IP not running: the watchdog, IP IS NOT RUNNING, the shield's LED</td><td><span class="status done">verified: simulation</span></td></tr>
+<tr><td>The evaluation IP keeps running while the programmer stays connected</td><td><span class="status done">verified: board</span></td></tr>
+<tr><td>The evaluation IP without the connection (one hour, Intel's guide says)</td><td><span class="status todo">partly measured</span> still running 32 minutes after the disconnect; the end not seen yet</td></tr>
+<tr><td>Wheel, joystick, buttons and keys by hand</td><td><span class="status todo">to do by a person</span> (USB letters verified)</td></tr>
+<tr><td>The buzzer</td><td><span class="status todo">to do by a person</span> (simulation only)</td></tr>
+<tr><td>LEDs and the 7-segment display</td><td><span class="status todo">to do by a person</span></td></tr>
+<tr><td>Flash it, so it starts at power-up</td><td><span class="status todo">not possible with the evaluation IP</span> (a version with only our FFT could be flashed)</td></tr>
+</table></div>
+
+<h2 id="files">Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What it is</th></tr>
+<tr><td><code>index.html</code>, <code>spec.html</code>, <code>guide.html</code></td><td>this overview, the <a href="spec.html">architecture spec</a>, the <a href="guide.html">user guide</a></td></tr>
+<tr><td><code>fft_lab.qar</code></td><td>the whole Quartus project, archived by Quartus (sources, settings, the IP, data files)</td></tr>
+<tr><td><code>fft_lab.qpf / .qsf / .sdc</code></td><td>generated by <code>scripts/new_project.py</code> (pins, sources, timing); <code>src/extra.qsf</code> adds the data files</td></tr>
+<tr><td><code>src/fft_lab_top.sv</code></td><td>the board: PLL, screens, game pad, keys, USB link, LEDs, 7-segment, buzzer</td></tr>
+<tr><td><code>src/fft_lab_core.sv</code></td><td>everything but the board: controls, engine, digits, screen, report line (what the system testbench drives)</td></tr>
+<tr><td><code>src/lab_ctrl.sv</code></td><td>the controls: game pad, keys, wheel and USB letters into the settings</td></tr>
+<tr><td><code>src/lab_engine.sv</code></td><td>one frame: the wave into both FFTs, the timers, the bars, the watchdog</td></tr>
+<tr><td><code>src/wave_gen.sv</code></td><td>the six shapes and the Hann window</td></tr>
+<tr><td><code>src/fft_r2.sv</code></td><td>our 256-point radix-2 FFT (the same file as examples/11)</td></tr>
+<tr><td><code>src/mag_px.sv</code>, <code>src/mag_rom.sv</code></td><td>re² + im² into a bar height, in dB or linear</td></tr>
+<tr><td><code>src/lab_draw.sv</code></td><td>the screen: grid, axes, bars, trace, text</td></tr>
+<tr><td><code>src/lab_digits.sv</code></td><td>the 12 numbers into decimal digits</td></tr>
+<tr><td><code>assets/</code></td><td>the sine, Hann, twiddle and bar-height tables, written by <code>sim/lab_model.py</code></td></tr>
+<tr><td><code>ip/generate_fft_ip.py</code>, <code>ip/fft256/</code></td><td>makes the FFT IP with <code>ip-generate</code>; the generated core</td></tr>
+<tr><td><code>sim/lab_model.py</code></td><td>the bit-exact model: tables, expected vectors, screen pictures, report lines</td></tr>
+<tr><td><code>sim/tb_*.sv</code></td><td>three unit testbenches, the IP's testbench and the system testbench</td></tr>
+<tr><td><code>sim/check_tb.py</code></td><td>runs <code>tb_fft_lab</code> and compares its pictures and report lines with the model</td></tr>
+<tr><td><code>sim/record_ip.py</code>, <code>sim/fft256_replay.sv</code>, <code>sim/ip_vectors.hex</code></td><td>the IP in ModelSim, recorded and replayed</td></tr>
+<tr><td><code>sim/board_check.py</code></td><td>the board proof over USB</td></tr>
+<tr><td><code>media/</code></td><td>the pictures on these pages</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Built with the <code>compute-fft</code> skill; the standard
+project layout is the <code>make-project</code> skill.</footer>
+</main>
+</body>
+</html>

@@ -1,0 +1,5 @@
+set_global_assignment -name MISC_FILE assets/sine.hex
+set_global_assignment -name MISC_FILE assets/hann.hex
+set_global_assignment -name MISC_FILE assets/twiddle.hex
+set_global_assignment -name MISC_FILE assets/mag_rom.bin
+set_global_assignment -name MISC_FILE sim/lab_model.py

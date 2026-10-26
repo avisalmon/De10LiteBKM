@@ -39,7 +39,9 @@ Read the Error lines: they say which parameter combination is not allowed.
 * Megafunctions and basic IP: free.
 * MegaCore IP (FFT, FIR II, NCO, ...): **OpenCore Plus evaluation**. The build makes `<rev>_time_limited.sof` (no
   `<rev>.sof`), and `quartus_pgm` keeps running after programming: the design works while it stays connected
-  ("tethered"), or for a limited time untethered. `scripts/de10.py program <dir>` finds the time-limited .sof.
+  ("tethered"), or for a limited time untethered (Intel: one hour; fft_lab still ran after 32 minutes).
+  `scripts/de10.py program <dir>` finds the time-limited .sof. There is no `.pof`: it cannot be flashed, and
+  `de10.py flash` says so (gotcha 13).
 * Check before choosing an IP: if the result must run stand-alone or from flash, write your own or use a free core.
 
 ## 4. Measure what you got
@@ -47,3 +49,6 @@ Read the Error lines: they say which parameter combination is not allowed.
 Per-module area: `output_files/<rev>.fit.rpt`, "Fitter Resource Utilization by Entity" (Logic Cells, Memory Bits,
 M9Ks, DSP Elements). Speed: Fmax summary in `<rev>.sta.rpt`. Correctness: compare with a Python model over USB
 (examples/11_fft: `sim/fft_data.py check`).
+Simulation: a MegaCore's model is encrypted and runs only in ModelSim (`ip-generate --file-set=SIM_VERILOG`; compile
+its files in the order of the `.spd` list that `--report-file=spd:<file>` writes). To keep an Icarus testbench,
+record the IP's answers once in ModelSim and replay them (`compute-fft`; `projects/fft_lab/sim/record_ip.py`).

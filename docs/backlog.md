@@ -10,8 +10,15 @@
 - [ ] Example 08 count mode (SW9 down, KEY0 / KEY1) by hand.
 - [ ] Projects, by a person: Pac-Man and RISC-V Tetris with the joystick (feel, auto-repeat), the sounds, the pace;
       Pac-Man is in the flash: a power cycle must bring it back.
+- [ ] FFT Lab, by a person: the wheel, joystick, A / B / Start / Select and the keys by hand, the buzzer, the LEDs and the
+      7-segment. On the board: how long the evaluation IP runs once the programmer disconnects (Intel says one hour; it
+      still ran after 32 minutes), and whether KEY0 or `D` brings an expired IP back.
 - [ ] RISC-V Tetris, not built by choice: interrupts and a timer, the M extension on the MAX 10 multipliers, structs /
       typedef in the compiler, a bigger RAM without the debug capture.
+- [ ] Pac-Man and RISC-V Tetris, made before two rules: regenerate their project files (`scripts/new_project.py` turns
+      resource-aware RAM inference off, gotcha 25), rebuild, put the Resources section first on each overview
+      (`de10.py report --html`), pack, re-check on the board, then take them off `RESOURCES_LATER` in
+      `tests/test_projects.py`.
 - [ ] Example 07 / 10 in 3-wire SPI mode (the driver supports it, not tested).
 - [ ] Extras proposed, not built: Nios II with C (the RISC-V project is the free alternative), sound / melodies, sprites
       from images, the MAX 10 temperature sensor, UART / I2C masters, a fundamentals page (reset, clock crossing, timing).

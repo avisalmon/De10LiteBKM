@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FFT Lab: architecture spec</title>
+<meta name="description" content="Architecture specification of FFT Lab: modules, interfaces, clock domains, memories, state machines, encodings and budgets.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">FFT Lab</a> / Architecture spec</nav>
+<h1>FFT Lab: architecture spec</h1>
+<p class="lead">What each module is, what crosses between them, where every bit of state lives, and the budgets. Written for
+someone who will change the lab or build the next one on it. The <a href="index.html">overview</a> has the block diagram
+and the measured results; the numbers here come from the same build.</p>
+<nav class="pages"><a href="index.html">Overview</a><a class="here" href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#req">Requirements</a></li>
+  <li><a href="#modules">Modules and hierarchy</a></li>
+  <li><a href="#clocks">Clock domains and crossings</a></li>
+  <li><a href="#coords">Coordinate system and screen geometry</a></li>
+  <li><a href="#mem">Memories and tables</a></li>
+  <li><a href="#state">State machines, pipelines and encodings</a></li>
+  <li><a href="#io">Board I/O and the USB protocol</a></li>
+  <li><a href="#budget">Budgets</a></li>
+  <li><a href="#decisions">Design decisions</a></li>
+</ol>
+
+<h2 id="req">Requirements</h2>
+<ul>
+  <li>Make six test signals (sine, square, triangle, saw, spikes, noise), 256 samples at f = N × 12.5 Hz with
+  N = 0..1023 (up to 12,787.5 Hz at a notional 25.6 kHz sample rate), with or without a Hann window.</li>
+  <li>Show the signal as a scope trace, and its spectrum twice side by side: our own 256-point FFT and Altera's FFT II IP,
+  128 bars of 100 Hz each, in dB (10 dB per division) or linear.</li>
+  <li>Give both FFTs the same samples in the same clocks, and time each one from the first sample in to the last result
+  out, in clocks and in microseconds.</li>
+  <li>A new measurement every screen frame (59.5 Hz), computed inside the vertical blanking time, with no frame buffer
+  for the picture.</li>
+  <li>Controls on the shield (wheel, joystick, A, B, Start, Select) and the board (KEY0, KEY1), and the same over USB;
+  the LEDs, the 7-segment display and the buzzer follow the settings.</li>
+  <li>Keep running when the evaluation IP stops: notice it, say so on the screen and with the shield's LED, and carry on
+  with our FFT.</li>
+  <li>Testable to the bit without hands: a bit-exact Python model; testbenches that render the screen; on the board, a
+  report line and a screen capture over USB, compared with the model.</li>
+  <li>Quartus Prime Lite 17.1 with the free evaluation of the FFT IP, nothing paid. The project stands on its own: its
+  only shared code is <code>lib/</code>.</li>
+</ul>
+
+<h2 id="modules">Modules and hierarchy</h2>
+<p>Instance names in the middle column; they are the paths in the Resources table of the overview (<code>core/eng/ip</code>).</p>
+<pre><code>fft_lab_top                             board level: clocks, screens, game pad, keys, USB
+├─ pll25 (lib)                pll       50 MHz in → c0 25, c1 50, c2 100 MHz, locked
+├─ Screens_dispaly (lib)      screens   VGA timing (pxl_x, pxl_y, syncs) + the LCD copy at 100 MHz
+├─ gamepad (lib) + adc IP     pad       joystick, buttons and wheel through the ADC, 50 MHz
+├─ debounce (lib)             deb       8 buttons, 5 ms steady, 50 MHz
+├─ fft_lab_core               core      the lab, all on 25 MHz; the system testbench drives this
+│  ├─ lab_ctrl                ctrl      game pad, keys, wheel, USB letters → the live settings
+│  ├─ lab_engine              eng       one frame: wave → both FFTs → bars, timed, published
+│  │  ├─ wave_gen             gen       256 samples of the shape (× Hann); sine and hann ROMs
+│  │  ├─ fft256 (ip/)         ip        Altera FFT II: 256 points, burst, block floating point
+│  │  ├─ fft_r2               diy       our FFT: radix-2, one butterfly; ram 256 × 32, tw 128 × 32
+│  │  ├─ mag_px ×2            mag_d/i   (re, im) → bar height, 6 clocks, one per FFT
+│  │  └─ mag_rom              mrom      4,096 × 7 bar-height table, one read port per mag_px
+│  ├─ lab_digits              dig       12 numbers → decimal digits (bin2bcd_seq, lib)
+│  ├─ lab_draw                draw      the picture; scope_mem, bars_d, bars_i; font8x8 (lib)
+│  ├─ line_printer (lib)      prn       the 126-character report line
+│  └─ seven_segment ×6 (lib)  digit[i]  the frame's frequency in Hz
+├─ debug_link (lib)           debug     '?' status, 'F' screen capture (STEP 2: 320 × 240)
+├─ tx_mux (lib)               mux       the report line and debug_link share the link
+└─ jtag_uart (lib)            uart      the USB link (alt_jtag_atlantic)</code></pre>
+<p>Everything under <code>src/</code> belongs to this project, including its copy of <code>fft_r2</code>; the IP is generated
+into <code>ip/fft256/</code> by <code>ip/generate_fft_ip.py</code> with: 256 points, Burst, Single Output, one engine,
+Bi-directional, Block Floating Point, 16-bit data and twiddles, natural output order (Burst allows only Bi-directional and
+natural order).</p>
+
+<h3>fft_lab_core ports</h3>
+<div class="tablewrap"><table>
+<tr><th>Port</th><th>Dir</th><th>Width</th><th>Meaning</th></tr>
+<tr><td>clk</td><td>in</td><td>1</td><td>25 MHz, the pixel clock; everything in the core runs on it</td></tr>
+<tr><td>rst_hold</td><td>in</td><td>1</td><td>the PLL is not locked yet: holds the IP in reset</td></tr>
+<tr><td>tick</td><td>in</td><td>1</td><td>one clock per frame, at the start of vertical sync</td></tr>
+<tr><td>pxl_x, pxl_y</td><td>in</td><td>32</td><td>the scan position from <code>vga_controller</code> (640 × 480)</td></tr>
+<tr><td>btn</td><td>in</td><td>8</td><td>{Left, Right, Up, Down, Start, Select, B, A}, debounced, pressed = 1</td></tr>
+<tr><td>key</td><td>in</td><td>2</td><td>{KEY1, KEY0}, pressed = 1</td></tr>
+<tr><td>wheel</td><td>in</td><td>12</td><td>the wheel's raw ADC value, still in the 50 MHz domain (sampled safely inside, see below)</td></tr>
+<tr><td>rx_data, rx_valid</td><td>in</td><td>8, 1</td><td>a byte from the USB link</td></tr>
+<tr><td>p_data, p_valid, p_ready</td><td>out, out, in</td><td>8, 1, 1</td><td>the report line, one byte at a time, to <code>tx_mux</code></td></tr>
+<tr><td>rgb</td><td>out</td><td>12</td><td>the pixel's colour, 4 bits each of red, green, blue</td></tr>
+<tr><td>leds</td><td>out</td><td>10</td><td>{sound, hold, linear, window, the shape one-hot}</td></tr>
+<tr><td>hex</td><td>out</td><td>48</td><td>HEX5..HEX0 segments, active low: the frame's frequency in Hz</td></tr>
+<tr><td>buzz</td><td>out</td><td>1</td><td>the buzzer's square wave</td></tr>
+<tr><td>status_led</td><td>out</td><td>1</td><td>the shield's LED: on while the IP is not ok</td></tr>
+</table></div>
+<div class="tablewrap"><table>
+<tr><th>Parameter</th><th>Default</th><th>Meaning</th></tr>
+<tr><td>TWIDDLE_FILE, SINE_FILE, HANN_FILE, MAG_FILE</td><td><code>assets/…</code></td><td>the tables, all written by <code>sim/lab_model.py</code> (the testbench passes <code>../assets/…</code>)</td></tr>
+<tr><td>WATCHDOG</td><td>20,000</td><td>clocks the IP gets to finish a frame before it is marked dead</td></tr>
+<tr><td>IP_RESET_CLOCKS</td><td>1,000</td><td>how long the IP's reset is held</td></tr>
+<tr><td>WHEEL_DIV</td><td>25,000</td><td>clocks per step of the wheel's filter (1 kHz); the system testbench uses 8, so the wheel fits in a short simulation</td></tr>
+<tr><td>SETTLE</td><td>512</td><td>filter steps after power-up before the wheel may take over</td></tr>
+</table></div>
+
+<h2 id="clocks">Clock domains and crossings</h2>
+<div class="tablewrap"><table>
+<tr><th>Domain</th><th>What runs there</th><th>Crossing</th></tr>
+<tr><td>50 MHz (pll c1)</td><td>the ADC IP, <code>gamepad</code>, <code>debounce</code></td><td>→ 25 MHz: the 8 debounced buttons go through two flip-flops each in <code>fft_lab_top</code> (slow levels, read once per frame). The 12-bit wheel goes straight to <code>lab_ctrl</code>, which samples it twice and takes it only when both samples agree, so a value caught while it changes is dropped.</td></tr>
+<tr><td>25 MHz (pll c0)</td><td>VGA timing, the whole lab (<code>fft_lab_core</code>, both FFTs included), <code>debug_link</code>, <code>tx_mux</code>, <code>jtag_uart</code></td><td>none inside. The engine changes what the screen reads (<code>scope_mem</code>, the bars, the published <code>r_*</code> values) only between <code>tick</code> and the first visible line, so a picture is never drawn from two frames.</td></tr>
+<tr><td>100 MHz (pll c2)</td><td><code>lcd_ctrl</code> inside <code>Screens_dispaly</code></td><td>the library's own: it samples the 25 MHz rgb and syncs</td></tr>
+<tr><td>10 MHz (the ADC's PLL)</td><td>the ADC's conversion clock</td><td>inside the ADC IP</td></tr>
+<tr><td>JTAG tck</td><td>the JTAG hub</td><td>inside <code>alt_jtag_atlantic</code>; the 25 MHz side sees bytes with valid / ready</td></tr>
+<tr><td>no clock (pins)</td><td>KEY1, KEY0</td><td>inverted (pressed = 1) and through two flip-flops into 25 MHz</td></tr>
+</table></div>
+<p><code>tick</code> is one 25 MHz clock when <code>VGA_VS</code> falls, the start of vertical sync. From there to the first visible
+line are 35 lines of 800 clocks: the 28,000 clocks the frame's work must fit in (see <a href="#budget">Budgets</a>).</p>
+
+<h2 id="coords">Coordinate system and screen geometry</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Scan</td><td>640 × 480 at 25 MHz from <code>vga_controller</code>; a frame is 800 × 525 clocks (59.5 Hz)</td></tr>
+<tr><td>Art grid</td><td>320 × 240: <code>X = pxl_x[9:1]</code>, <code>Y = pxl_y[8:1]</code>; every art pixel is 2 × 2 scan pixels. The USB capture (STEP 2) is exactly this grid, so the board check compares art pixels.</td></tr>
+<tr><td>Text</td><td>40 × 30 cells of 8 × 8 (<code>font8x8</code>). Row 0: shape, frequency in Hz, bin, HOLD. Row 1: window, scale, sound, 1.25MS/DIV. Row 15: the panel titles. Row 16: each FFT's clocks and microseconds. Rows 20–21, red, only while the IP is not ok: IP IS NOT RUNNING, (EVALUATION TIME?). Row 29: the frequency axis, 0, 6.4K, 12.8K.</td></tr>
+<tr><td>Scope</td><td>x 32..287, one column per sample (entry x − 32); y 16..112 with zero at y 64: <code>y = 64 − x / 512</code>, clamped, so the amplitude 24,576 reaches ±48 px. Grid every 32 columns (1.25 ms) and at y 16, 40, 88, 112.</td></tr>
+<tr><td>Spectrum panels</td><td>ours x 16..143, the IP's x 176..303: one column per bin 0..127 (bin k = k × 100 Hz). Bars rise from the axis at y 228, at most 90 px (y 138..227). The IP's bars are drawn only while the IP is ok.</td></tr>
+<tr><td>Panel grid</td><td>dotted: in dB every 10 px (10 dB) from y 138 to 218; in linear at y 138, 156, 174, 192, 210 (every 20 % of full scale); across, every 32 bins (3.2 kHz)</td></tr>
+<tr><td>Colours (12-bit RGB)</td><td>grid 333, axes 555, trace 0F0, our bars 0FF, the IP's bars F80; text white, yellow and grey, warnings red</td></tr>
+<tr><td>Layers</td><td>back to front: grid, axes, bars, trace, text</td></tr>
+</table></div>
+<p>The screen's memories answer one clock after the address, so <code>lab_draw</code> addresses them with the <b>next</b> scan
+pixel (<code>pxl_x + 1</code>) and uses the answer for the current one: no pixel is shifted.</p>
+
+<h2 id="mem">Memories and tables</h2>
+<div class="tablewrap"><table>
+<tr><th>Memory</th><th>Size (M9K)</th><th>Where</th><th>Ports</th><th>Content</th></tr>
+<tr><td><code>sine</code></td><td>2,048 × 16 (4)</td><td>wave_gen, ROM</td><td>one read</td><td>one sine period, amplitude 24,576</td></tr>
+<tr><td><code>hann</code></td><td>256 × 16 (1)</td><td>wave_gen, ROM</td><td>one read</td><td>the Hann window, unsigned, 32,768 = 1.0</td></tr>
+<tr><td><code>ram</code></td><td>256 × 32 (2)</td><td>fft_r2</td><td>two read / write ports: a butterfly's two points at once</td><td>the 256 points {re, im}, in place; loaded at bit-reversed addresses</td></tr>
+<tr><td><code>tw</code></td><td>128 × 32 (1)</td><td>fft_r2, ROM</td><td>one read</td><td>{cos, sin} of 2πk/256, k = 0..127, Q15: W(k) = cos − j sin</td></tr>
+<tr><td>the IP's own</td><td>256 × 32, 64 × 16, 8 × 34 (3)</td><td>fft256</td><td>its own</td><td>data, a quarter-wave sine for its twiddles, its input FIFO</td></tr>
+<tr><td><code>rom</code></td><td>4,096 × 7 (4)</td><td>mag_rom</td><td>two reads, one per mag_px</td><td>bar height for {lin, e, m}, see <a href="#enc">encodings</a></td></tr>
+<tr><td><code>scope_mem</code></td><td>256 × 14 (1)</td><td>lab_draw</td><td>the engine writes, the screen reads</td><td>entry n = {smaller y, larger y} of the trace from sample n to n + 1</td></tr>
+<tr><td><code>bars_d</code>, <code>bars_i</code></td><td>128 × 7 each (1 each)</td><td>lab_draw</td><td>the engine writes, the screen reads</td><td>bar heights 0..90 px, bins 0..127, ours and the IP's</td></tr>
+<tr><td>a pipeline delay</td><td>4 × 18 (1)</td><td>mag_i</td><td>-</td><td>Quartus moved a 4-stage delay of <code>mag_px</code> into an M9K by itself (shift-register replacement); harmless</td></tr>
+<tr><td><code>font8x8</code></td><td>64 glyphs × 8 bytes</td><td>lab_draw</td><td>combinational</td><td>library</td></tr>
+<tr><td>LCD commands, ADC samples, USB FIFO</td><td>2,048 × 8 (2), 64 × 16 (1), 512 × 8 (1)</td><td>Screens_dispaly, ADC IP, jtag_uart</td><td>library</td><td>library</td></tr>
+<tr><td>debug capture</td><td>320 × 240 × 12 = 921,600 bits (114)</td><td>debug_link</td><td>the screen writes, <code>F</code> reads</td><td>the last frame, for the board check. Not part of the lab.</td></tr>
+</table></div>
+<p>The lab itself uses 19 M9K, about 93 kbit; the capture buffer alone is 114. All the tables come from
+<code>sim/lab_model.py</code>, the same code that predicts the screen, so the hardware and the model cannot disagree about a
+table. <code>mag_rom</code>'s file is binary (<code>$readmemb</code>): 7-bit words are not whole hex digits, and hex makes Quartus
+print 4,096 warnings.</p>
+
+<h2 id="state">State machines, pipelines and encodings</h2>
+<h3>The frame (<code>lab_engine</code>)</h3>
+<ol>
+  <li><b>Start.</b> At <code>tick</code>, unless hold is on: <code>frame_go = start &amp;&amp; !run &amp;&amp; !g_busy &amp;&amp; rcnt == 0
+  &amp;&amp; !restart_pend</code>. The shape, frequency, window and scale are latched for the whole frame (<code>f_*</code>), and
+  <code>run</code> is set.</li>
+  <li><b>Samples.</b> <code>wave_gen</code> streams n = 0..255 with valid / ready. A sample moves
+  (<code>tr = g_valid &amp;&amp; (sink_ready || dead)</code>) into the IP's Avalon-ST sink (sop at n = 0, eop at n = 255,
+  imaginary part 0) and into <code>fft_r2</code> in the same clock. The timer <code>t</code> is 1 on the first move and counts
+  every clock (it stops at 99,999).</li>
+  <li><b>Scope.</b> On every move after the first, entry n − 1 of <code>scope_mem</code> gets the span from the previous
+  sample's y to this one's; after sample 255, entry 255 gets a single point.</li>
+  <li><b>Bars.</b> Each FFT's results go through its own <code>mag_px</code> (6 clocks) into its bar memory. Bins 128..255
+  mirror the lower half for a real input and are not drawn. The tallest bar and its bin are kept (the lowest bin wins a tie).</li>
+  <li><b>Times.</b> <code>dclk</code> = t when our bin 255 leaves <code>fft_r2</code>; <code>iclk</code> = t at the IP's eop,
+  together with its block exponent.</li>
+  <li><b>Watchdog.</b> While the IP has not finished, <code>wd</code> counts; at WATCHDOG (20,000 clocks) the IP is marked
+  dead. From then on it is ignored (<code>g_ready</code> is 1, so our FFT can never be stuck waiting for it) and its numbers
+  are 0.</li>
+  <li><b>Publish.</b> When ours is done and the IP is done or dead: <code>run</code> clears, <code>pub</code> is high for one
+  clock, and the frame's settings and results go to the <code>r_*</code> registers that the screen, the digits and the
+  report read. <code>r_ip_ok = !dead &amp;&amp; !(in_nz &amp;&amp; !out_nz)</code>: an IP that turns a non-zero input into all
+  zeros is not ok either.</li>
+  <li><b>Digits.</b> <code>lab_digits</code> turns the 12 published numbers into decimal (about 250 clocks for all 12); a report
+  line asked for with R is sent when they are ready.</li>
+</ol>
+<p>The IP's reset: <code>ip_rst_n</code> is low for IP_RESET_CLOCKS (1,000) after the PLL locks, and again after a restart
+(KEY0 or D), which waits for the running frame to end and clears <code>dead</code>. With hold on, no frame starts: the
+memories and the published values stay as they are.</p>
+
+<h3><code>fft_r2</code>: the states</h3>
+<div class="tablewrap"><table>
+<tr><th>State</th><th>Name</th><th>Does</th><th>Next</th></tr>
+<tr><td>0, 1</td><td>IDLE, LOAD</td><td>on each <code>in_valid</code>: write the sample at address <code>rev8(cnt)</code> (bit-reversed, what the in-place radix-2 needs)</td><td>READ after the 256th</td></tr>
+<tr><td>2</td><td>READ</td><td>address the butterfly: RAM port A = top, port B = bottom, twiddle = k</td><td>WAIT</td></tr>
+<tr><td>3</td><td>WAIT</td><td>the RAM and the ROM answer one clock after the address</td><td>MULT</td></tr>
+<tr><td>4</td><td>MULT</td><td>four products: c·br, s·bi, c·bi, s·br (4 hardware multipliers)</td><td>ADD</td></tr>
+<tr><td>5</td><td>ADD</td><td>t = W·b, rounded from Q15; top = (a + t) / 2, bottom = (a − t) / 2, rounded; ask both ports to write</td><td>WRITE</td></tr>
+<tr><td>6</td><td>WRITE</td><td>the RAM stores both; next butterfly; after 128 the next stage; after stage 7, unload</td><td>READ or UNLOAD</td></tr>
+<tr><td>7</td><td>UNLOAD</td><td>address bin <code>cnt</code></td><td>UNLOAD2</td></tr>
+<tr><td>8</td><td>UNLOAD2</td><td>wait for the RAM</td><td>UNLOAD3</td></tr>
+<tr><td>9</td><td>UNLOAD3</td><td><code>out_valid</code> with <code>out_k = cnt</code></td><td>UNLOAD, IDLE after bin 255</td></tr>
+</table></div>
+<p>Butterfly bf (0..127) of stage s (span = 2<sup>s</sup>): j = bf mod span, top = (bf / span) · 2 · span + j, bottom =
+top + span, twiddle k = j · 128 / span. One butterfly takes 5 clocks, so a frame is 256 (load) + 1,024 × 5 + 256 × 3
+(unload) + 1 = <b>6,145 clocks</b>. Every stage halves its results, so the output is FFT(x) / 256 and nothing can
+overflow. The IP takes <b>1,637</b>: 1,381 from the first sample in to the first result out, then 256 results.</p>
+
+<h3>Pipelines</h3>
+<div class="tablewrap"><table>
+<tr><th>Module</th><th>Stage</th><th>Does</th></tr>
+<tr><td rowspan="3"><code>wave_gen</code> (moves only when its output may: <code>en = !valid || ready</code>)</td><td>A</td><td>the phase n × fq mod 2048 and n; the sine and Hann tables are read at them</td></tr>
+<tr><td>B</td><td>the shape at that phase; the noise generator steps</td></tr>
+<tr><td>C</td><td>the window, <code>x = (x · hann + 16384) &gt;&gt; 15</code>, when it is on</td></tr>
+<tr><td rowspan="6"><code>mag_px</code> (one result per clock in, its bar 6 clocks later)</td><td>1</td><td>register re, im, k, the offset, the scale</td></tr>
+<tr><td>2</td><td>the power <code>pw = re² + im²</code> (2 hardware multipliers)</td></tr>
+<tr><td>3</td><td>p = the top set bit of pw; pw = 0 noted</td></tr>
+<tr><td>4</td><td>the ROM address {lin, e = p + offset (clamped 0..63), m = the 5 bits under the top bit}</td></tr>
+<tr><td>5</td><td>the ROM answers</td></tr>
+<tr><td>6</td><td>the bar height, 0 if pw was 0</td></tr>
+</table></div>
+
+<h3><code>lab_ctrl</code>: the controls</h3>
+<div class="tablewrap"><table class="kv">
+<tr><td>Priority</td><td>one always block, later lines win: USB letters, then KEY0, then the buttons, then the wheel; Left over Right</td></tr>
+<tr><td>Buttons</td><td>read at <code>tick</code>, acting on the press (edge): Right or KEY1 next shape, Left previous (both wrap); A window, B dB / linear, Start hold, Select sound (toggles)</td></tr>
+<tr><td>Up / Down</td><td>one step (12.5 Hz) on the press; held for 24 frames (0.4 s) a step every third frame; after 120 frames (2 s) steps of 8; clamped to 0..1023</td></tr>
+<tr><td>KEY0</td><td>defaults: sine, N = 80 (1 kHz), no window, dB, no hold, sound off; restart the IP</td></tr>
+<tr><td>The wheel</td><td>at 1 kHz: <code>wacc += ws − wacc / 64</code> (a 64 ms smoothing), <code>wf = wacc / 64</code>; q = wf / 4 (0..1023) with hysteresis (q stays while wf is within 4q − 2..4q + 5)</td></tr>
+<tr><td>Who sets the frequency</td><td>the wheel takes over (<code>follow</code>) only when it is turned: when q is 2 or more steps from <code>q_ref</code>, the q at the last time the frequency was set another way (a step, N, KEY0, D). For the first 512 ms after power-up <code>q_ref</code> follows q, so the wheel's start-up does not count as a turn.</td></tr>
+</table></div>
+
+<h3 id="enc">Encodings</h3>
+<div class="tablewrap"><table class="kv">
+<tr><td>Shape</td><td>0 sine, 1 square, 2 triangle, 3 saw, 4 spikes (one sample of A per period: a comb of equal harmonics), 5 noise (xorshift32, seed 0x2545F491, ¾ of its top 16 bits; it steps every sample, whatever the shape). All peak at A = 24,576 (¾ of full scale).</td></tr>
+<tr><td>Frequency</td><td>N = <code>fq</code>, 0..1023: f = N × 12.5 Hz, bin = N / 8 (100 Hz a bin). 256 samples = 10 ms on the scope. N = 80 is 1 kHz, bin 10.</td></tr>
+<tr><td>Scope entry</td><td>14 bits {smaller y, larger y}, 7 bits each; the screen draws the trace in a column where Y is between them</td></tr>
+<tr><td>Bar height</td><td><code>mag_rom[{lin, e, m}]</code> for the power r = 2<sup>e − 44</sup> · (1 + (m + 0.5) / 32) of full scale: dB: round(10 log<sub>10</sub> r) + 90, 1 px per dB; linear: round(90 √r). Both clamped to 0..90.</td></tr>
+<tr><td>Scale offsets</td><td>ours: e = p + 16 (our output is divided by 256); the IP: e = p − 2 · exp (its output is scaled by 2<sup>exp</sup>); +2 for both with the window, which halves the amplitude. Both panels then share one full scale.</td></tr>
+<tr><td>Times on screen</td><td>clocks as 5 digits, and microseconds (clocks × 40 ns) as uuuu.uu</td></tr>
+<tr><td>LEDs</td><td>LEDR9 sound, LEDR8 hold, LEDR7 linear, LEDR6 window, LEDR5..0 the shape, one-hot (LEDR0 sine .. LEDR5 noise). Live settings.</td></tr>
+<tr><td>7-segment</td><td>the frame's frequency in Hz with one decimal (1000.0): the point on HEX1, leading zeros blank</td></tr>
+<tr><td>Buzzer</td><td>a 32-bit phase accumulator adds <code>fq × 2147</code> per clock (2<sup>32</sup> × 12.5 Hz / 25 MHz = 2147.5): its top bit is a square wave at the live frequency, 0.02 % low</td></tr>
+</table></div>
+
+<h2 id="io">Board I/O and the USB protocol</h2>
+<div class="tablewrap"><table>
+<tr><th>Pin / channel</th><th>Use</th></tr>
+<tr><td>Shield wheel (ADC)</td><td>the frequency, once it is turned</td></tr>
+<tr><td>Shield joystick, A, B, Start, Select (ADC, <code>gamepad</code> thresholds)</td><td>shape, fine frequency steps, window, dB / linear, hold, sound</td></tr>
+<tr><td>KEY0, KEY1</td><td>defaults (and restart the IP); next shape. Active low on the board, inverted here.</td></tr>
+<tr><td>SW9..SW0</td><td>not used by the lab (<code>debug_link</code> reports them)</td></tr>
+<tr><td>LEDR9..LEDR0, HEX5..HEX0</td><td>see <a href="#enc">encodings</a></td></tr>
+<tr><td>VGA</td><td>the same picture as the LCD, 640 × 480</td></tr>
+<tr><td>ARDUINO_IO[7:0], [11:8]</td><td>the LCD's data and control lines (library layout)</td></tr>
+<tr><td>ARDUINO_IO[12], [13]</td><td>the buzzer (when sound is on); the shield's status LED, on while the IP is not ok</td></tr>
+<tr><td>JTAG UART in</td><td>letters, upper or lower case: <code>S</code>0..5 shape, <code>N</code>0..1023 frequency step, <code>W</code>, <code>L</code>, <code>H</code>, <code>M</code> 0 or 1 for window, linear, hold, sound; <code>R</code> the report line; <code>D</code> defaults. A digit applies at once (N, 1, 2, 0 sets 1, then 12, then 120); any other byte ends the number. <code>?</code> and <code>F</code> belong to <code>debug_link</code>.</td></tr>
+<tr><td>JTAG UART out</td><td>the report line; <code>debug_link</code>'s status line, screen capture, and a line each time a button, key or switch changes. <code>tx_mux</code> keeps lines whole.</td></tr>
+</table></div>
+<p>The report line, 126 characters, sent on <code>R</code> (this one is the defaults frame on the board; one line, shown in two
+here):</p>
+<pre><code>FFTLAB SHAPE=0 N=0080 HZ=01000.0 WIN=0 LIN=0 HOLD=0 OUR_CLK=06145 OUR_PK=010/087
+IP_CLK=01637 IP_PK=010/088 IP_EXP=-08 IP_OK=1</code></pre>
+<p>All the values are the published frame's except HOLD, which is live. OUR_PK and IP_PK are bin / height in pixels of
+the tallest bar; IP_EXP is the IP's block exponent; IP_OK is 0 when the IP was dead or answered with zeros.
+<code>sim/board_check.py</code> sends settings, reads this line and the screen, and compares both with the model.</p>
+
+<h2 id="budget">Budgets</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Logic</td><td>7,183 / 49,760 LEs (14 %); 3,929 registers; 26 / 288 9-bit multipliers (9 %). The IP is 1,734 LEs, our FFT 398; each uses 8 multiplier elements.</td></tr>
+<tr><td>Memory</td><td>1,035,592 / 1,677,312 bits (62 %), 137 / 182 M9K (75 %): the lab 19 M9K, the capture buffer 114</td></tr>
+<tr><td>Clocks per frame</td><td>28,000 available: from the start of vertical sync to the first visible line (35 lines × 800). A normal frame needs about 6,400 (computed: our 6,145, the pipelines, about 250 for the digits), 23 %. The worst in simulation is 20,253, an IP that never finishes (the watchdog's 20,000 and the digits), 72 %. An IP that took no input at all would start our FFT only after the watchdog: about 26,400 (computed), still inside.</td></tr>
+<tr><td>Timing</td><td>met at every corner. The 25 MHz domain's Fmax is 38.34 MHz (slack 13.9 ns); the smallest setup slack of any clock is 2.85 ns, the smallest hold slack 0.10 ns</td></tr>
+<tr><td>Headroom</td><td>86 % of the logic and 262 multiplier elements are free; leaving out the capture buffer frees 114 M9K. A 1,024-point <code>fft_r2</code> would not fit the frame (about 29,700 clocks): it would need a faster clock or a second butterfly.</td></tr>
+</table></div>
+
+<h2 id="decisions">Design decisions</h2>
+<ul>
+  <li><b>The same sample into both FFTs, in the same clock.</b> The IP's <code>sink_ready</code> paces both, so the comparison is
+  fair by construction: same input, same start, one timer.</li>
+  <li><b>All the work in the blanking time, no picture frame buffer.</b> The screen is drawn per pixel from 5,376 bits of
+  scope and bar memory instead of a 320 × 240 picture (921,600 bits), and nothing can tear.</li>
+  <li><b>Our FFT is simple on purpose.</b> One butterfly, 5 clocks each, in place: 3.75 times slower than the IP, with about a
+  quarter of its logic (398 LEs against 1,734). The contrast is the lesson; the screen shows both numbers.</li>
+  <li><b>Halving at every stage against block floating point.</b> Ours divides by 2 at each of 8 stages and cannot overflow,
+  at the cost of precision on small signals;   the IP scales a whole block by 2<sup>exp</sup>. Measured as the SNR against numpy in
+    <code>examples/11_fft</code> (three tones): the IP 66.9 dB, ours 56.3 dB. The offsets in <code>mag_px</code> put both on one scale.</li>
+  <li><b>A table for the bar heights.</b> No log, square root or divider: the top bit and the 5 bits under it address one
+  4,096 × 7 ROM that holds both the dB and the linear scale, with one read port per FFT.</li>
+  <li><b>A watchdog on the IP.</b> The evaluation IP stops when its time is up; the lab must keep running, show our FFT,
+  and say what happened instead of freezing.</li>
+  <li><b>A bit-exact Python model.</b> It writes every table and predicts every pixel and report line, so each test is an
+  exact comparison, in simulation and on the board.</li>
+  <li><b>ModelSim records the IP, Icarus replays it.</b> The IP's simulation model runs in ModelSim only; its recorded
+  outputs (<code>sim/ip_vectors.hex</code>, played back by <code>sim/fft256_replay.sv</code>) let the fast Icarus testbench
+  include the IP exactly.</li>
+  <li><b>The capture buffer stays in.</b> 114 M9K, but it is what lets <code>board_check.py</code> compare the real screen
+  with the model pixel by pixel.</li>
+  <li><b>The evaluation IP, on purpose.</b> It is what Quartus Lite gives for free. The price: a time-limited
+  <code>.sof</code> that runs while the programmer stays connected, and no <code>.pof</code>, so no flashing. A version with
+  only our FFT could be flashed.</li>
+  <li><b>Known signals rather than the ADC.</b> Generated input can be predicted to the bit; a microphone or ADC input could
+  not be checked that way.</li>
+  <li><b>The project stands on its own.</b> It has its own copy of <code>fft_r2</code> and of the IP generator rather than
+  reaching into <code>examples/</code>; only <code>lib/</code> is shared.</li>
+</ul>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="guide.html">user guide</a>.</footer>
+</main>
+</body>
+</html>

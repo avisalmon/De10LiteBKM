@@ -3,6 +3,7 @@ no bitstreams, and the portal links it. The template folder is exempt from the c
 
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -12,12 +13,83 @@ PROJECTS = ROOT / "projects"
 TEMPLATE = PROJECTS / "_template"
 PAGES = ("index.html", "spec.html", "guide.html")
 PROJECT_DIRS = sorted(p for p in PROJECTS.iterdir() if p.is_dir() and not p.name.startswith("_"))
+# Made before the "Resources first" rule; adding their section needs a rebuild each (follow-up in docs/backlog.md).
+RESOURCES_LATER = {"pacman", "riscv_tetris"}
+RESOURCE_WORDS = ("Logic elements", "Memory bits", "M9K", "PLLs", "Fmax", "Timing")
+CODE_TYPES = {".sv", ".v", ".svh", ".vh", ".py", ".tcl", ".qsf", ".qip", ".sdc", ".c", ".h", ".s"}
+
+
+def first_section(html):
+    """(title, body) of the page's first <h2>: the text up to the next <h2>."""
+    m = re.search(r"<h2[^>]*>(.*?)</h2>(.*?)(?=<h2|\Z)", html, re.S)
+    return (m.group(1).strip(), m.group(2)) if m else ("", "")
 
 
 def test_the_template_has_every_standard_file():
     for page in PAGES:
         assert (TEMPLATE / page).exists(), page
     assert (TEMPLATE / "README.md").exists()
+
+
+def test_the_template_starts_with_resources():
+    title, body = first_section((TEMPLATE / "index.html").read_text(encoding="utf-8"))
+    assert title == "Resources", "projects/_template/index.html: the first section is Resources"
+    for word in RESOURCE_WORDS:
+        assert word in body, f"the template's Resources section lacks '{word}'"
+
+
+@pytest.mark.parametrize("project", [p.name for p in PROJECT_DIRS])
+def test_project_overview_starts_with_resources(project):
+    """Every project page opens with what it uses: area, memory, multipliers, PLLs, clocks with Fmax, timing."""
+    if project in RESOURCES_LATER:
+        pytest.skip(f"{project} was made before the Resources rule (follow-up)")
+    title, body = first_section((PROJECTS / project / "index.html").read_text(encoding="utf-8"))
+    assert title == "Resources", (f"{project}/index.html: the first section must be Resources "
+                                  f"(python scripts/de10.py report projects/{project} --html)")
+    for word in RESOURCE_WORDS:
+        assert word in body, f"{project}/index.html: the Resources section lacks '{word}'"
+
+
+@pytest.mark.parametrize("project", [p.name for p in PROJECT_DIRS])
+def test_project_stands_on_its_own(project):
+    """A project builds and simulates from its own folder and lib/ only: never from examples/ or another project
+    (copy what you reuse), so work on one project never changes another."""
+    folder = PROJECTS / project
+    homes = (folder.resolve(), (ROOT / "lib").resolve())
+    inside = lambda p: any(p == h or h in p.parents for h in homes)
+    qsf = (folder / f"{project}.qsf").read_text(encoding="utf-8")
+    for path in re.findall(r"-name \w+_FILE\s+\"?([^\"\s]+)", qsf):
+        assert inside((folder / path).resolve()), f"{project}.qsf uses {path}: outside the project and lib/"
+    for tb in (folder / "sim").glob("*.sv"):
+        for line in tb.read_text(encoding="utf-8", errors="replace").splitlines():
+            if "sim-sources:" in line:
+                for path in line.split("sim-sources:", 1)[1].split():
+                    p = ((tb.parent if path.startswith(".") else ROOT) / path).resolve()
+                    assert inside(p), f"{tb.relative_to(ROOT)} simulates {path}: outside the project and lib/"
+    others = "|".join(re.escape(p.name) for p in PROJECT_DIRS if p.name != project) or "(?!)"
+    reach = re.compile(r"\bexamples[/\\]|[\"']examples[\"']|\bprojects[/\\](?:" + others + r")\b")
+    for f in folder.rglob("*"):
+        if f.suffix.lower() in CODE_TYPES and f.is_file():
+            m = reach.search(f.read_text(encoding="utf-8", errors="replace"))
+            assert not m, f"{f.relative_to(ROOT)} reaches outside the project: '{m.group(0)}'"
+
+
+def test_pack_sees_files_the_build_read_from_outside_the_project(tmp_path):
+    """de10.py pack refuses (build warns) when Quartus read repo files from outside the project and lib/: a .qar holds
+    every file the last build read, also the ones an older .qsf listed that db/ still remembers (docs/gotchas.md)."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import de10
+    proj = tmp_path / "demo"
+    (proj / "output_files").mkdir(parents=True)
+    (proj / "demo.qpf").write_text("")
+    # Quartus' own library file: absolute on this OS (CI runs on Linux, where "C:/..." would be a relative path)
+    read = [proj / "src" / "top.sv", ROOT / "lib" / "rtl" / "pll25.v", ROOT / "examples" / "11_fft" / "src" / "fft_r2.sv",
+            Path(ROOT.anchor, "intelFPGA_lite", "17.1", "quartus", "libraries", "megafunctions", "altpll.tdf")]
+    (proj / "output_files" / "demo.map.rpt").write_text(
+        "; Analysis & Synthesis Source Files Read ;\n+--+\n"
+        "; File Name with User-Entered Path ; Used in Netlist ; File Type ; File Name with Absolute Path ; Library ;\n"
+        "+--+\n" + "".join(f"; {p.name} ; yes ; User File ; {p.as_posix()} ; ;\n" for p in read) + "+--+\n")
+    assert de10.outside_files(str(proj)) == ["fft_r2.sv"]
 
 
 @pytest.mark.parametrize("project", [p.name for p in PROJECT_DIRS])

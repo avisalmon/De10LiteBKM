@@ -27,12 +27,15 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
 12. **Signal Tap "acquired successfully" but the export crashes (`m_trigger_pos`).** The .stp lacks `jtag_chain` /
     `jtag_device` (not `jtag_device_0`); `scripts/make_stp.py` writes them.
 13. **A design with an Altera MegaCore (FFT) makes no .sof.** Lite builds `<rev>_time_limited.sof` (OpenCore Plus):
-    it runs while `quartus_pgm` stays connected or for a limited time.
+    it runs while `quartus_pgm` stays connected or for a limited time (Intel: one hour; fft_lab still ran 32 minutes
+    after the disconnect). It makes no `.pof` at all, so it cannot be flashed: `de10.py program` loads the
+    time-limited one and `de10.py flash` says why (`use-ip-library`).
 14. **`multstyle` ignored.** On a wire inside `generate` it was; put it on a module (examples/12).
 15. **Capture looks garbled on Windows.** Pipes from the JTAG terminal turn `\r\n` into `\r\r\n`; parsers skip empty
     lines. Pillow scales PPM (max 15) to 0..255 itself: do not multiply again.
 16. **61,000 warnings from one ROM.** A 2-bit ROM filled by `$readmemh`: every hex digit is 4 bits, one warning
-    (10230) per line. Write binary and use `$readmemb` (`build-rom`).
+    (10230) per line. Any width that is not a multiple of 4 does it (fft_lab's 7-bit ROM: 4,172 lines). Write binary
+    and use `$readmemb` (`build-rom`).
 17. **Syntax error on a plain wire name.** `inside` is a SystemVerilog keyword (set membership). So are `type`,
     `bit`, `byte`, `int`, `final`, `ref`, `do` and `break`: never use them as signal names in a `.sv` file.
 18. **A comparison of two products is wrong for big values.** `(a * b) > (c * d)` is computed at the operands'
@@ -51,3 +54,19 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
 24. **ModelSim's window opens and does nothing.** A "Welcome to version 10.5b" notice blocks it until someone clicks
     Close (it hides behind other windows). Its "Don't show again" box writes `noWelcomeVersion = 10.5b` under
     `HKCU\Software\Model Technology Incorporated\ModelSim`; `scripts/sim.py --gui` sets it first.
+25. **A design 2.7 times bigger than it should be, and no message.** With the MAX 10 default, synthesis builds inferred
+    RAMs and ROMs from flip-flops when it guesses M9K blocks are short (resource-aware inference): fft_lab took 19,381
+    logic elements instead of 7,183. `scripts/new_project.py` turns it off; the sign in `de10.py report` is a module
+    with many registers and 0 memory bits (`make-project`).
+26. **A log line that never ends.** `line_printer` counts in 7 bits: after a 127-character line and its CR the count
+    wraps to 0, so the line feed never comes and the line repeats forever. Keep log lines to 126 characters
+    (`read-screen`).
+27. **A board test failed when someone touched the shield.** The turned wheel set the frequency between the USB letters
+    and the screen capture. Let the wheel take over only when it really moves, and read the state before and after a
+    capture, retrying when they differ (`read-gamepad`).
+28. **An overnight board watch saw nothing.** The PC went to sleep and its USB port stopped powering the board. Keep
+    the PC awake (never sleep while plugged in) for long watches, or watch by day.
+29. **The `.qar` held files the project no longer uses.** Quartus archives every file the last build read, and a
+    build that reuses `db/` still lists the old ones after the `.qsf` changed: fft_lab's archive held 32 files from
+    examples/11. Delete `db/` and `incremental_db/` (for a OneDrive project, in the local copy) and build again.
+    `de10.py build` warns and `de10.py pack` refuses such an archive (`make-project`).
