@@ -101,7 +101,8 @@ and a fix in an example never silently changes a published project. The test che
 
 * Parallel shell calls share one working directory: a `cd` in one moves the other. Absolute paths in every command.
 * CI runs on Ubuntu: a project test that needs a tool (Icarus...) must find it on PATH when the Windows install
-  folder is absent (`scripts/sim.py` does: `oss_tool()`), and skip cleanly when it is nowhere.
+  folder is absent (`scripts/sim.py` does: `oss_tool()`), and skip cleanly when it is nowhere. A path written as
+  `C:/...` is relative on Linux (it lands in the checkout): build test paths from `ROOT` or `Path(ROOT.anchor, ...)`.
 * On Windows `mv` of a folder fails with "Device or resource busy" while any shell has it as its working directory:
   run the move from the repo root.
 * `de10.py program <dir>` finds `output_files/<rev>.sof` (or `_time_limited`); the pages say "build, then program the

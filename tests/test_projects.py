@@ -82,8 +82,9 @@ def test_pack_sees_files_the_build_read_from_outside_the_project(tmp_path):
     proj = tmp_path / "demo"
     (proj / "output_files").mkdir(parents=True)
     (proj / "demo.qpf").write_text("")
+    # Quartus' own library file: absolute on this OS (CI runs on Linux, where "C:/..." would be a relative path)
     read = [proj / "src" / "top.sv", ROOT / "lib" / "rtl" / "pll25.v", ROOT / "examples" / "11_fft" / "src" / "fft_r2.sv",
-            Path("C:/intelFPGA_lite/17.1/quartus/libraries/megafunctions/altpll.tdf")]
+            Path(ROOT.anchor, "intelFPGA_lite", "17.1", "quartus", "libraries", "megafunctions", "altpll.tdf")]
     (proj / "output_files" / "demo.map.rpt").write_text(
         "; Analysis & Synthesis Source Files Read ;\n+--+\n"
         "; File Name with User-Entered Path ; Used in Netlist ; File Type ; File Name with Absolute Path ; Library ;\n"

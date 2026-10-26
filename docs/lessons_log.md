@@ -16,6 +16,8 @@ They come from real sessions; most of them came from something going wrong.
 - **Evaluation IP makes no `.pof`**; `de10.py program` and `flash` say what that means. [gotcha 13](gotchas.md)
 - **Resource-aware RAM inference, the 126-character log line, the wheel that took over a test, a sleeping PC, a stale
   `.qar`.** [gotchas 25-29](gotchas.md)
+- **CI runs on Ubuntu: a test path written as `C:/...` is relative there** and lands inside the checkout. Build it from
+  `ROOT` or `Path(ROOT.anchor, ...)`. [make-project](../.claude/skills/make-project/SKILL.md)
 
 ## 2026-10-25
 
