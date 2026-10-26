@@ -3,6 +3,20 @@
 The short version of every lesson added to this guide, newest first. Each line points to where the full rule lives.
 They come from real sessions; most of them came from something going wrong.
 
+## 2026-10-26
+
+- **FFT Lab: our FFT beside Altera's, on the same samples.** A wave generator, a scope and two 256-point FFTs with the
+  clocks each takes, live on the LCD; proven on the board pixel by pixel (17 settings, 0 pixels different).
+  [projects/fft_lab](../projects/fft_lab/index.html)
+- **Every project opens with its Resources and stands on its own.** `de10.py report --html` writes the table (area,
+  memory, M9K, multipliers, PLLs, clocks with Fmax and slack, and what uses each); tests check both rules, and
+  `de10.py pack` refuses an archive with files from outside the project. [make-project](../.claude/skills/make-project/SKILL.md)
+- **Encrypted IP in an Icarus testbench: record its answers once in ModelSim, replay them.**
+  [compute-fft](../.claude/skills/compute-fft/SKILL.md)
+- **Evaluation IP makes no `.pof`**; `de10.py program` and `flash` say what that means. [gotcha 13](gotchas.md)
+- **Resource-aware RAM inference, the 126-character log line, the wheel that took over a test, a sleeping PC, a stale
+  `.qar`.** [gotchas 25-29](gotchas.md)
+
 ## 2026-10-25
 
 - **Course lesson 2: your first simulation.** A buggy door alarm: the chat simulates, the wave view shows the wrong

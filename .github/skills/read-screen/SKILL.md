@@ -28,7 +28,8 @@ Other text senders share the link through `tx_mux` (whole lines) and `byte_cdc` 
 
 * `python scripts/de10.py screen out.png` (~6 s). `python scripts/de10.py send "?"` = status line.
 * Your own commands: watch `rx_valid`/`rx_data` in the top (debug_link reacts only to ? F B).
-* Log lines: `line_printer` (`--lib print`), then `python scripts/de10.py log 10`.
+* Log lines: `line_printer` (`--lib print`), then `python scripts/de10.py log 10`. 126 characters at most: its count
+  is 7 bits, and a 127-character line repeats forever (gotcha 26).
 
 ## Test graphics automatically
 
@@ -36,6 +37,8 @@ Other text senders share the link through `tx_mux` (whole lines) and `byte_cdc` 
 2. Board: send commands, `de10.screen(png)`.
 3. `python scripts/screen_check.py capture.png expected.png --diff diff.png` -> "0 of 76800 pixels differ".
 Template: `examples/05_screen_readback/test_screen.py`.
+When something else can change the picture between your command and the capture (a person at the shield, a timer),
+read a status line before and after the capture and try again when they differ (`projects/fft_lab/sim/board_check.py`).
 
 ## Notes
 

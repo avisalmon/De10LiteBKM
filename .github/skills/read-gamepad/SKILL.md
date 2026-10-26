@@ -36,6 +36,10 @@ pass them through a synchronizer (debounce does).
 
 Two buttons share one channel (different resistor values), so Left+Right (or Up+Down, Select+Start) pressed
 together read as one of them. The wheel jitters: compare against a threshold (64) or average.
+When the wheel and other controls set the same value, let the wheel take over only when it is really turned: smooth
+it, quantize it with hysteresis, and follow it once it is 2 steps from where it was when another control last set the
+value; that control takes it back (`projects/fft_lab/src/lab_ctrl.sv`). Without this, a touch on the shield changed a
+board test's setting between the USB command and the screen capture (gotcha 27).
 
 ## Buzzer and status LED (shield, Arduino header)
 

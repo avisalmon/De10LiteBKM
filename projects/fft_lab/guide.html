@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FFT Lab: user guide</title>
+<meta name="description" content="How to build, load, use and test FFT Lab on the DE10-Lite with the shield: the controls, the USB letters, checking the board against the model, why it cannot go into the flash, the simulation, changing it, what to do when something looks wrong.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">FFT Lab</a> / User guide</nav>
+<h1>FFT Lab: user guide</h1>
+<p class="lead">From the repo to the lab on your board, and everything you can do with it afterwards. Every command runs from the
+repo's root folder in the <code>env</code> virtualenv; the chat does them for you if you ask.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a class="here" href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#need">What you need</a></li>
+  <li><a href="#build">Build and load it</a></li>
+  <li><a href="#use">Use it</a></li>
+  <li><a href="#usb">Control and test over USB</a></li>
+  <li><a href="#flash">Keep it after power-off</a></li>
+  <li><a href="#sim">Run the simulation</a></li>
+  <li><a href="#change">Change it</a></li>
+  <li><a href="#trouble">When something looks wrong</a></li>
+</ol>
+
+<h2 id="need">What you need</h2>
+<ul>
+  <li>A DE10-Lite with the LCD / game-pad shield on its Arduino header: the lab draws on the LCD and takes its controls from the
+  game pad and the wheel. The same picture also goes to the VGA connector and the USB letters below set everything, but the
+  project was tested only with the shield.</li>
+  <li>Quartus Prime Lite 17.1 installed as in stage 1 of the BKM (<code>python scripts/doctor.py</code> shows no FAIL). Altera's
+  FFT II core needs no license file: it runs as OpenCore Plus evaluation IP, with two limits explained below. It runs without
+  a time limit only while the PC stays connected, and it cannot be written to the flash.</li>
+  <li>The repo cloned, <code>env</code> created (<code>setup-my-computer</code> does this), the board on the USB cable.</li>
+  <li>A PC that stays awake while you use the lab: sleep drops the programmer's connection, which the IP needs, and can cut the
+  board's USB power.</li>
+  <li>For the simulation only: Icarus Verilog from the OSS CAD Suite (step 5 of <code>setup-my-computer</code>). Recording the
+  IP's answers again also needs ModelSim Starter, which comes with Quartus.</li>
+</ul>
+
+<h2 id="build">Build and load it</h2>
+<p>The sources are in the repo; one build makes the bitstream (the repo keeps none, they are 3 MB each):</p>
+<pre><code>python scripts/de10.py build   projects/fft_lab    # about 4 minutes; ends with resources and timing
+python scripts/de10.py program projects/fft_lab    # loads it and stays connected: leave it open</code></pre>
+<p>Because the design holds evaluation IP, the build writes <code>output_files/fft_lab_time_limited.sof</code> and nothing else:
+no plain <code>.sof</code>, no <code>.pof</code>. <code>program</code> finds it, loads it and keeps the programmer connected
+(<i>tethered</i>), so the command does not return. Leave it running while you use the lab and give other commands in a second
+window. <b>Ctrl+C</b> ends the connection: our FFT and everything else go on, but the IP stops when its evaluation time is up.
+Intel's FFT IP guide gives one hour without the connection; on our board the IP was still running 32 minutes after the
+disconnect (we did not wait for the end). Then the screen says <b>IP IS NOT RUNNING</b>: program again.</p>
+<p>From the archive instead (for example in the Quartus GUI): <i>Project → Restore Archived Project</i> → <code>fft_lab.qar</code>,
+then <i>Processing → Start Compilation</i>, then <i>Tools → Programmer</i> with <code>output_files/fft_lab_time_limited.sof</code>.
+Keep the Programmer open and the cable in while you use the lab.</p>
+
+<div class="two">
+  <figure><img src="media/screen_default.png" alt="The lab right after loading: SINE 1000.0 HZ at the top, ten cycles of a green sine, one tall cyan bar in our spectrum and one orange bar in the IP's, with their times 6145 CLK 245.80US and 1637 CLK 65.48US."><figcaption>Right after loading, read back from the board over USB.</figcaption></figure>
+  <div>
+    <p>What you should see right after loading, and after every press of KEY0:</p>
+    <ul>
+      <li>the top line <code>SINE 1000.0 HZ BIN 10.000</code>: a 1 kHz sine, which is bin 10 (one bin is 100 Hz);</li>
+      <li>ten cycles of it on the green scope;</li>
+      <li>one tall bar at 1 kHz in each spectrum: ours in cyan on the left, with a few low bars of rounding noise, the IP's in
+      orange on the right;</li>
+      <li>under each title, the time that FFT took: <code>6145 CLK 245.80US</code> for ours, <code>1637 CLK 65.48US</code> for
+      the IP;</li>
+      <li>LEDR0 lit, <code>1000.0</code> on the 7-segment digits, the shield's status LED off.</li>
+    </ul>
+  </div>
+</div>
+
+<h2 id="use">Use it</h2>
+<p>The lab makes a wave, shows it on the scope and puts it through both FFTs, about 60 times a second. You choose the wave:</p>
+<div class="tablewrap"><table>
+<tr><th>Control</th><th>Does</th></tr>
+<tr><td>Joystick right, or KEY1</td><td>the next shape: sine → square → triangle → saw → spikes → noise → sine</td></tr>
+<tr><td>Joystick left</td><td>the previous shape</td></tr>
+<tr><td>Joystick up / down</td><td>the frequency one step (12.5 Hz) up / down. Hold it: it repeats after 0.4 s, about 20 steps a
+second, and after 2 s in steps of 100 Hz. The range is 0 to 12,787.5 Hz.</td></tr>
+<tr><td>Wheel</td><td>sets the frequency directly, once you turn it a little (two steps) away from where it stood. The joystick,
+KEY0 or a USB <code>N</code> take the frequency back until the wheel moves again.</td></tr>
+<tr><td>A</td><td>Hann window on / off: it tapers the wave at both ends, so a frequency between two bins makes a narrow peak
+instead of a wide skirt</td></tr>
+<tr><td>B</td><td>dB scale (10 dB a division, 90 dB tall) or linear</td></tr>
+<tr><td>Start</td><td>hold: the picture stays on one frame and <b>HOLD</b> shows in red; Start again goes on</td></tr>
+<tr><td>Select</td><td>sound on / off: the buzzer plays the frequency, as a square wave</td></tr>
+<tr><td>KEY0</td><td>back to the start (sine, 1 kHz, no window, dB, no hold, silent), and a restart of the IP</td></tr>
+<tr><td>Switches</td><td>nothing (they only appear in the debug link's event lines)</td></tr>
+</table></div>
+<p>What the lab shows:</p>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>Shows</th></tr>
+<tr><td>Top line</td><td>the shape, the frequency in Hz and in bins (in eighths of a bin: 1,050 Hz is <code>BIN 10.500</code>)</td></tr>
+<tr><td>Second line</td><td>the window (<code>WIN RECT</code> or <code>WIN HANN</code>), the scale (<code>10DB/DIV</code> or
+<code>LINEAR</code>), the sound, and the scope's time scale, 1.25 ms a division</td></tr>
+<tr><td>Scope (green)</td><td>the 256 samples the FFTs get, after the window: 10 ms at 25.6 kHz</td></tr>
+<tr><td>Left spectrum (cyan)</td><td>our FFT (<code>fft_r2</code>): 128 bars, one per 100 Hz from 0 to 12.8 kHz; under the title,
+the clocks it took and the time at 25 MHz</td></tr>
+<tr><td>Right spectrum (orange)</td><td>Altera's FFT II on the same samples, on the same scale, with its own time</td></tr>
+<tr><td>LEDR0 … LEDR5</td><td>the shape, one LED each (LEDR0 sine … LEDR5 noise)</td></tr>
+<tr><td>LEDR6, 7, 8, 9</td><td>window on, linear scale, hold, sound on</td></tr>
+<tr><td>7-segment</td><td>the frequency in Hz, with one decimal</td></tr>
+<tr><td>Status LED (shield)</td><td>lit while the IP is not running</td></tr>
+</table></div>
+<p>While HOLD is on, the LEDs follow what you change, but the picture, the text and the digits keep the held frame; your change
+shows when you let go of hold.</p>
+
+<h2 id="usb">Control and test over USB</h2>
+<p>The lab listens on the JTAG UART, the same link the BKM uses for logs. A letter picks a setting and digits give its value;
+letters work in either case, and one string can hold several settings:</p>
+<div class="tablewrap"><table>
+<tr><th>Send</th><th>Does</th></tr>
+<tr><td><code>S0</code> … <code>S5</code></td><td>the shape: 0 sine, 1 square, 2 triangle, 3 saw, 4 spikes, 5 noise</td></tr>
+<tr><td><code>N0</code> … <code>N1023</code></td><td>the frequency in steps of 12.5 Hz: <code>N80</code> = 1,000 Hz,
+<code>N1023</code> = 12,787.5 Hz</td></tr>
+<tr><td><code>W0</code> / <code>W1</code></td><td>no window / Hann</td></tr>
+<tr><td><code>L0</code> / <code>L1</code></td><td>dB / linear</td></tr>
+<tr><td><code>H0</code> / <code>H1</code></td><td>hold off / on</td></tr>
+<tr><td><code>M0</code> / <code>M1</code></td><td>sound off / on</td></tr>
+<tr><td><code>R</code></td><td>the report line (below)</td></tr>
+<tr><td><code>D</code></td><td>the defaults and an IP restart, like KEY0</td></tr>
+<tr><td><code>?</code></td><td>the debug link's status line: <code>T=… BTN=… KEY=… SW=… WHL=…</code></td></tr>
+</table></div>
+<pre><code>python scripts/de10.py send S2N333W1L1  # a 4,162.5 Hz triangle, Hann window, linear scale
+python scripts/de10.py send R           # the report line
+python scripts/de10.py send "?"         # the debug link's status line
+python scripts/de10.py log 10           # 10 s of event lines (buttons, keys, switches)
+python scripts/de10.py screen x.png     # the screen (320 × 240) in about 6 s; pixels also in x.txt</code></pre>
+<p>The report line, here at the defaults (one line of 126 characters, shown in two here):</p>
+<pre><code>FFTLAB SHAPE=0 N=0080 HZ=01000.0 WIN=0 LIN=0 HOLD=0 OUR_CLK=06145 OUR_PK=010/087
+IP_CLK=01637 IP_PK=010/088 IP_EXP=-08 IP_OK=1</code></pre>
+<p>Everything in it describes the frame on the screen, except <code>HOLD</code>, which is live. <code>_CLK</code> is the clocks
+that FFT took, <code>_PK</code> its highest bar (bin / height in pixels), <code>IP_EXP</code> the IP's block exponent. When the
+IP is not running, the line ends <code>IP_CLK=00000 IP_PK=000/000 IP_EXP=+00 IP_OK=0</code>.</p>
+
+<h3>Check the board against the model</h3>
+<p><code>sim/lab_model.py</code> is a bit-exact Python copy of the lab: it tells you what the board must send and show for any
+setting, written as a case such as <code>S0N84W1L0</code>:</p>
+<pre><code># what the board must send and show for the case S0N84W1L0
+python projects/fft_lab/sim/lab_model.py report  S0N84W1L0
+python projects/fft_lab/sim/lab_model.py render  S0N84W1L0 expect.png
+# set the board to that case and read its screen
+python scripts/de10.py send H0M0S0N84W1L0
+python scripts/de10.py screen shot.png
+# compare them; it ends with OK: S0N84W1L0: 0 of 76800 pixels differ
+python projects/fft_lab/sim/lab_model.py compare S0N84W1L0 shot.txt diff.png</code></pre>
+<p>The model knows the IP's answers only for the 13 cases recorded in ModelSim; for any other case it compares everything except
+the IP's panel. The whole check, 17 cases, is one command:</p>
+<pre><code>python projects/fft_lab/sim/board_check.py      # about 4 minutes; ends with PASS: 17/17 ...</code></pre>
+<p>It sets each case, compares the report line and every pixel with the model, keeps the captures and differences in
+<code>projects/fft_lab/logs/board/</code>, and puts the board back to the defaults at the end. Keep your hands off the board
+while it runs: if the settings change during a capture, it tries the case again, up to 4 times.</p>
+
+<h2 id="flash">Keep it after power-off</h2>
+<p>Not this design as it is. The evaluation IP runs only from a time-limited <code>.sof</code>, so Quartus writes no
+<code>.pof</code>, and <code>python scripts/de10.py flash</code> has nothing to write (it stops and says why). After a power-off,
+program it again. Two ways to a design that starts by itself:</p>
+<ul>
+  <li>a license for the FFT II IP: the build then writes a normal <code>.sof</code> and <code>.pof</code>, and
+  <code>python scripts/de10.py flash projects/fft_lab</code> works as for any project;</li>
+  <li>a version with our FFT only: take the IP out of <code>src/lab_engine.sv</code>, and its panel out of
+  <code>src/lab_draw.sv</code> and <code>sim/lab_model.py</code>. With no evaluation IP left, the build writes a <code>.pof</code>
+  as usual.</li>
+</ul>
+
+<h2 id="sim">Run the simulation</h2>
+<pre><code>python scripts/sim.py projects/fft_lab/sim/tb_fft_r2.sv          # our FFT against the model: PASS
+python scripts/sim.py projects/fft_lab/sim/tb_mag.sv             # the magnitude and dB stage
+python scripts/sim.py projects/fft_lab/sim/tb_wave_gen.sv        # the wave generator
+python scripts/sim.py projects/fft_lab/sim/tb_fft_r2.sv --gui    # the same, then GTKWave
+python projects/fft_lab/sim/check_tb.py                          # the whole lab, about 4 minutes
+python -m pytest tests/test_fft_lab.py -q                        # all of the above</code></pre>
+<p><code>check_tb.py</code> runs <code>sim/tb_fft_lab.sv</code> in Icarus and compares every frame and report line with the
+model. It writes 12 pictures next to the testbench (<code>sine_1k.ppm</code>, <code>square.ppm</code>,
+<code>tri_hann_lin.ppm</code>, <code>saw_hann.ppm</code>, <code>spikes.ppm</code>, <code>sine_84_hann.ppm</code>,
+<code>sine_84_rect.ppm</code>, <code>hold.ppm</code>, <code>sound_on.ppm</code>, <code>noise_ip_dead.ppm</code>,
+<code>ip_zeros.ppm</code>, <code>wheel.ppm</code>), the log <code>sim/tb_fft_lab.log</code>, and a
+<code>sim/work/&lt;name&gt;_diff.png</code> for any picture that differs. It ends with
+<code>OK: … frames, … pictures and … report lines equal the model</code>; <code>--no-run</code> checks the last run again
+without simulating.</p>
+<p>Icarus cannot simulate Altera's FFT II, so the testbench plays back the IP's answers, recorded once in ModelSim
+(<code>sim/ip_vectors.hex</code>, played by <code>sim/fft256_replay.sv</code>). To record them again after changing the IP or
+its cases:</p>
+<pre><code>python projects/fft_lab/sim/record_ip.py    # ModelSim Starter; the first run takes a few minutes</code></pre>
+
+<h2 id="change">Change it</h2>
+<div class="tablewrap"><table>
+<tr><th>You want</th><th>Where</th></tr>
+<tr><td>another wave shape</td><td><code>src/wave_gen.sv</code>; the same shape in <code>sim/lab_model.py</code>
+(<code>shape_value</code>, <code>Gen</code>, <code>SHAPES</code>); its name in <code>shape_s</code> in
+<code>src/lab_draw.sv</code></td></tr>
+<tr><td>other colours</td><td>the colour constants in <code>src/lab_draw.sv</code>, and the same ones in
+<code>sim/lab_model.py</code> (the model must draw what the board draws)</td></tr>
+<tr><td>another dB range or linear scale</td><td><code>mag_rom()</code> in <code>sim/lab_model.py</code>, then
+<code>python projects/fft_lab/sim/lab_model.py make</code> writes <code>assets/mag_rom.bin</code> again</td></tr>
+<tr><td>another feel for the controls</td><td><code>src/lab_ctrl.sv</code>: the joystick's repeat timing,
+<code>WHEEL_DIV</code> (how often the wheel is read) and <code>SETTLE</code> (how long it is ignored after power-up)</td></tr>
+<tr><td>more patience with the IP</td><td><code>WATCHDOG</code> (20,000 clocks) and <code>IP_RESET_CLOCKS</code> (1,000) in
+<code>src/fft_lab_core.sv</code></td></tr>
+<tr><td>other IP settings</td><td><code>ip/generate_fft_ip.py</code>, then <code>sim/record_ip.py</code> to record its answers
+again</td></tr>
+<tr><td>more board test cases</td><td><code>OTHERS</code> in <code>sim/board_check.py</code>; to check the IP's panel too, add
+the case to <code>CASES</code> in <code>sim/record_ip.py</code> and record</td></tr>
+</table></div>
+<p>After any change: <code>check_tb.py</code> (OK), the build (timing OK), <code>program</code>, <code>board_check.py</code>
+(PASS). The model draws every frame, so most mistakes show up as a picture before the board is involved.</p>
+
+<h2 id="trouble">When something looks wrong</h2>
+<div class="tablewrap"><table>
+<tr><th>You see</th><th>Likely</th><th>Do</th></tr>
+<tr><td>White bars at the left and right of the LCD</td><td>normal: the panel is 800 wide, the picture 640</td><td>nothing</td></tr>
+<tr><td>Nothing on the screen, LEDs dark</td><td>the board is not programmed, or the PLL did not lock</td><td><code>python scripts/de10.py jtag</code> to see the board, then <code>program</code> again</td></tr>
+<tr><td><b>IP IS NOT RUNNING</b> in red, the orange panel empty, the shield's status LED lit</td><td>the IP's evaluation time is up: the programmer was disconnected (Ctrl+C, a closed window, a sleeping PC)</td><td><code>program</code> again and leave it connected; our FFT works on meanwhile</td></tr>
+<tr><td>Low cyan bars that the orange panel does not have</td><td>normal: our FFT halves its numbers at every stage and rounds more; the IP uses block floating point</td><td>nothing: that difference is part of what the lab shows</td></tr>
+<tr><td>The frequency jumps somewhere else</td><td>the wheel took over: it does as soon as it moves two steps</td><td>the joystick, KEY0 or <code>N…</code> take it back; leave the wheel alone</td></tr>
+<tr><td>The spectra flicker</td><td>normal with noise: new noise every frame</td><td>Start (hold) keeps one frame</td></tr>
+<tr><td>The picture does not change</td><td>hold is on (HOLD in red)</td><td>Start, or send <code>H0</code></td></tr>
+<tr><td>No sound</td><td>sound is off, or the buzzer is on another shield line</td><td>Select, or send <code>M1</code>; check <code>ARDUINO_IO[12]</code> in <code>src/fft_lab_top.sv</code> against your shield</td></tr>
+<tr><td><code>board_check.py</code> tries cases again, or fails</td><td>the settings changed during a capture: a button, the wheel</td><td>run it again with hands off the board</td></tr>
+<tr><td><code>de10.py flash</code> stops: no <code>.pof</code></td><td>the evaluation IP: no <code>.pof</code> is made</td><td>see <a href="#flash">Keep it after power-off</a></td></tr>
+<tr><td>Build fails</td><td>a changed source</td><td>run the simulation first: Icarus points at the line; then <code>logs/build.log</code></td></tr>
+<tr><td>Timing not met after a change</td><td>a long path, most likely in the drawing</td><td><code>python scripts/de10.py report projects/fft_lab</code>; register the new signal once per frame or per pixel</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="spec.html">architecture spec</a>.</footer>
+</main>
+</body>
+</html>

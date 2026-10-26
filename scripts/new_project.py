@@ -14,7 +14,7 @@
     print     jtag_uart + line_printer (text lines to the PC)
     bcd       bin2bcd
     freq      freq_counter
-* Device: 10M50DAF484C7G (the production DE10-Lite part).
+* Device: 10M50DAF484C7G (the production DE10-Lite part). Every RAM goes into M9K (resource-aware inference off).
 Re-running it overwrites the three files; keep project-specific settings in src/extra.qsf (appended if present).
 """
 import argparse
@@ -112,6 +112,11 @@ def main():
         "set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0",
         "set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85",
         'set_global_assignment -name INTERNAL_FLASH_UPDATE_MODE "SINGLE IMAGE WITH ERAM"',
+        "# every array written as a RAM goes into M9K. With this On (the MAX 10 default) Quartus guesses the M9Ks are",
+        "# running out (e.g. next to debug_link's 114-block frame buffer) and silently builds small RAMs from",
+        "# flip-flops: fft_lab used 19,381 LEs instead of about 8,100. A design that really needs too many M9Ks",
+        "# now stops in the fitter with a clear error.",
+        "set_global_assignment -name SYNTH_RESOURCE_AWARE_INFERENCE_FOR_BLOCK_RAM OFF",
         f"set_global_assignment -name SDC_FILE {rev}.sdc",
     ]
     lines += [f"set_global_assignment -name {KIND[os.path.splitext(f)[1]]} {f}" for f in files]

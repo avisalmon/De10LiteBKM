@@ -3,7 +3,7 @@
 ### Design real hardware on an FPGA, with an AI beside you
 
 <!-- last-updated:start -->
-**Last updated 25 October 2026** · 3 new lessons · [See what's new](docs/lessons_log.md)
+**Last updated 26 October 2026** · 5 new lessons · [See what's new](docs/lessons_log.md)
 <!-- last-updated:end -->
 
 **Start page (Hebrew / English): https://avisalmon.github.io/De10LiteBKM/**
@@ -26,8 +26,9 @@ Open this repo in VS Code with **Claude Code** or **GitHub Copilot** (Agent mode
 - **Stage 3: build anything.** Twelve verified examples (clocks, ROM, RAM, game pad, screen read-back, SDRAM,
   accelerometer, switches and 7-segment, IP cores, FFT, DSP multipliers, flash) with pages and projects:
   [examples/](examples/index.html). Whole designs built from them, each with an overview, an architecture spec, a user
-  guide and the Quartus archive: [projects/](projects/index.html): Pac-Man, and RISC-V Tetris (a soft CPU with its own
-  assembler, C compiler and simulator, Tetris in C on it).
+  guide and the Quartus archive: [projects/](projects/index.html): Pac-Man, RISC-V Tetris (a soft CPU with its own
+  assembler, C compiler and simulator, Tetris in C on it), and FFT Lab (our own FFT beside Altera's FFT IP, live on the
+  screen).
 - **A toolkit the AI uses every time:** tested Verilog in `lib/`, one-command scripts in `scripts/` (build, program,
   simulate, Signal Tap, read the screen back over USB).
 
@@ -56,9 +57,9 @@ docs/                  journey, gotchas, what's new, spec, backlog
 ## Honest status
 
 Verified on one DE10-Lite (10M50DAF484C7G) with the LCD / game-pad shield, Windows 11, Quartus Prime Lite 17.1 (October 2026):
-examples 01-08 and 10-13 and the Pac-Man and RISC-V Tetris projects run on the board, each page says exactly what was
-checked. Not yet verified: example 09 (GPIO), the game-pad press map, a power cycle after flashing, the games' joystick
-feel and sound, a clean-computer install by a newcomer, macOS / Linux.
+examples 01-08 and 10-13 and the Pac-Man, RISC-V Tetris and FFT Lab projects run on the board, each page says exactly
+what was checked. Not yet verified: example 09 (GPIO), the game-pad press map, a power cycle after flashing, the games'
+joystick feel and sound, FFT Lab's controls by hand, a clean-computer install by a newcomer, macOS / Linux.
 Lessons after lesson 0 are being written. Details: [docs/backlog.md](docs/backlog.md).
 
 ## License

@@ -27,8 +27,31 @@
 <p class="note">No bitstream in the repo (a <code>.sof</code> is 3 MB per project): restore the <code>.qar</code> or use the sources here,
 one build makes it in a few minutes. The <a href="guide.html">user guide</a> has every command.</p>
 
+<!-- Resources always comes first. After the last build run: python scripts/de10.py report projects/FILL IN name --html
+     and replace everything from this h2 to the timing note with logs/resources.html. Then fill in the paragraph below. -->
+<h2 id="resources">Resources</h2>
+<p class="note">The last build: FILL IN device, Quartus version, build time. Made by <code>python scripts/de10.py report projects/FILL IN name --html</code>.</p>
+<div class="tablewrap"><table class="res">
+<tr><th>Resource</th><th>Used</th><th>Of the device</th><th>What uses it</th></tr>
+<tr><td>Logic elements (area)</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+<tr><td>Registers</td><td>FILL IN</td><td>-</td><td>FILL IN</td></tr>
+<tr><td>Memory bits</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+<tr><td>M9K memory blocks (9 kbit each)</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+<tr><td>Multipliers (9-bit elements)</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+<tr><td>PLLs</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN: each output and its frequency</td></tr>
+<tr><td>Pins</td><td>FILL IN</td><td>FILL IN</td><td></td></tr>
+</table></div>
+<div class="tablewrap"><table class="res">
+<tr><th>Clock</th><th>Runs at</th><th>Fmax (slow model, 85 &deg;C)</th><th>Setup slack</th></tr>
+<tr><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td><td>FILL IN</td></tr>
+</table></div>
+<p class="note">Timing: FILL IN met / not met, worst slack.</p>
+<p>FILL IN: in plain words, what runs on each clock, what the biggest users are for, and what is there only for
+testing (a debug buffer you could leave out).</p>
+
 <h2>Contents</h2>
 <ol class="toc">
+  <li><a href="#resources">Resources</a></li>
   <li><a href="#see">What you will see</a></li>
   <li><a href="#diagram">Block diagram</a></li>
   <li><a href="#flow">How it flows</a></li>
@@ -68,11 +91,9 @@ one build makes it in a few minutes. The <a href="guide.html">user guide</a> has
 </ol>
 
 <h2 id="numbers">Numbers</h2>
+<p>The figures that are not resources (those are at the <a href="#resources">top</a>).</p>
 <div class="tablewrap"><table class="kv">
-<tr><td>Device</td><td>MAX 10 10M50DAF484C7G, Quartus Prime Lite 17.1</td></tr>
-<tr><td>Logic</td><td>FILL IN from <code>python scripts/de10.py report</code>: LEs (%), registers, multipliers</td></tr>
-<tr><td>Memory</td><td>FILL IN: bits (%), and what uses them</td></tr>
-<tr><td>Clocks</td><td>FILL IN: domains, PLLs, timing met?</td></tr>
+<tr><td>Speed</td><td>FILL IN: how fast it does its job: clocks per result, frames per second, latency; measured how</td></tr>
 <tr><td>Build</td><td>FILL IN: minutes, warnings and what they are</td></tr>
 </table></div>
 

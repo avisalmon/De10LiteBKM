@@ -10,7 +10,8 @@ description: >
 
 # Compute an FFT
 
-Proven on the board: `examples/11_fft` (both FFTs on one signal, scored against numpy).
+Proven on the board: `examples/11_fft` (both FFTs on one signal, scored against numpy) and `projects/fft_lab`
+(a wave generator and both FFTs live on the LCD, on the same samples, a new spectrum every frame with its clocks).
 
 ## Our FFT (free, small): examples/11_fft/src/fft_r2.sv
 
@@ -18,12 +19,25 @@ Proven on the board: `examples/11_fft` (both FFTs on one signal, scored against 
 `out_k`, `out_re`, `out_im`. Output = FFT / 256 (halves every stage). Needs `assets/twiddle.hex` (make it with
 `python examples/11_fft/sim/fft_data.py make`; path parameter TWIDDLE_FILE). ~6,150 clocks per FFT.
 Other sizes: change the 256/8/128 constants and regenerate the twiddles (N/2 entries of cos, sin in Q15).
+A project uses its own copy: `src/fft_r2.sv` and its own twiddle file (`projects/fft_lab`: `sim/lab_model.py make`),
+so a change in the example never changes the project (`make-project`).
 
 ## The IP (faster, more accurate, evaluation license)
 
 Generate: `python examples/11_fft/ip/generate_fft_ip.py` (edit `params`: length, data_flow, ...). Interface:
 Avalon-ST sink (valid/sop/eop/real/imag, respect sink_ready) and source (+ `source_exp`). True value =
-output x 2^(-source_exp). Lite: `<rev>_time_limited.sof`, keep `quartus_pgm` running (tethered).
+output x 2^(-source_exp). Lite: `<rev>_time_limited.sof`, keep `quartus_pgm` running (tethered). No `.pof`, so it
+cannot be flashed. Untethered it works for a limited time (Intel: one hour; fft_lab still ran after 32 minutes), then
+may stop answering: give the design a watchdog (fft_lab's panel then says IP IS NOT RUNNING).
+
+## Simulate a design that uses the IP
+
+Icarus cannot run the IP: its simulation model is encrypted. Record it once in ModelSim, replay it in Icarus
+(`projects/fft_lab/sim/record_ip.py`). The project's `ip/generate_fft_ip.py --sim DIR` makes the model and its `.spd`
+file list; ModelSim compiles the files in that order, runs every test case through the design with the real IP,
+checks each against the Python model and writes `sim/ip_vectors.hex` (per case: latency, exponent, 256 inputs, 256
+outputs). `sim/fft256_replay.sv` has the IP's module name and ports and answers each frame from the recording, or
+never, or with zeros (to test the watchdog). Record again after changing the IP's parameters or the cases.
 
 ## Check any FFT
 
