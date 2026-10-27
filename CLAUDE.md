@@ -26,6 +26,8 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * The shield's joystick, A/B/Select/Start, the wheel, the buzzer -> `read-gamepad` (04).
 * "What is on the screen?", screenshot, test the graphics, a log or commands over USB -> `read-screen` (05).
 * Lots of memory, the 64 MB SDRAM -> `use-sdram` (06).
+* A file from the PC into the SDRAM (weights, parameters, tables) or back, as fast as the USB cable allows ->
+  `load-sdram-usb` (14).
 * Tilt, gravity, the accelerometer, any SPI chip -> `read-accelerometer` (07).
 * Switches, keys, LEDs, the 7-segment display -> `use-board-io` (08).
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).
@@ -81,5 +83,6 @@ Domain toolkit: `examples/NN_name/` (one verified example per capability: page, 
 `lib/rtl/` shared tested Verilog · `lib/sim/` its unit tests and models · `lib/board/de10_lite_pins.csv` the pins ·
 `scripts/new_project.py` (Quartus project from a top module) · `scripts/de10.py` (build, program, flash, pack, log,
 send, screen, cam) · `scripts/sim.py` (Icarus or ModelSim) · `scripts/make_stp.py` + `stp_capture.tcl` +
-`vcd_dump.py` (Signal Tap without the GUI) · `scripts/mem_edit.tcl` (memory contents over JTAG).
+`vcd_dump.py` (Signal Tap without the GUI) · `scripts/mem_edit.tcl` (memory contents over JTAG) ·
+`scripts/sdram_load.py` + `usb_blaster.py` (files into the SDRAM over the USB-Blaster at the cable's limit).
 Tools: Quartus Prime Lite 17.1 in `C:\intelFPGA_lite\17.1` (ModelSim Starter included), OSS CAD Suite for Icarus.

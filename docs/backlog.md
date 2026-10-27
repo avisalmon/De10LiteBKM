@@ -20,6 +20,9 @@
       (`de10.py report --html`), pack, re-check on the board, then take them off `RESOURCES_LATER` in
       `tests/test_projects.py`.
 - [ ] Example 07 / 10 in 3-wire SPI mode (the driver supports it, not tested).
+- [ ] Example 14 beyond the cable: a USB 2.0 high-speed FIFO (FT232H / FT2232H, 245 synchronous mode) on the GPIO
+      header with the same `sdram_loader` behind a byte port, for 20-30 MB/s. Also: the direct route is Windows-only
+      (D2XX DLL shipped with Quartus); the quartus_stp route is untested on macOS / Linux.
 - [ ] Extras proposed, not built: Nios II with C (the RISC-V project is the free alternative), sound / melodies, sprites
       from images, the MAX 10 temperature sensor, UART / I2C masters, a fundamentals page (reset, clock crossing, timing).
 - [ ] The course: lessons after lesson 0 (see stage2_lessons.md).
