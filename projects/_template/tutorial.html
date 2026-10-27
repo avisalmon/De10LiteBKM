@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FILL IN name: tutorial</title>
+<meta name="description" content="A guided tour of FILL IN name on the DE10-Lite: FILL IN the experiments, what you should see and the ideas behind each picture.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<!-- The optional fourth page (make-project skill, "The tutorial"). Keep it when the design has things to try and ideas to
+     learn from it; otherwise delete this file. Kept: link it from nav.pages on index.html, spec.html and guide.html, with a
+     button and a pointer paragraph on the overview (after the pictures), rows in the overview's Files table (this page and
+     sim/tutorial_shots.py) and a pointer in the guide's "Use it". Model: projects/fft_lab/tutorial.html. -->
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">FILL IN name</a> / Tutorial</nav>
+<h1>FILL IN name: tutorial</h1>
+<p class="lead">A guided tour of FILL IN name, one experiment at a time. Each one says what to do, shows what you should see (a
+real picture read back from the board) and explains why: FILL IN the ideas it teaches.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a><a class="here" href="tutorial.html">Tutorial</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#start">Before you start</a></li>
+  <li><a href="#tour">A tour of the screen</a></li>
+  <li><a href="#numbers">The numbers behind the picture</a></li>
+  <li><a href="#first">FILL IN: the first experiment</a></li>
+  <li><a href="#quiz">Check yourself</a></li>
+  <li><a href="#words">Words</a></li>
+  <li><a href="#pictures">About the pictures</a></li>
+</ol>
+
+<h2 id="start">Before you start</h2>
+<ul>
+  <li>Build and load it as in the <a href="guide.html#build">user guide</a>.</li>
+  <li>Start every experiment from the defaults: FILL IN (the key, or the USB letter that puts them back), and what they are.</li>
+  <li>Each experiment gives the controls and the same settings as USB letters
+  (<code>python scripts/de10.py send FILL IN</code>), so the chat can set them for you.</li>
+  <li>FILL IN: the units the page uses (pixels of the 320 × 240 screen, counts, Hz) and how to read a number without a
+  ruler (a report line over USB).</li>
+</ul>
+
+<h2 id="tour">A tour of the screen</h2>
+<p>The screen right after loading, read back from the board over USB:</p>
+<div class="tour">
+<!-- de10.py screen pictures are 640 x 480: the 320 x 240 frame at twice its size, so frame pixel (x, y) is (2x, 2y) here.
+     One dashed box per zone, a numbered circle in the margins (the viewBox reaches past the picture on both sides) and a
+     line from the circle to the box. -->
+<svg viewBox="-56 -6 752 494" role="img" aria-label="FILL IN: the screen right after loading with its zones numbered: 1 FILL IN, 2 FILL IN.">
+  <image href="media/screen.png" x="0" y="0" width="640" height="480"/>
+  <g fill="none" stroke="#ff4fd8" stroke-width="2.5" stroke-dasharray="8 5">
+    <rect x="1" y="1" width="638" height="30"/>
+  </g>
+  <g stroke="#ff4fd8" stroke-width="2">
+    <line x1="-14" y1="16" x2="1" y2="16"/>
+  </g>
+  <g fill="#ff4fd8">
+    <circle cx="-28" cy="16" r="14"/>
+  </g>
+  <g fill="#ffffff" font-family="system-ui, sans-serif" font-size="17" font-weight="700" text-anchor="middle">
+    <text x="-28" y="22">1</text>
+  </g>
+</svg>
+</div>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Zone</th><th>Shows</th></tr>
+<tr><td>1</td><td>FILL IN</td><td>FILL IN: what it shows, with an example of its text or values.</td></tr>
+</table></div>
+
+<h2 id="numbers">The numbers behind the picture</h2>
+<p>Everything on the screen follows from a few numbers; the experiments below use them.</p>
+<div class="tablewrap"><table class="kv">
+<tr><td>FILL IN</td><td>FILL IN: the value, its unit and where it comes from (a constant in <code>src/</code>, a clock, a
+formula).</td></tr>
+</table></div>
+
+<!-- One section per experiment, simplest first, each building on the one before. Every number under "You should see"
+     comes from the model, the report line or the picture itself, never from memory. -->
+<h2 id="first">FILL IN: the first experiment</h2>
+<div class="do"><b>Do:</b> FILL IN: the controls, then the same as USB letters (<code>FILL IN</code>).</div>
+<div class="two">
+  <figure><img src="media/tutorial_FILL IN.png" alt="FILL IN"><figcaption>FILL IN: the settings of this picture.</figcaption></figure>
+  <div>
+    <p><b>You should see</b></p>
+    <ul>
+      <li>FILL IN: what is on the screen, with numbers (heights, counts, positions);</li>
+      <li>FILL IN: what changes when you move the control.</li>
+    </ul>
+  </div>
+</div>
+<p><b>Why.</b> FILL IN: the idea behind the picture in plain words, then the numbers that prove it, then the name it goes by.</p>
+
+<h2 id="quiz">Check yourself</h2>
+<p>Work each one out first, then try it on the board, then open the answer.</p>
+<ol>
+  <li>FILL IN: a question the experiments answer, with the settings to try.
+    <details><summary>Answer</summary><p>FILL IN: the working, the number, and a link to the section that explains
+    it.</p></details></li>
+</ol>
+
+<h2 id="words">Words</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>FILL IN</td><td>FILL IN: one sentence, with this design's number where it has one.</td></tr>
+</table></div>
+
+<h2 id="pictures">About the pictures</h2>
+<p>Every picture on this page is the real screen, read back over the USB cable with <code>python scripts/de10.py screen</code>,
+and compared with FILL IN (the model, or the testbench's frame) for the same settings.</p>
+<ul>
+  <li>Compared whole, every pixel equal: FILL IN.</li>
+  <li>Compared except FILL IN (the part the model cannot predict, and why): FILL IN.</li>
+  <li>Not compared (random, or only for a person's eyes and ears): FILL IN.</li>
+</ul>
+<p>To take them again: <code>python projects/FILL IN name/sim/tutorial_shots.py</code> (the design loaded, hands off the
+board).</p>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>,
+<a href="spec.html">architecture spec</a>, <a href="guide.html">user guide</a>.</footer>
+</main>
+</body>
+</html>

@@ -5,6 +5,10 @@ They come from real sessions; most of them came from something going wrong.
 
 ## 2026-10-27
 
+- **A project can have a tutorial: what to try, what you should see on a real board picture, and why.** Each
+  experiment's picture is taken over USB and compared with the model by a script, and every number on the page is
+  checked. The optional fourth page of the standard folder, with a template and a test.
+  [projects/fft_lab/tutorial.html](../projects/fft_lab/tutorial.html), [make-project](../.claude/skills/make-project/SKILL.md)
 - **A file into the 64 MB SDRAM over the USB-Blaster at the cable's limit.** A virtual JTAG loader with a board-side
   CRC32, and a PC script that drives the cable's FTDI driver directly: 64 MB in 112 s (583 KB/s), proven by the
   board in 9.5 s, read back at 476 KB/s, 0 errors twice; quartus_stp as the portable route (547 / 319 KB/s).

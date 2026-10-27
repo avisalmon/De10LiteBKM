@@ -1,5 +1,6 @@
-"""Every project under projects/ follows the standard folder (make-project skill): the three pages, the .qar, the sources,
-no bitstreams, and the portal links it. The template folder is exempt from the content checks but must stay complete."""
+"""Every project under projects/ follows the standard folder (make-project skill): the three pages and the optional
+tutorial, the .qar, the sources, no bitstreams, and the portal links it. The template folder is exempt from the content
+checks but must stay complete."""
 
 import re
 import subprocess
@@ -12,6 +13,8 @@ ROOT = Path(__file__).resolve().parent.parent
 PROJECTS = ROOT / "projects"
 TEMPLATE = PROJECTS / "_template"
 PAGES = ("index.html", "spec.html", "guide.html")
+TUTORIAL = "tutorial.html"  # the optional fourth page
+TUTORIAL_PARTS = ('class="do"', "You should see", "<b>Why")  # every experiment: Do, You should see, Why
 PROJECT_DIRS = sorted(p for p in PROJECTS.iterdir() if p.is_dir() and not p.name.startswith("_"))
 # Made before the "Resources first" rule; adding their section needs a rebuild each (follow-up in docs/backlog.md).
 RESOURCES_LATER = {"pacman", "riscv_tetris"}
@@ -128,6 +131,38 @@ def test_project_pages_are_linked_and_complete(project):
     guide = (folder / "guide.html").read_text(encoding="utf-8")
     for must in ("de10.py build", "de10.py program", "scripts/sim.py"):
         assert must in guide, f"{project}/guide.html: '{must}'"
+
+
+def test_the_template_has_the_optional_tutorial():
+    """The fourth page, for a design with things to try: a tour of the screen, experiments, a quiz, the pictures' story."""
+    text = (TEMPLATE / TUTORIAL).read_text(encoding="utf-8")
+    for part in TUTORIAL_PARTS + ('class="tour"', "<details>", 'id="pictures"', 'class="here" href="tutorial.html"'):
+        assert part in text, f"projects/_template/tutorial.html lacks {part}"
+
+
+@pytest.mark.parametrize("project", [p.name for p in PROJECT_DIRS if (p / TUTORIAL).exists()])
+def test_project_tutorial_is_linked_and_complete(project):
+    """A project's tutorial is one of its pages: the shared style, crumbs, linked with the other three both ways, no
+    template text, the experiments' three parts, and every picture, file and anchor it points at exists."""
+    folder = PROJECTS / project
+    text = (folder / TUTORIAL).read_text(encoding="utf-8")
+    assert '<html lang="en">' in text and "../project.css" in text, f"{project}/{TUTORIAL}: the shared style"
+    assert '<nav class="crumbs">' in text and 'href="../index.html"' in text, f"{project}/{TUTORIAL}: crumbs to the portal"
+    assert "FILL IN" not in text and "{{" not in text, f"{project}/{TUTORIAL}: template text left"
+    for part in TUTORIAL_PARTS:
+        assert part in text, f"{project}/{TUTORIAL}: each experiment has Do, You should see and Why (no '{part}')"
+    for page in PAGES:
+        assert f'href="{page}"' in text, f"{project}/{TUTORIAL} does not link {page}"
+        other = (folder / page).read_text(encoding="utf-8")
+        assert f'href="{TUTORIAL}"' in other, f"{project}/{page} does not link the tutorial"
+    for target in re.findall(r'\b(?:src|href)="([^"]+)"', text):
+        if re.match(r"[a-z]+:", target):  # https:, mailto:
+            continue
+        path, _, anchor = target.partition("#")
+        page = (folder / path).resolve() if path else folder / TUTORIAL
+        assert page.exists(), f"{project}/{TUTORIAL} points at a missing file: {target}"
+        if anchor:
+            assert f'id="{anchor}"' in page.read_text(encoding="utf-8"), f"{project}/{TUTORIAL}: no id '{anchor}' ({target})"
 
 
 def test_the_portal_lists_every_project_and_the_start_page_links_the_portal():
