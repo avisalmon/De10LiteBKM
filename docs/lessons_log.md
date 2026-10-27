@@ -3,6 +3,25 @@
 The short version of every lesson added to this guide, newest first. Each line points to where the full rule lives.
 They come from real sessions; most of them came from something going wrong.
 
+## 2026-10-27
+
+- **Accelerometer Cube: the board's tilt as a shaded 3D cube, the live acceleration as numbers, bars and an arrow.**
+  Pure Verilog, no frame buffer: a sequential math engine in the vertical blank (under 950 clocks) and a pixel
+  pipeline that draws from its numbers; 12,513 LEs; proven pixel by pixel on the board (8 settings, 0 pixels
+  different) against a bit-exact Python model written before the RTL. [projects/accel_cube](../projects/accel_cube/index.html)
+- **Math-heavy graphics: write the bit-exact model first, then prove it three ways** (engine numbers against the
+  model's dump in a one-second testbench, frame hashes in a slow one, board captures compared pixel by pixel).
+  [make-project](../.claude/skills/make-project/SKILL.md)
+- **One sensor, two vectors: filter a copy for the orientation, show the raw copy as the numbers**; calibration offsets
+  live in the sensor frame, before any remap; an accelerometer has no heading, so no yaw row.
+  [read-accelerometer](../.claude/skills/read-accelerometer/SKILL.md)
+- **The frame engine has 28,000 clocks after the sync tick, not 36,000.** [gotcha 33](gotchas.md),
+  [build-arcade-game](../.claude/skills/build-arcade-game/SKILL.md)
+- **A hash that passed while the numbers differed, PowerShell's UTF-16 `>`, Quartus' `-16'sd32768`, a filter 7 counts
+  short, a numpy pin with no wheel for the installed Python, Icarus 12 quirks.** [gotchas 30-36](gotchas.md)
+- **`requirements.txt` pins must have wheels for Python 3.12 to 3.15**; make the env with `py -3.12 -m venv env`
+  when PATH's Python is another version. [setup-my-computer](../.claude/skills/setup-my-computer/SKILL.md)
+
 ## 2026-10-26
 
 - **FFT Lab: our FFT beside Altera's, on the same samples.** A wave generator, a scope and two 256-point FFTs with the
