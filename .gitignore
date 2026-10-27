@@ -60,6 +60,7 @@ logs/
 examples/*/debug.stp
 examples/*/sim/*_dump.txt
 examples/*/sim/expected.ppm
+projects/*/sim/*_dump.txt
 
 # Program images built by a project's own toolchain (projects/<name>/tools): rebuilt in a second
 projects/*/build/

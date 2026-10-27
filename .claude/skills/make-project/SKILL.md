@@ -17,9 +17,10 @@ A project is a whole design (a game, an instrument, a controller), as opposed to
 public: sources, tests, pictures and the `.qar`, **never a `.sof` or `.pof`** (3 MB each; git-ignored). The user's private
 scratch work stays in `my_designs/`; a project is meant to be read, rebuilt and learned from by others.
 
-Proven: `projects/pacman` (build, review, three pages, portal card, skill, test) in one session, and
+Proven: `projects/pacman` (build, review, three pages, portal card, skill, test) in one session,
 `projects/fft_lab` (Resources first, standing on its own, evaluation IP, 17 board settings checked pixel by pixel, and
-the tutorial: 10 experiments on 15 pictures from the board).
+the tutorial: 10 experiments on 15 pictures from the board) and
+`projects/accel_cube` (a bit-exact Python model written before the RTL, 3D math, 8 board settings 0 pixels different).
 
 ## The standard folder
 
@@ -65,6 +66,15 @@ and a fix in an example never silently changes a published project. The test che
 2. **Build it in `projects/<name>/`** with the toolkit: `scripts/new_project.py`, `--lib` parts, a `sim/tb_<name>.sv`
    that exercises the design and prints PASS, `scripts/de10.py build` / `program`, then prove it on the board
    (`de10.py send` / `log` / `screen` / `cam`). Keep `logs/` for captures (ignored).
+   **Math-heavy graphics (fft_lab, accel_cube): write a bit-exact model first**, `assets/model.py`, with the same
+   integer formats, shifts and roundings the RTL will have, a `selftest` against plain floating point, a `constants`
+   command that prints the RTL's localparams, `render <case> out.png` and a frame hash. Then the RTL copies the
+   model line by line. Prove it three ways: a fast testbench on the engine alone that compares every intermediate
+   number with the model's `dump` (one second; catches what no picture shows, gotcha 36), a slow testbench on the
+   whole core with real video timing that hashes each frame (minutes to an hour), and the board: `de10.py send N`,
+   `de10.py screen`, `model.py compare` (target 0 pixels). Add cases the presets cannot reach (angle corners, a
+   held value, an arrow leaving its box); fixed test vectors over USB keep board checks independent of how the
+   board lies.
 3. **Review** before documenting. Read every source once, whole, and fix: width truncations (sized constants, sums
    through wires), double non-blocking writes to one register in a path, dead or unconnected signals (name them `_nc`),
    reserved words as names, every warning that comes from your files (`grep Warning logs/build.log | grep <file>`;
@@ -155,3 +165,12 @@ to try, what you will see and why. The model is `projects/fft_lab/tutorial.html`
   stops powering the board (gotcha 28).
 * Write a long page in parts of about 8 kB (the fft_lab tutorial is 44 kB, written in seven): one write of the whole
   page can run past the reply's output limit and be lost. Then let `tests/test_projects.py` check its links and pictures.
+* Write a long file (a model, a testbench, a page) in parts: `create` the first half, then `edit` the rest in. A
+  one-shot `create` of 600 lines was cut short at the output limit and the file ended mid-function.
+* Data files come from Python, never from PowerShell `>` (UTF-16 with a BOM; gotcha 35).
+* Proving the archive (step 6) takes about 2 minutes: restore, `--flow compile`, compare the Checksum. Do it;
+  a `.qar` that misses a `.mif` or a `lib/` file restores fine and only fails at compile.
+* `de10.py cam` can fail on a PC ("Error opening input files"): say so in the status table and ask the user for a
+  phone photo of the board instead of leaving `media/board.jpg` out silently.
+* Checking the 100-character page rule without reading every page: a few lines of Python that pull each `<pre>`
+  block, strip the tags, unescape `&gt; &lt; &amp;` and print the lines longer than 100.

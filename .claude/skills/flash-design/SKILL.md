@@ -9,7 +9,10 @@ description: >
 
 # Keep a design after power-off
 
-Proven: `examples/13_flash` (example 04 flashed and verified; the board reloaded it at once).
+Proven: `examples/13_flash` (example 04 flashed and verified; the board reloaded it at once), and the whole road with
+`projects/accel_cube` (12,513 LEs, 117 M9K): flashed in 15 s, the board reloaded it at once, a `de10.py screen`
+capture of the flashed image matched the model pixel for pixel, and after the user unplugged and plugged the cable
+the cube came back by itself.
 
 * Every build makes `output_files/<rev>.pof` next to the `.sof` (projects use
   `INTERNAL_FLASH_UPDATE_MODE "SINGLE IMAGE WITH ERAM"`, so memory contents are included).

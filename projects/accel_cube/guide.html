@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accelerometer 3D cube: user guide</title>
+<meta name="description" content="How to build, load, use and test the accelerometer 3D cube on the DE10-Lite: the commands, the controls, the USB tests, the simulation, what to change and what to do when it looks wrong.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">Accelerometer 3D cube</a> / User guide</nav>
+<h1>Accelerometer 3D cube: user guide</h1>
+<p class="lead">From the repo to the cube on your board, and everything you can do with it afterwards. Every command runs from the
+repo's root folder in the <code>env</code> virtualenv; the chat does them for you if you ask.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a class="here" href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#need">What you need</a></li>
+  <li><a href="#build">Build and load it</a></li>
+  <li><a href="#use">Use it</a></li>
+  <li><a href="#usb">Test over USB</a></li>
+  <li><a href="#flash">Keep it after power-off</a></li>
+  <li><a href="#sim">Run the simulation</a></li>
+  <li><a href="#change">Change it</a></li>
+  <li><a href="#trouble">When something looks wrong</a></li>
+</ol>
+
+<h2 id="need">What you need</h2>
+<ul>
+  <li>A DE10-Lite with the LCD / game-pad shield on its Arduino header. The sensor is on the DE10-Lite itself (the
+    ADXL345 next to the Arduino header); nothing is wired. The shield is only the screen: without it the numbers still
+    come on the 7-segment digits, the LEDs and the USB report.</li>
+  <li>Quartus Prime Lite 17.1 installed as in stage 1 of the BKM (<code>python scripts/doctor.py</code> shows no FAIL).</li>
+  <li>The repo cloned, <code>env</code> created (<code>setup-my-computer</code> does this), the board on the USB cable.</li>
+</ul>
+
+<h2 id="build">Build and load it</h2>
+<p>The sources are in the repo; one build makes the bitstream (the repo keeps none, they are 3 MB each):</p>
+<pre><code>python scripts/de10.py build   projects/accel_cube   # about 3 min; ends with the resource summary
+python scripts/de10.py program projects/accel_cube   # over the USB-Blaster; lasts until power-off</code></pre>
+<p>From the archive instead (for example in the Quartus GUI): <i>Project → Restore Archived Project</i> →
+<code>accel_cube.qar</code>, then <i>Processing → Start Compilation</i>, then <i>Tools → Programmer</i> with
+<code>output_files/accel_cube.sof</code>. The archive holds the sources, the settings and the model.</p>
+<p>What you should see right after loading, with the board lying flat on the table: on the left of the screen a cube on a
+blue sky, its blue face on top, seen from a little above and 30° to the side; on the right the panel: <code>ADXL345 ID E5</code>,
+then X, Y and Z near <code>+0.000</code>, <code>+0.000</code>, <code>+1.000 G</code> with a short bar next to Z, MAG and PEAK near
+1.0, PITCH and ROLL near 0.0, the word <code>LIVE</code> in green, and at the bottom the three axes with a white arrow pointing
+up: the acceleration the board feels, which at rest is 1 g upwards. The 7-segment digits show <code>L 1.000</code>, one LED
+in the middle of the row is lit. Tilt the board: the cube tilts with it, the arrow follows, the numbers and the bars move,
+the lit LED slides along the row like the bubble of a spirit level.</p>
+
+<h2 id="use">Use it</h2>
+<div class="tablewrap"><table>
+<tr><th>Control</th><th>Does</th></tr>
+<tr><td>Tilt the board</td><td>the cube turns with it, as if it were glued to the board: pitch (nose up and down) and roll (one side up). Turning the board flat on the table changes nothing: an accelerometer cannot see a turn about gravity, so there is no yaw.</td></tr>
+<tr><td>Shake or tap it</td><td>the arrow, the bars and the X Y Z numbers jump (they show the latest sample); the cube hardly moves (it follows the filtered gravity). MAG is the size of the live acceleration, PEAK the largest since the last restart.</td></tr>
+<tr><td>KEY1</td><td>calibrate: take the current reading as "flat", with the board lying still and level. The numbers go to 0, 0, +1.000, the cube stands straight; the mode row says <code>LIVE CAL</code> and the digits <code>C</code>. The offsets are kept until power-off or <code>u</code> over USB.</td></tr>
+<tr><td>KEY0</td><td>restart the peak (PEAK starts again from the current MAG) and clear the status LED on the shield</td></tr>
+<tr><td>7-segment</td><td>the mode letter on the left (<code>L</code> live, <code>C</code> calibrated, a digit in a test preset), then |a| in g as <code>d.ddd</code></td></tr>
+<tr><td>LEDR0..9</td><td>a bubble level along the board's x axis: the lit LED slides with the tilt. Every second LED lit (<code>1010101010</code>, LEDR9, 7, 5, 3, 1) means the sensor did not answer with its ID: see the trouble table.</td></tr>
+<tr><td>Status LED (shield)</td><td>lit when the per-frame math once missed its deadline. It never did in the simulation (the engine needs under 4 % of the time it has); if it lights, KEY0 clears it and the chat wants to know.</td></tr>
+</table></div>
+<p>Colours: the faces are +X red, &minus;X cyan, +Y green, &minus;Y magenta, +Z blue (the top when the board is flat),
+&minus;Z yellow. The arrow is drawn over three axes: x red, y green, z blue, 80 px each; 1 g is 64 px of arrow, with a grey
+shadow on the x-y plane and a dashed drop line so its height is readable. The bars are &plusmn;1 g wide between the grey ticks.</p>
+
+<h2 id="usb">Test over USB</h2>
+<p>The design listens on the JTAG UART, the same link the BKM uses for logs. Each letter is one command (upper case works too):</p>
+<pre><code>python scripts/de10.py send 3 1          # test preset 3 (upside down); 0..7 are the eight presets
+python scripts/de10.py send l 1          # back to the live sensor
+python scripts/de10.py send c 1          # calibrate (as KEY1);  u forgets it
+python scripts/de10.py send s 1          # spin the view slowly on / off (0.5 degree a frame)
+python scripts/de10.py send k 1          # restart the peak (as KEY0)
+python scripts/de10.py send r 2          # the report line: the numbers of the panel in one line
+python scripts/de10.py send "?" 1        # the debug link's status line (keys, switches, frames)
+python scripts/de10.py screen logs/x.png # the screen as the board shows it, 320 x 240 (about 6 s)</code></pre>
+<p>The report line looks like this (one line of 114 characters; <code>AQ</code> is the live vector in counts, 4096 = 1 g;
+this one is the simulation's, a calibrated board given a 2 g shake):</p>
+<pre><code>AQ -03200 +04800 +05696 X-0.781 Y+1.172 Z+1.391 MAG 1.979 PEAK 1.979
+PITCH  +5.3 ROLL  +7.9 ID E5 LIVE CAL</code></pre>
+<p>The eight presets are the design's self-test: in a preset the sensor is ignored and both vectors are a fixed value, so the
+screen must match the model's picture to the pixel. The model draws it on the PC and compares:</p>
+<pre><code>python scripts/de10.py send 6 1
+python scripts/de10.py screen logs/test6.png
+python projects/accel_cube/assets/model.py compare seq:6 logs/test6.txt logs/diff6.png
+# -> "0 of 76800 pixels differ"; a diff.png marks any that do</code></pre>
+<p>Give <code>compare</code> the <code>.txt</code> that <code>screen</code> writes next to the picture (the raw capture), not the
+<code>.png</code>. <code>seq:6</code> means "preset 6 after presets 0..5", which is what the board shows when you step through
+them in order; a bare <code>6</code> is the preset on its own, straight after power-up. Presets 0..3, 5 and 6 give the same
+picture either way; 4 and 7 hold an angle from the frame before, so for them the two differ. This is how the eight presets
+were checked on the board, 0 of 76,800 pixels different each, and how you can check a change of your own without taking
+the board apart.</p>
+
+<h2 id="flash">Keep it after power-off</h2>
+<p>Loading with <code>program</code> lasts until the power goes; to make the cube the design the board starts with:</p>
+<pre><code>python scripts/de10.py flash projects/accel_cube     # writes and verifies the .pof, about 15 s</code></pre>
+<p>It replaces whatever was in the flash before (the chat asks first). Loading other designs with <code>program</code> afterwards
+does not touch it; the cube returns at the next power-up. The library's <code>flash-design</code> skill and example 13 explain
+the <code>.pof</code>. The calibration offsets are not kept: press KEY1 again after a power-up.</p>
+
+<h2 id="sim">Run the simulation</h2>
+<p>Two testbenches, one fast and one complete. Run the fast one after every change to the math:</p>
+<pre><code>python scripts/sim.py projects/accel_cube/sim/tb_cube_math.sv   # 1 s: engine numbers, 18 frames
+python scripts/sim.py projects/accel_cube/sim/tb_accel_cube.sv  # 20 min: 13 frames, pixel by pixel</code></pre>
+<p><code>tb_cube_math</code> runs the per-frame engine alone on the eight presets and ten more cases (yaws the presets cannot
+reach, the CORDIC's &plusmn;90° and &plusmn;180° corners, a peak kept across frames, two frames where the steady and the
+live vectors differ) and compares every number it produces (angles, matrix, corners, face colours, text digits, arrow
+points) with <code>sim/math_expected.txt</code>, which <code>model.py dump</code> wrote. A mismatch names the frame and the
+number. It also writes <code>sim/math_dump.txt</code>;
+<code>python projects/accel_cube/assets/model.py dumpcmp projects/accel_cube/sim/math_dump.txt</code> shows the two side by side.</p>
+<p><code>tb_accel_cube</code> drives the whole core with the real VGA timing, steps through the presets over the "USB"
+letters, then feeds 120 sensor samples through the filter, calibrates with KEY1, reads the report line, forgets the
+calibration and spins the view. Every frame is captured the way the board's screen capture is (every 2nd pixel and line),
+written next to the testbench as <code>frame_0.ppm</code> .. <code>frame_7.ppm</code>, <code>frame_live.ppm</code>,
+<code>frame_cal.ppm</code>, <code>frame_calb.ppm</code>, <code>frame_u.ppm</code>, <code>frame_spin.ppm</code>, hashed and
+compared with the model's hash. Open the pictures with any image viewer, or convert them with Pillow
+(<code>Image.open("x.ppm").save("x.png")</code>). On a mismatch, see where:</p>
+<pre><code>python projects/accel_cube/assets/model.py compare seq:3 projects/accel_cube/sim/frame_3.ppm d.png</code></pre>
+<p>The model has its own check against plain floating-point math, independent of any Verilog:</p>
+<pre><code>python projects/accel_cube/assets/model.py selftest           # angles, projection, visibility, text
+python projects/accel_cube/assets/model.py render 5 cube5.png    # preset 5 as the board draws it
+python projects/accel_cube/assets/model.py render 300,-200,900 x.png   # or any vector in mg</code></pre>
+<p>Both testbenches use Icarus (<code>--gui</code> opens the waveform in GTKWave). The top level with the PLL and the sensor
+is not simulated: the sensor reader is the library's, proven in example 07, and the board compare above covers the rest.</p>
+
+<h2 id="change">Change it</h2>
+<div class="tablewrap"><table>
+<tr><th>You want</th><th>Where</th></tr>
+<tr><td>the cube tilts the wrong way when you tilt the board</td><td>the <code>HEADING</code> parameter of <code>cube_core</code> in <code>src/accel_cube_top.sv</code>: 0, 90, 180 or 270, which way the board's +x points on the screen. Rebuild (nothing in the model or the tests depends on it).</td></tr>
+<tr><td>other test presets</td><td><code>PRESETS</code> in <code>assets/model.py</code> and the matching table in <code>src/cube_core.sv</code>; then <code>python projects/accel_cube/assets/model.py dump &gt; projects/accel_cube/sim/math_expected.txt</code> (from the chat or <code>cmd</code>: PowerShell's <code>&gt;</code> writes UTF-16, which the testbench cannot read), <code>hashes</code> into <code>sim/tb_accel_cube.sv</code>, run both testbenches</td></tr>
+<tr><td>other colours, a bigger cube, the panel elsewhere</td><td>the constants at the top of <code>assets/model.py</code> (<code>CX, CY, S_PX, D_PX</code>, <code>FACES</code>, <code>ROW_COLOR</code>...) and the same numbers in <code>src/cube_math.sv</code> and <code>src/cube_draw.sv</code>: the layout and the colours are written in both by hand; the derived ones (sines, the light, the widget's projection and axes) come from <code>python projects/accel_cube/assets/model.py constants</code>, which prints them as Verilog <code>localparam</code>s to paste. Then regenerate <code>math_expected.txt</code> and the hashes and run the testbenches. The model and the RTL must always agree: that is the whole test.</td></tr>
+<tr><td>a calmer or a livelier cube</td><td>the filter in <code>src/cube_core.sv</code>: <code>ex8 = ex &gt;&gt;&gt; 3</code> moves the average 1/8 of the way to each new sample (100 Hz, so about 80 ms to settle); <code>&gt;&gt;&gt; 4</code> is twice as calm, <code>&gt;&gt;&gt; 2</code> twice as quick. The model's <code>ema_live</code> has the same <code>&gt;&gt; 3</code>: change both, then the <code>ema:</code> cases and the live frames of the long testbench still match.</td></tr>
+<tr><td>a faster spin, another default view</td><td><code>SPIN_STEP</code> (0.5° a frame) and <code>VIEW_YAW</code> (30°) in <code>assets/model.py</code> and <code>src/cube_core.sv</code>; the camera elevation <code>SE, CE</code> (30°) in the model, then <code>constants</code></td></tr>
+<tr><td>yaw, a compass</td><td>not possible with this sensor: turning about gravity leaves the measured vector unchanged. It needs a magnetometer or a gyroscope on the GPIO header (3.3 V only; unplug the board first).</td></tr>
+<tr><td>the orientation of the sensor on another board</td><td>the sensor frame is turned into the board frame in <code>cube_core</code> (<code>head_x, head_y</code>), nowhere else</td></tr>
+</table></div>
+<p>After any change: <code>tb_cube_math</code> (1 s), then build (timing OK), program, and <code>compare</code> one preset on the
+board. The long testbench is for the end of the day.</p>
+
+<h2 id="trouble">When something looks wrong</h2>
+<div class="tablewrap"><table>
+<tr><th>You see</th><th>Likely</th><th>Do</th></tr>
+<tr><td>White bars at the left and right of the LCD</td><td>normal: the panel is 800 wide, the picture 640</td><td>nothing</td></tr>
+<tr><td>Nothing on the screen, LEDs dark</td><td>the board is not programmed, or the PLL did not lock</td><td><code>python scripts/de10.py jtag</code> to see the board, then <code>program</code> again</td></tr>
+<tr><td>Five LEDs lit in a checker pattern, <code>ID 00</code> or another value on the panel</td><td>the sensor did not answer: the SPI pins are not the DE10-Lite's, or the chip is held in reset</td><td>power off and on; check the <code>GSENSOR_*</code> pins in <code>accel_cube.qsf</code> against <code>lib/board/de10_lite_pins.csv</code>; run example 07, which prints the raw readings</td></tr>
+<tr><td>The cube does not move when you tilt the board; a digit on the 7-segment</td><td>a test preset is selected (the mode row says <code>TEST n</code>)</td><td><code>python scripts/de10.py send l 1</code>, or press KEY1</td></tr>
+<tr><td>The cube tilts the wrong way</td><td>the board's x axis points another way on your desk than the <code>HEADING</code> assumes</td><td>change <code>HEADING</code> (table above) and rebuild</td></tr>
+<tr><td>Flat on the table, the numbers are not 0, 0, 1 and the cube leans</td><td>the sensor's offset (a few hundredths of a g is normal) or the table is not level</td><td>press KEY1 with the board still; the offsets are kept until power-off</td></tr>
+<tr><td>PEAK far above MAG and never coming back</td><td>the peak is the largest sample since the last restart; a tap or the plugging of the cable did it</td><td>KEY0 or <code>send k 1</code></td></tr>
+<tr><td>The status LED on the shield is lit</td><td>the per-frame math once took longer than the blanking</td><td>KEY0 clears it. It never happened in the tests; if you see it, tell the chat what you were doing.</td></tr>
+<tr><td><code>compare</code> stops with an error about the file</td><td>it was given the <code>.png</code></td><td>give it the <code>.txt</code> that <code>screen</code> wrote next to it</td></tr>
+<tr><td><code>compare</code> says many pixels differ, the picture looks right</td><td>the wrong case: a preset after others is <code>seq:n</code>; after power-up it is <code>n</code>; the live screen cannot be compared (the vector is not known)</td><td>step through the presets in order from 0 and compare with <code>seq:n</code></td></tr>
+<tr><td><code>tb_cube_math</code> says <code>math_expected.txt not found</code> or fails on line 1</td><td>the file is missing or was written by PowerShell's <code>&gt;</code> (UTF-16)</td><td>let the chat regenerate it, or run the <code>dump</code> command from <code>cmd</code></td></tr>
+<tr><td>Build fails</td><td>a changed source</td><td>run <code>tb_cube_math</code> first: Icarus points at the line; then <code>logs/build.log</code></td></tr>
+<tr><td>Timing not met after a change</td><td>a long combinational path in the pixel pipeline</td><td><code>python scripts/de10.py report projects/accel_cube</code>; keep each stage of <code>cube_draw</code> to one multiply or one compare, and register between them</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="spec.html">architecture spec</a>.</footer>
+</main>
+</body>
+</html>
