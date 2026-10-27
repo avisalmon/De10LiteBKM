@@ -1,0 +1,21 @@
+examples/14_usb_sdram_loader: bench runs as recorded on 2026-10-27 (DE10-Lite, on-board USB-Blaster on a USB 2.0
+root port, Windows 11, Quartus Prime Lite 17.1; KB = 1024 bytes; CRC32 = zlib.crc32 of the random data).
+
+python scripts/sdram_load.py bench --mb 64
+direct     64 MB  write   584 KB/s (112.29 s)  board CRC  9.51 s  read   476 KB/s (137.67 s)  OK (CRC32 a31669a7)
+
+python scripts/sdram_load.py bench --mb 64 --seed 7
+direct     64 MB  write   583 KB/s (112.32 s)  board CRC  9.50 s  read   476 KB/s (137.71 s)  OK (CRC32 b405e9a1)
+
+python scripts/sdram_load.py --via quartus bench --mb 64 --seed 3
+quartus    64 MB  write   546 KB/s (120.07 s)  board CRC  9.50 s  read   314 KB/s (208.47 s)  OK (CRC32 dc3b6391)
+
+python scripts/sdram_load.py --via quartus bench --mb 8
+quartus     8 MB  write   547 KB/s ( 14.98 s)  board CRC  1.21 s  read   319 KB/s ( 25.70 s)  OK (CRC32 b293765f)
+
+Direct route, 8 MB (several runs during the day, lines not kept): write 583 KB/s, read 470-540 KB/s, always OK.
+Earlier quartus_stp sweeps (scan lengths 64 KB to 4 MB): write 507-547 KB/s, read 297-355 KB/s; the scan length
+changes nothing above 256 KB. JTAG UART text link (nios2-terminal, the de10.py send / log path): ~82 KB/s.
+
+Resources of the example (Quartus fit): 2,556 logic elements (5 %), 1,767 registers, 0 memory bits, 1 PLL;
+Fmax 96 MHz on the 50 MHz clock, 68 MHz on TCK; worst setup slack 9.6 ns.
