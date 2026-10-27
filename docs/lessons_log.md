@@ -15,12 +15,23 @@ They come from real sessions; most of them came from something going wrong.
 - **One sensor, two vectors: filter a copy for the orientation, show the raw copy as the numbers**; calibration offsets
   live in the sensor frame, before any remap; an accelerometer has no heading, so no yaw row.
   [read-accelerometer](../.claude/skills/read-accelerometer/SKILL.md)
-- **The frame engine has 28,000 clocks after the sync tick, not 36,000.** [gotcha 33](gotchas.md),
+- **The frame engine has 28,000 clocks after the sync tick, not 36,000.** [gotcha 38](gotchas.md),
   [build-arcade-game](../.claude/skills/build-arcade-game/SKILL.md)
 - **A hash that passed while the numbers differed, PowerShell's UTF-16 `>`, Quartus' `-16'sd32768`, a filter 7 counts
-  short, a numpy pin with no wheel for the installed Python, Icarus 12 quirks.** [gotchas 30-36](gotchas.md)
+  short, a numpy pin with no wheel for the installed Python, Icarus 12 quirks.** [gotchas 35-41](gotchas.md)
 - **`requirements.txt` pins must have wheels for Python 3.12 to 3.15**; make the env with `py -3.12 -m venv env`
   when PATH's Python is another version. [setup-my-computer](../.claude/skills/setup-my-computer/SKILL.md)
+- **A project can have a tutorial: what to try, what you should see on a real board picture, and why.** Each
+  experiment's picture is taken over USB and compared with the model by a script, and every number on the page is
+  checked. The optional fourth page of the standard folder, with a template and a test.
+  [projects/fft_lab/tutorial.html](../projects/fft_lab/tutorial.html), [make-project](../.claude/skills/make-project/SKILL.md)
+- **A file into the 64 MB SDRAM over the USB-Blaster at the cable's limit.** A virtual JTAG loader with a board-side
+  CRC32, and a PC script that drives the cable's FTDI driver directly: 64 MB in 112 s (583 KB/s), proven by the
+  board in 9.5 s, read back at 476 KB/s, 0 errors twice; quartus_stp as the portable route (547 / 319 KB/s).
+  [examples/14_usb_sdram_loader](../examples/14_usb_sdram_loader/index.html),
+  [load-sdram-usb](../.claude/skills/load-sdram-usb/SKILL.md)
+- **The JTAG server's ceiling, quartus_stp's silent stdout, queued scans, a cable with no framing (one lost byte
+  reloaded the flash), two chats on one board.** [gotchas 30-34](gotchas.md)
 
 ## 2026-10-26
 

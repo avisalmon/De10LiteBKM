@@ -32,7 +32,7 @@ python -m venv env
 
 Always `env`, never `.venv`/`venv` (CLAUDE.md rule 2).
 The pins in `requirements.txt` need **Python 3.12 to 3.15** (numpy publishes a Windows wheel for each; a Python
-outside that range makes pip try to build numpy from source and fail with a C compiler error, gotcha 35). If `python`
+outside that range makes pip try to build numpy from source and fail with a C compiler error, gotcha 40). If `python`
 on PATH is another version, make the env from the right one: `py -3.12 -m venv env`. The maintainer (running
 `pytest`) installs `requirements-dev.txt` instead, which adds pytest; CI uses it too.
 

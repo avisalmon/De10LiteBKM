@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>14 USB to SDRAM loader</title>
+<meta name="description" content="DE10-Lite example: fill the 64 MB SDRAM from the PC over the on-board USB-Blaster at the cable's own limit (583 KB/s), prove it with a CRC on the board, read it back; three routes measured.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 14</nav>
+<h1>14 · Fill the 64 MB SDRAM from the PC over USB</h1>
+<p class="lead">The DE10-Lite's only link to a PC is its USB-Blaster: a JTAG cable. This example streams a file through it
+straight into the SDRAM, proves the load with a CRC the board computes itself, and reads the memory back. Three routes
+were measured until the fastest one hit the cable's own limit: <b>64 MB in 112 s (583 KB/s)</b>, proven in 9.5 s, read
+back in 138 s. The same path will carry the parameters of an LLM later.</p>
+<div class="badges">
+  <span class="badge ok">Verified on the board 2026-10-27: 64 MB written, CRC-checked and read back, 0 errors, twice</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+  <span class="badge">Skill: load-sdram-usb</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="usb_sdram_loader.qar" download>Download usb_sdram_loader.qar (full project)</a>
+</div>
+<p class="note">The repo keeps the full project (<code>.qar</code>, plus the sources here) but no prebuilt bitstream: one build (a few minutes) makes the <code>.sof</code> on your computer.</p>
+
+<h2>The result</h2>
+<pre><code>python scripts/sdram_load.py bench --mb 64                      (random data, the whole SDRAM)
+direct     64 MB  write   584 KB/s (112.29 s)  board CRC  9.51 s  read   476 KB/s (137.67 s)  OK (CRC32 a31669a7)
+direct     64 MB  write   583 KB/s (112.32 s)  board CRC  9.50 s  read   476 KB/s (137.71 s)  OK (CRC32 b405e9a1)
+python scripts/sdram_load.py --via quartus bench --mb 64 --seed 3
+quartus    64 MB  write   546 KB/s (120.07 s)  board CRC  9.50 s  read   314 KB/s (208.47 s)  OK (CRC32 dc3b6391)
+python scripts/sdram_load.py --via quartus bench --mb 8
+quartus     8 MB  write   547 KB/s ( 14.98 s)  board CRC  1.21 s  read   319 KB/s ( 25.70 s)  OK (CRC32 b293765f)</code></pre>
+<div class="tablewrap"><table>
+<tr><th>Route from the PC to the FPGA</th><th>Write</th><th>Read back</th><th>64 MB</th><th>Needs</th></tr>
+<tr><td>JTAG UART text link (<code>nios2-terminal</code>, as <code>de10.py send</code>)</td><td>~82 KB/s</td><td>not measured</td><td>~13 min</td><td>any OS with Quartus</td></tr>
+<tr><td>Virtual JTAG through <code>quartus_stp</code> and the JTAG server (<code>--via quartus</code>)</td><td>525–547 KB/s</td><td>300–355 KB/s</td><td>2 min 0 s</td><td>any OS with Quartus</td></tr>
+<tr><td><b>Virtual JTAG, the cable driven directly</b> (<code>--via direct</code>, the default)</td><td><b>583 KB/s</b></td><td><b>476 KB/s</b> (470–540)</td><td><b>1 min 52 s</b></td><td>Windows (Quartus's own cable driver, no admin)</td></tr>
+<tr><td>The board checking what it holds (CHECK, no cable traffic)</td><td colspan="2">6.7 MB/s</td><td>9.5 s</td><td>the loader</td></tr>
+</table></div>
+<ul>
+<li><b>583 KB/s is the cable, not the software.</b> The on-board USB-Blaster is an FTDI FT245 USB FIFO in front of a small
+CPLD that turns bytes into JTAG clocks; the CPLD takes about 41 cycles of its 24 MHz clock per byte, so ~585 KB/s is its
+ceiling. Three different drivers converge on it: the JTAG server leaves 6 % on the table (its own packetizing), the direct
+driver none. Bigger blocks, a shorter latency timer, several blocks in flight: all measured, none moves it.</li>
+<li><b>Reads are slower because the bus is full-speed USB</b> (12 Mb/s, shared by both directions): a read sends every byte out
+as a command and gets a byte back, and the two streams together come near the bus's bulk budget, so reads land between 470
+and 540 KB/s depending on what else the host's USB controller is doing. Writes are steady to 0.1 %.</li>
+<li><b>The SDRAM side is never the limit:</b> the loader writes a word every ~10 clocks at 50 MHz (10 MB/s, 17 times the cable),
+and the board's CRC engine reads at 6.7 MB/s. Faster loading needs a faster link, not a faster FPGA: a USB 2.0 high-speed
+FIFO chip (FT232H / FT2232H, 20–30 MB/s) on the GPIO header is the next step, when a design needs it.</li>
+<li>Resources: 2,556 logic elements (5 %), 0 memory bits (the loader's FIFO is 16 words of registers), one PLL; the design
+runs at 50 MHz (Fmax 96 MHz), no negative slack. The virtual JTAG side runs on the cable's 6 MHz TCK.</li>
+</ul>
+
+<h2>What you will see</h2>
+<div class="tablewrap"><table>
+<tr><th>Where</th><th>What</th></tr>
+<tr><td>HEX5..HEX0</td><td>KB written into the SDRAM since the last load started (SW0 up: KB received by the JTAG UART instead)</td></tr>
+<tr><td>LEDR0 / LEDR1 / LEDR2 / LEDR3</td><td>SDRAM ready / loader using the SDRAM / a read stream open / the board CRC running</td></tr>
+<tr><td>LEDR9</td><td>A word was lost (write FIFO overflow or read underrun): never seen; the PC also reports it</td></tr>
+<tr><td>Your PC</td><td>The lines above; <code>status</code> prints the loader's 10 status words</td></tr>
+</table></div>
+
+<h2>Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 250" role="img" aria-label="Block diagram: on the PC, sdram_load.py reaches the USB-Blaster either directly through the D2XX driver DLL or through quartus_stp and the JTAG server; the cable drives the MAX 10's JTAG port; the SLD hub routes to the sdram_loader virtual JTAG node (write FIFO, CRC32, check engine) which drives sdram_ctrl and the SDRAM chip; a JTAG UART node sits beside it.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <rect class="ip" x="10" y="20" width="170" height="60" rx="8"/><text x="22" y="44">sdram_load.py</text><text class="small" x="22" y="62">load / read / verify / bench</text>
+  <rect class="blk" x="10" y="110" width="170" height="56" rx="8"/><text x="22" y="132">direct: usb_blaster.py</text><text class="small" x="22" y="150">ctypes → usbblstr64.dll (D2XX)</text>
+  <rect class="blk" x="10" y="180" width="170" height="56" rx="8"/><text x="22" y="202">quartus: quartus_stp</text><text class="small" x="22" y="220">sdram_load.tcl → JTAG server</text>
+  <rect class="pin" x="230" y="110" width="130" height="126" rx="6"/><text x="242" y="134">USB-Blaster</text><text class="small" x="242" y="152">FT245 FIFO + CPLD</text><text class="small" x="242" y="170">full-speed USB</text><text class="small" x="242" y="188">TCK 6 MHz</text><text class="small" x="242" y="206">≤ 585 KB/s</text>
+  <rect class="blk" x="410" y="110" width="110" height="60" rx="8"/><text x="422" y="134">MAX 10 TAP</text><text class="small" x="422" y="152">+ SLD hub</text>
+  <rect class="blk" x="560" y="40" width="170" height="60" rx="8"/><text x="572" y="64">jtag_uart</text><text class="small" x="572" y="82">text link (counted, CRC'd)</text>
+  <rect class="blk" x="560" y="120" width="170" height="116" rx="8"/><text x="572" y="144">sdram_loader</text><text class="small" x="572" y="162">VIR 1..6, 16-bit words</text><text class="small" x="572" y="178">write FIFO, CRC32 in</text><text class="small" x="572" y="194">CHECK: CRC32 of a range</text><text class="small" x="572" y="210">STATUS: 10 words</text>
+  <rect class="pin" x="770" y="120" width="120" height="116" rx="6"/><text x="782" y="144">sdram_ctrl</text><text class="small" x="782" y="162">50 MHz, 180° clock</text><text class="small" x="782" y="186">SDRAM</text><text class="small" x="782" y="204">IS42S16320</text><text class="small" x="782" y="222">32M × 16</text>
+  <path class="wire" d="M95,80 V110"/><path class="wire" d="M95,166 V180"/>
+  <path class="wire" d="M180,138 H230" marker-end="url(#a)"/><path class="wire" d="M180,208 H230" marker-end="url(#a)"/>
+  <path class="wire" d="M360,150 H410" marker-end="url(#a)"/><path class="wire" d="M410,160 H360" marker-end="url(#a)"/>
+  <path class="wire" d="M520,130 H540 V70 H560" marker-end="url(#a)"/><path class="wire" d="M520,150 H560" marker-end="url(#a)"/>
+  <path class="wire" d="M730,160 H770" marker-end="url(#a)"/><path class="wire" d="M770,200 H730" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h2>How the loader works (lib/rtl/sdram_loader.sv)</h2>
+<p>A virtual JTAG node (Altera's <code>sld_virtual_jtag</code>) with a 4-bit instruction register. Every data register shifts
+LSB first; 16 bits make one SDRAM word (the first file byte is the low byte), and one DR scan can be as long as you like:
+the PC shifts 4 MB per scan, the words cross from the cable's clock to the 50 MHz clock through a small FIFO and go to
+consecutive addresses as they arrive. Nothing is buffered on the FPGA: a 64 MB load is one stream.</p>
+<div class="tablewrap"><table>
+<tr><th>VIR</th><th>DR</th><th>Does</th></tr>
+<tr><td>1 WADDR</td><td>64 in</td><td>Word address of the next write; clears the write count, CRC and flags</td></tr>
+<tr><td>2 WRITE</td><td>n × 16 in</td><td>The data; the address advances by itself, also across scans</td></tr>
+<tr><td>3 RADDR</td><td>64 in</td><td>Word address where reading (re)starts</td></tr>
+<tr><td>4 READ</td><td>n × 16 out</td><td>The data back, prefetched so the cable never waits</td></tr>
+<tr><td>5 STATUS</td><td>320 out</td><td>Magic <code>SDLD</code>, flags, words written and their CRC32, words received, words sent, the CHECK result, two words from the design</td></tr>
+<tr><td>6 CHECK</td><td>64 in</td><td>Start word and count: the board reads that range and CRC32s it (6.7 MB/s), result in STATUS</td></tr>
+</table></div>
+<p>A load is proven twice without trusting the cable: the CRC32 of what arrived (counted as it is written) and the CRC32 of
+what the SDRAM holds afterwards (CHECK); both must equal <code>zlib.crc32</code> of the file. <code>verify</code> reads
+everything back over the cable too and compares every byte: the 64 MB runs above did all three.</p>
+
+<h2>Two routes, one command</h2>
+<ul>
+<li><b>direct</b> (<code>scripts/usb_blaster.py</code>): Python drives the cable through the FTDI D2XX driver that Quartus
+installs (<code>drivers/usb-blaster/x64/usbblstr64.dll</code>), speaking the USB-Blaster's own byte protocol (bit-bang bytes and
+63-byte shift blocks). No JTAG server, no admin rights, Windows only. While a script holds the cable, Quartus tools cannot
+have it, and the other way round (<code>CableBusy</code>: close <code>de10.py log</code> / <code>nios2-terminal</code> first).</li>
+<li><b>quartus</b> (<code>scripts/sdram_load.tcl</code> under <code>quartus_stp</code>): the portable route, one tool process per
+session fed commands over its stdin. 6 % slower writing, a third slower reading.</li>
+<li><code>--via auto</code> (the default) takes the direct route and falls back to quartus when the cable's DLL is missing.
+Both routes speak the same protocol to the same loader; <code>bench</code> reports the route it used.</li>
+</ul>
+
+<h2>Things learned (each cost real time)</h2>
+<ol>
+<li><b>The JTAG server is the cap, not the cable.</b> Every Quartus tool reaches the cable through it, and a long virtual JTAG
+scan tops out at ~525–547 KB/s written, ~300–355 KB/s read, whatever the scan length. The cable itself does 583 KB/s.</li>
+<li><b><code>quartus_stp</code> holds its stdout back until it exits when stdout is a pipe</b> (Tcl's <code>flush</code> does not help),
+while it reads stdin promptly. Live answers go through a file opened with <code>-buffering none</code>, which Python tails.</li>
+<li><b>Scans without a captured value are only queued</b> (<code>-no_captured_dr_value</code>): a write timed on the Tcl side
+must end with a captured scan (the STATUS read does it), or the clock stops before the data has left.</li>
+<li><b>The cable protocol has no framing.</b> If a byte is ever lost or misread, data bytes become commands; a random command
+stream can fill the cable's answer FIFO until it stalls, or even pulse the FPGA's nCONFIG (it reloads its flash: seen once,
+in an unguarded sweep, never again). The driver now checks that nothing unasked-for arrived after every 64 KB block and at
+every scan end, resets the TAP and raises; the CRC on every load catches whatever a check could miss.</li>
+<li><b>TDO is sampled on the TCK-high byte.</b> Reading bit 0 of the answer to the TCK-low byte gives the previous bit.</li>
+<li><b>Drain by queue status, single-threaded.</b> A reader thread beside the writer deadlocks the D2XX driver; its receive queue
+holds 64 KB, so never leave more than one 64 KB block unread.</li>
+<li><b>One board, two chats.</b> Another session was using the same board; a lock file
+(<code>%LOCALAPPDATA%\de10lite\board.lock</code>: who, what, since when) and a "board free" message kept them apart.</li>
+</ol>
+<p>Full detail: <a href="../../docs/gotchas.md">gotchas 30–34</a>.</p>
+
+<h2>Run it</h2>
+<pre><code>python scripts/de10.py build examples/14_usb_sdram_loader
+python scripts/de10.py program examples/14_usb_sdram_loader
+python scripts/sdram_load.py status                               the loader answers: magic SDLD, init 1
+python scripts/sdram_load.py bench --mb 8                         64 for the whole SDRAM: 4.5 minutes
+python scripts/sdram_load.py load weights.bin                     file → SDRAM at word 0, CRC-checked on the board
+python scripts/sdram_load.py load weights.bin --addr 0x800000     at word 8M (byte 16M)
+python scripts/sdram_load.py verify weights.bin                   read it back and compare every byte
+python scripts/sdram_load.py read back.bin --bytes 1048576        SDRAM → file
+python scripts/sdram_load.py --via quartus bench                  the portable route</code></pre>
+<h3>Use it in your own design</h3>
+<p>Put <code>sdram_loader</code> on the master port of <code>sdram_ctrl</code> (<code>--lib pll loader</code>, and
+<code>src/extra.qsf</code> from here for the SDRAM pins); the design uses the SDRAM itself while <code>busy</code> is low. Report
+two words of your own in STATUS through <code>user0</code>, <code>user1</code>. Then <code>sdram_load.py load</code> fills the
+memory before your logic starts: parameters, tables, pictures.</p>
+<h3>Build it yourself</h3>
+<pre><code>python scripts/new_project.py examples/14_usb_sdram_loader loader_top --lib pll loader bcd seg7 --file ../../lib/rtl/jtag_uart.sv
+python scripts/de10.py build examples/14_usb_sdram_loader</code></pre>
+<h3>Test without the board</h3>
+<pre><code>python scripts/sim.py lib/sim/tb_sdram_loader.sv -D SDRAM_LOADER_SIM
+  → 1020 words in, 1052 out, 3 checks, overflow and underrun caught; 0 errors, 0 protocol errors   PASS
+python -m pytest tests/test_sdram_loader.py             the cable's byte protocol, the status decoding, the testbench</code></pre>
+
+<h2>Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What</th></tr>
+<tr><td><code>src/loader_top.sv</code></td><td>The design: PLL, SDRAM controller, the loader, a JTAG UART beside it, the display</td></tr>
+<tr><td><code>src/extra.qsf</code></td><td>I/O-cell registers for the SDRAM pins</td></tr>
+<tr><td><code>lib/rtl/sdram_loader.sv</code></td><td>The loader: virtual JTAG node, FIFO, CRC32, CHECK engine</td></tr>
+<tr><td><code>lib/sim/tb_sdram_loader.sv</code></td><td>Its testbench: drives the JTAG side, checks every word, forces an overflow and an underrun</td></tr>
+<tr><td><code>scripts/sdram_load.py</code></td><td>The PC side: status, load, read, verify, check, bench; both routes</td></tr>
+<tr><td><code>scripts/usb_blaster.py</code></td><td>The USB-Blaster driven directly: JTAG scans, SLD hub, virtual nodes</td></tr>
+<tr><td><code>scripts/sdram_load.tcl</code></td><td>The same protocol under quartus_stp</td></tr>
+<tr><td><code>media/bench.txt</code></td><td>The runs above, as recorded</td></tr>
+</table></div>
+
+<footer>DE10-Lite BKM · example 14 · built and verified on a DE10-Lite (10M50DAF484C7G) with Quartus Prime Lite 17.1.</footer>
+</main>
+</body>
+</html>

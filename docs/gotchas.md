@@ -70,28 +70,46 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     build that reuses `db/` still lists the old ones after the `.qsf` changed: fft_lab's archive held 32 files from
     examples/11. Delete `db/` and `incremental_db/` (for a OneDrive project, in the local copy) and build again.
     `de10.py build` warns and `de10.py pack` refuses such an archive (`make-project`).
-30. **An expected file written with PowerShell's `>` made every line "differ".** PowerShell's `>` writes UTF-16 with
+30. **Every Quartus tool moves data at the JTAG server's pace, not the cable's.** quartus_stp, the memory content
+    editor and the JTAG UART all go through jtagserver: ~525-547 KB/s written and ~350 read however long the scan.
+    The USB-Blaster itself does 583 KB/s; only driving its FTDI driver directly (`scripts/usb_blaster.py`) gets
+    there, and reads stay USB-bus bound at 470-540 KB/s (`load-sdram-usb`).
+31. **quartus_stp said nothing until it quit.** When its stdout is a pipe the tool holds every `puts` back until exit
+    (Tcl `flush` changes nothing), while it reads stdin at once. A script that must answer live writes its answers
+    to a file opened with `-buffering none` and the PC side tails it (`scripts/sdram_load.tcl`). It also drops a
+    `cr_ie_info.json` into the current folder: delete it before committing (`load-sdram-usb`).
+32. **A write that "took 0 seconds".** `device_dr_shift -no_captured_dr_value` only queues the scan; nothing has
+    reached the board until a captured scan follows. End every timed or ordered sequence with one, such as a
+    STATUS read (`load-sdram-usb`).
+33. **One lost byte reprogrammed the board.** The USB-Blaster protocol has no framing: when the stream slips, data
+    bytes become commands. Once an unguarded sweep stalled the cable's answer FIFO (FT_IO_ERROR) and pulsed the
+    FPGA's nCONFIG, which reloaded the flash. Check for unasked-for bytes after every block and at every scan end,
+    reset the TAP and stop on the first one, and have the board CRC what it holds (`load-sdram-usb`).
+34. **Two chats, one board.** Both programmed the board and each spoiled the other's test. A lock file
+    (`%LOCALAPPDATA%\de10lite\board.lock`: who, what, since), checked before every board command, deleted when done
+    with a "board free" message, kept them apart (`load-sdram-usb`).
+35. **An expected file written with PowerShell's `>` made every line "differ".** PowerShell's `>` writes UTF-16 with
     a byte-order mark (bytes `FF FE`, two bytes per character); a testbench reading it with `$fgets` matches nothing.
     Let the script write its own file (Python, ASCII, LF); never make a data file through a PowerShell redirect.
-31. **The frame hash passed, the numbers did not.** The model clamped a bounding box on one side and the RTL on both
+36. **The frame hash passed, the numbers did not.** The model clamped a bounding box on one side and the RTL on both
     (10-bit unsigned, so it never wraps); both boxes were empty, no pixel changed, and only an arrow that left its
     region showed it. Compare the engine's numbers line by line (`model.py dump` against the testbench's dump) as well
     as the picture: a pixel hash is blind to a difference that is off screen (`make-project`).
-32. **`-16'sd32768` gives "constant value overflow" in Quartus 17.1**: write `16'sh8000`. An index made of a
+37. **`-16'sd32768` gives "constant value overflow" in Quartus 17.1**: write `16'sh8000`. An index made of a
     concatenation (`pm[{2'b00, fax}]`) gives "index expression is not wide enough" even when it covers the array:
     declare the index as a wire of the right width first.
-33. **35 lines of blanking after the sync tick, not 45.** `lib/rtl/vga_controller.v` puts the horizontal blanking at
+38. **35 lines of blanking after the sync tick, not 45.** `lib/rtl/vga_controller.v` puts the horizontal blanking at
     the end of each line (`column` holds 639 for 161 clocks) and its vertical sync falls 10 lines into the 45-line
     vertical blanking: from the falling edge of `VGA_VS` to the first visible pixel there are 28,000 clocks at
     25 MHz, not 36,000. A per-frame engine started at the sync must finish in that (`build-arcade-game`).
-34. **A filter that stops 7 counts short.** The EMA `f += (x - f) >>> 3` (8 fraction bits) rounds every step toward
+39. **A filter that stops 7 counts short.** The EMA `f += (x - f) >>> 3` (8 fraction bits) rounds every step toward
     minus infinity: coming from below it settles up to 7 LSB under the target, one count low once shifted to the
     display's scale. Round the output (`(f + 8) >>> 4`) and do the same in the model (`read-accelerometer`).
-35. **`pip install -r requirements.txt` failed at numpy on Python 3.15.** The pinned numpy had no wheel for that
+40. **`pip install -r requirements.txt` failed at numpy on Python 3.15.** The pinned numpy had no wheel for that
     Python yet and pip tried to build it from source ("Encountered error while generating package metadata").
     `pip download numpy==<pin> --only-binary=:all:` shows which versions have one; pin a version that covers
     every Python the setup skill installs (`setup-my-computer`).
-36. **Icarus 12 rejects SystemVerilog it should take.** Unpacked `localparam` arrays with `'{...}` ("localparam must
+41. **Icarus 12 rejects SystemVerilog it should take.** Unpacked `localparam` arrays with `'{...}` ("localparam must
     have a value": use a `case` function), `$fgets` into anything but a `reg`, a `string` variable cast to a vector
     at run time (literals are fine), and a part-select after a variable index into a packed 2-D array (copy the
     element to a temporary first).

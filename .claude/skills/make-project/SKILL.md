@@ -3,10 +3,12 @@ name: make-project
 description: >
   Build a complete design for the DE10-Lite as a public BKM project in the standard folder (projects/<name>/):
   the workflow from idea to a reviewed, tested, documented project with an overview page (block diagram, flow, tests,
-  review log, status), an architecture spec, a user guide, the Quartus archive (.qar, no bitstreams) and a card on the
-  projects portal; then the learning goes back into the skills. Proven with Pac-Man.
+  review log, status), an architecture spec, a user guide, an optional tutorial (experiments: what to do, what you
+  should see on a real board picture, and why), the Quartus archive (.qar, no bitstreams) and a card on the projects
+  portal; then the learning goes back into the skills. Proven with Pac-Man and FFT Lab.
   TRIGGER: "new project", "build a project", "make a project", "project folder", "document the project", "project page",
-  "architecture spec", "user guide", "project review", "add it to the portal", "publish the project", "standard folder".
+  "architecture spec", "user guide", "tutorial", "add a tutorial", "project review", "add it to the portal",
+  "publish the project", "standard folder".
 ---
 
 # Make a project
@@ -16,7 +18,8 @@ public: sources, tests, pictures and the `.qar`, **never a `.sof` or `.pof`** (3
 scratch work stays in `my_designs/`; a project is meant to be read, rebuilt and learned from by others.
 
 Proven: `projects/pacman` (build, review, three pages, portal card, skill, test) in one session,
-`projects/fft_lab` (Resources first, standing on its own, evaluation IP, 17 board settings checked pixel by pixel) and
+`projects/fft_lab` (Resources first, standing on its own, evaluation IP, 17 board settings checked pixel by pixel, and
+the tutorial: 10 experiments on 15 pictures from the board) and
 `projects/accel_cube` (a bit-exact Python model written before the RTL, 3D math, 8 board settings 0 pixels different).
 
 ## The standard folder
@@ -29,12 +32,14 @@ projects/<name>/
   spec.html           architecture spec: requirements, modules and ports, clock domains and crossings, memories,
                       state machines and encodings, board I/O and protocols, budgets, design decisions
   guide.html          user guide: need, build and load, use, test over USB, flash, simulate, change, troubleshoot
+  tutorial.html       optional: experiments, each "do / you should see (a real board picture) / why", a tour of the
+                      screen, the numbers behind it, a quiz, the words; when there is something to try (below)
   <name>.qar          python scripts/de10.py pack projects/<name>   (Quartus' own archiver; carries src/extra.qsf MISC_FILEs)
   <name>.qpf/.qsf/.sdc   python scripts/new_project.py projects/<name> <top> --lib ...
   src/ sim/ assets/ media/        sources, testbench(es), generated data + generators, pictures (< 600 kB each)
   ip/                 generated Altera IP (ip-generate output and its generator script), added with --file ip/<x>/<x>.qip
 projects/index.html   the portal: one card per project (picture, one line, status tag)
-projects/project.css  the shared style; projects/_template/ the three pages with FILL IN marks
+projects/project.css  the shared style; projects/_template/ the pages with FILL IN marks (tutorial.html optional)
 ```
 `tests/test_projects.py` checks all of it (files, sections, Resources first, links, no bitstreams, portal card,
 start-page link, and that the project stands on its own).
@@ -65,7 +70,7 @@ and a fix in an example never silently changes a published project. The test che
    integer formats, shifts and roundings the RTL will have, a `selftest` against plain floating point, a `constants`
    command that prints the RTL's localparams, `render <case> out.png` and a frame hash. Then the RTL copies the
    model line by line. Prove it three ways: a fast testbench on the engine alone that compares every intermediate
-   number with the model's `dump` (one second; catches what no picture shows, gotcha 31), a slow testbench on the
+   number with the model's `dump` (one second; catches what no picture shows, gotcha 36), a slow testbench on the
    whole core with real video timing that hashes each frame (minutes to an hour), and the board: `de10.py send N`,
    `de10.py screen`, `model.py compare` (target 0 pixels). Add cases the presets cannot reach (angle corners, a
    held value, an arrow leaving its box); fixed test vectors over USB keep board checks independent of how the
@@ -75,10 +80,12 @@ and a fix in an example never silently changes a published project. The test che
    reserved words as names, every warning that comes from your files (`grep Warning logs/build.log | grep <file>`;
    the library's and "pin stuck at" ones are known). Re-simulate and rebuild after the review; keep the numbers.
 4. **Pictures**: `media/screen_*.png` from `de10.py screen`, `media/board.jpg` from `de10.py cam` (crop if it helps),
-   a preview or waveform if it explains something. Under 600 kB each.
-5. **Pages**: copy `projects/_template/*.html`, replace every `FILL IN`. The overview answers "what will I see and why
-   does it work"; the spec answers "where does every bit live and what are the budgets"; the guide answers "what do I type
-   and what do I do when it looks wrong". Resources first, from `de10.py report --html` (above); the "Numbers" section
+   a preview or waveform if it explains something. Under 600 kB each. A tutorial's pictures come from a script that
+   checks each one against the model (below).
+5. **Pages**: copy `projects/_template/*.html`, replace every `FILL IN` (delete `tutorial.html` when there is nothing to
+   try). The overview answers "what will I see and why does it work"; the spec answers "where does every bit live and
+   what are the budgets"; the guide answers "what do I type and what do I do when it looks wrong"; the tutorial answers
+   "what can I try, what will I see, and why". Resources first, from `de10.py report --html` (above); the "Numbers" section
    keeps only what is not a resource (speed, latency, build time, warnings). The review log from step 3; the status table
    says what was verified by the machine, what only a person can check, and what was left out on purpose.
 6. **Pack and link**: `de10.py pack projects/<name>` (the `.qar`), a card on `projects/index.html`, the start page's
@@ -107,6 +114,35 @@ and a fix in an example never silently changes a published project. The test che
 * Evaluation IP (OpenCore Plus) is said on the overview's first screen, with what it means: a time-limited `.sof`,
   no flash, and what the design does when the time runs out (`use-ip-library`).
 
+## The tutorial (optional fourth page)
+
+Write `tutorial.html` when the design has things to try and ideas to learn from it: an instrument, a lab, a game with
+rules worth explaining. The overview says what it is and why it works, the guide how to run it; the tutorial says what
+to try, what you will see and why. The model is `projects/fft_lab/tutorial.html`, the template
+`projects/_template/tutorial.html`; its styles (`.do`, `.tour`, `details`, `td.n`) are in `projects/project.css`.
+
+* **The order**: before you start (load it, the defaults and how to get back to them, setting things over USB, the
+  units) · a tour of the screen · the numbers behind the picture (a `table.kv` of rates, sizes, scales, formulas) ·
+  the experiments, simplest first, each building on the one before · check yourself (questions, the answers folded in
+  `<details>`) · words (a glossary with this design's numbers) · about the pictures · the footer.
+* **The tour**: the start-up picture as an `<image>` in an inline SVG, with a dashed box and a numbered circle per zone
+  (the `viewBox` reaches past the picture for the circles), then a table: zone, what it shows, an example of its text.
+* **Each experiment has three parts.** `<div class="do"><b>Do:</b>`: the controls, and the same as USB letters so the
+  chat can set it. `<div class="two">`: the real picture beside a "You should see" list with numbers (heights, counts,
+  positions), not adjectives. `<p><b>Why.</b>`: the idea in plain words, the numbers that prove it, the name it goes by.
+* **Pictures from the board, checked.** A `sim/tutorial_shots.py` sets each case over USB, takes `de10.py screen`
+  between two report lines (again if the settings moved: someone touched the board), compares it with the model and
+  copies it to `media/tutorial_<name>.png`; at the end it puts the settings back. "About the pictures" says which
+  match the model whole, which except a part the model cannot predict (and why), which not at all (random, sound),
+  and the command that takes them again.
+* **Every number checked**: from the model, the report line, or measured on the picture; a constant read in the
+  source. `de10.py screen` PNGs are 640 × 480, the 320 × 240 frame at twice its size: frame pixel (x, y) is at
+  (2x, 2y). A number nobody checked comes off the page. Say what is for a person only (a sound, a feel).
+* **Link it**: `nav.pages` on all four pages, a button and a pointer paragraph on the overview (after its pictures),
+  the overview's Files table (the page and the script), a pointer in the guide's "Use it" (the tutorial's own footer
+  already names the other three pages).
+  `tests/test_projects.py` checks the links both ways, the three parts, and that every picture, file and anchor exists.
+
 ## Process notes
 
 * Parallel shell calls share one working directory: a `cd` in one moves the other. Absolute paths in every command.
@@ -127,9 +163,11 @@ and a fix in an example never silently changes a published project. The test che
   (`de10.py log`, watch scripts) before it programs, and never program while it is testing.
 * Long board watches (an untethered evaluation IP for an hour): keep the PC awake while plugged in, or its USB port
   stops powering the board (gotcha 28).
+* Write a long page in parts of about 8 kB (the fft_lab tutorial is 44 kB, written in seven): one write of the whole
+  page can run past the reply's output limit and be lost. Then let `tests/test_projects.py` check its links and pictures.
 * Write a long file (a model, a testbench, a page) in parts: `create` the first half, then `edit` the rest in. A
   one-shot `create` of 600 lines was cut short at the output limit and the file ended mid-function.
-* Data files come from Python, never from PowerShell `>` (UTF-16 with a BOM; gotcha 30).
+* Data files come from Python, never from PowerShell `>` (UTF-16 with a BOM; gotcha 35).
 * Proving the archive (step 6) takes about 2 minutes: restore, `--flow compile`, compare the Checksum. Do it;
   a `.qar` that misses a `.mif` or a `lib/` file restores fine and only fails at compile.
 * `de10.py cam` can fail on a PC ("Error opening input files"): say so in the status table and ask the user for a

@@ -11,6 +11,7 @@ description: >
 # Use the SDRAM
 
 Proven on the board: `examples/06_sdram` (all 33,554,432 words; only the deliberately injected error found; 16.3 s per pass).
+To fill it from the PC (parameters, tables, a file) or read it back: `load-sdram-usb` (example 14; 64 MB in 112 s).
 
 ## Wire it
 
@@ -52,3 +53,9 @@ state (`scripts/make_stp.py`, `scripts/vcd_dump.py`).
 
 Bursts (burst length 8, keep the row open, read pipelining) give 10-20x; or Altera's SDRAM controller IP in Platform
 Designer (with a Nios II system).
+
+## Fill it from the PC
+
+`load-sdram-usb` (example 14): `lib/rtl/sdram_loader.sv` in front of this controller and `scripts/sdram_load.py`
+on the PC move a file in over the USB-Blaster at the cable's limit (583 KB/s, 64 MB in 112 s), CRC-checked on the
+board, and read it back. Load first, then start the design that uses the memory.

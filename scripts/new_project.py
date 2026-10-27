@@ -14,6 +14,8 @@
     print     jtag_uart + line_printer (text lines to the PC)
     bcd       bin2bcd
     freq      freq_counter
+    sdram     sdram_ctrl (the 64 MB SDRAM)
+    loader    sdram_ctrl + sdram_loader (PC <-> SDRAM over the USB-Blaster cable: scripts/sdram_load.py)
 * Device: 10M50DAF484C7G (the production DE10-Lite part). Every RAM goes into M9K (resource-aware inference off).
 Re-running it overwrites the three files; keep project-specific settings in src/extra.qsf (appended if present).
 """
@@ -46,6 +48,7 @@ LIB_PARTS = {
     "accel": ["spi_master.sv", "adxl345.sv"],
     "bcdseq": ["bin2bcd_seq.sv"],
     "sdram": ["sdram_ctrl.sv"],
+    "loader": ["sdram_ctrl.sv", "sdram_loader.sv"],
 }
 KIND = {".v": "VERILOG_FILE", ".sv": "SYSTEMVERILOG_FILE", ".vhd": "VHDL_FILE", ".qip": "QIP_FILE",
         ".sdc": "SDC_FILE", ".mif": "MIF_FILE", ".hex": "HEX_FILE"}
