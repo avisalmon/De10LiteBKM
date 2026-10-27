@@ -23,7 +23,10 @@ reg	[15:0]	val [0:299];
 always #10 clk = ~clk;				// 50 MHz
 wire dram_clk = ~clk;				// 180 degrees, as the PLL makes it on the board
 
-sdram_ctrl #(.CLK_MHZ(50), .READ_DELAY(4)) dut(.clk(clk), .reset_n(reset_n), .rd_delay(3'd4), .req(req), .we(we), .addr(addr),
+// rd_delay is 3 here and 4 on the board: the model is the bare chip (data valid from 55.4 ns to 72.7 ns after the
+// READ edge, so the FPGA edge at 60 ns catches it); the board adds about 5 ns (DRAM_CLK pin, traces, input pad)
+// and its sweep in examples/06 found the first good delay at 3 and took 4 for margin (gotcha 31).
+sdram_ctrl #(.CLK_MHZ(50), .READ_DELAY(4)) dut(.clk(clk), .reset_n(reset_n), .rd_delay(3'd3), .req(req), .we(we), .addr(addr),
 	.wdata(wdata), .ready(ready), .rvalid(rvalid), .rdata(rdata), .init_done(init_done),
 	.DRAM_ADDR(A), .DRAM_BA(BA), .DRAM_CAS_N(cas_n), .DRAM_CKE(cke), .DRAM_CS_N(cs_n), .DRAM_DQ(DQ),
 	.DRAM_LDQM(ldqm), .DRAM_RAS_N(ras_n), .DRAM_UDQM(udqm), .DRAM_WE_N(we_n));

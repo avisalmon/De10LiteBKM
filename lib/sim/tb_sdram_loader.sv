@@ -37,7 +37,8 @@ reg	[3:0]		ir_in = 0, ir_next = 0;
 wire				tdo;
 always @(posedge tck) if (uir) ir_in <= ir_next;		// the hub updates ir_in on the UIR edge
 
-sdram_ctrl #(.CLK_MHZ(50), .READ_DELAY(4)) ctrl(.clk(clk), .reset_n(reset_n), .rd_delay(3'd4), .req(req), .we(we),
+// rd_delay 3 in simulation, 4 on the board: the model is the bare chip, the board adds about 5 ns (see tb_sdram_ctrl.sv)
+sdram_ctrl #(.CLK_MHZ(50), .READ_DELAY(4)) ctrl(.clk(clk), .reset_n(reset_n), .rd_delay(3'd3), .req(req), .we(we),
 	.addr(addr), .wdata(wdata), .ready(ready), .rvalid(rvalid), .rdata(rdata), .init_done(init_done),
 	.DRAM_ADDR(A), .DRAM_BA(BA), .DRAM_CAS_N(cas_n), .DRAM_CKE(cke), .DRAM_CS_N(cs_n), .DRAM_DQ(DQ),
 	.DRAM_LDQM(ldqm), .DRAM_RAS_N(ras_n), .DRAM_UDQM(udqm), .DRAM_WE_N(we_n));

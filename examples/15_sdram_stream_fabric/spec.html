@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>15 SDRAM stream fabric: architecture spec</title>
+<meta name="description" content="DE10-Lite example 15, specification for review: a burst SDRAM controller at 100 MHz, a credit-based fan-out of N FIFO channels plus write-back lanes, N int8 matrix-vector units, control over JTAG; the data-flow infrastructure for a TinyStories LLM on the board.">
+<link rel="stylesheet" href="../example.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 15 / Architecture spec</nav>
+<h1>15 · SDRAM stream fabric: architecture specification</h1>
+<p class="lead">The 64 MB SDRAM holds the parameters of a small transformer (<a href="../14_usb_sdram_loader/index.html">example 14</a>
+puts them there). This example moves them out again as fast as the chip allows and hands them to <b>N compute units</b>
+through <b>N FIFOs</b>, each unit owning its own region of memory, with <b>one write-back channel</b> for results. The
+compute units of this example do the one operation a transformer spends its time on: an int8 matrix-vector product.
+Everything else about the LLM comes later; this page is about the data flowing.</p>
+<div class="badges">
+  <span class="badge">Specification for review: nothing built yet</span>
+  <span class="badge">Target: stories15M (15.2 MB int8); bring-up: stories260K</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">No shield needed</span>
+</div>
+<div class="panel"><b>How to read this page.</b> Each section ends with the decision it asks you to confirm. The numbers
+marked <i>expected</i> are calculated from the data sheet and from example 14's measurements; nothing on this page has
+run yet. Section <a href="#review">17</a> lists the open questions in one place.</div>
+
+<h2 id="toc">Contents</h2>
+<div class="panel">
+<ol>
+  <li><a href="#req">Requirements</a></li>
+  <li><a href="#picture">The system in one picture, modules and hierarchy</a></li>
+  <li><a href="#sdram">The SDRAM side: <code>sdram_burst_ctrl</code></a></li>
+  <li><a href="#fabric">The fabric: <code>stream_fabric</code></a></li>
+  <li><a href="#pc">The PC side: <code>jtag_regs</code>, <code>fabric_ctl.py</code>, the register map</a></li>
+  <li><a href="#data">The data: weight stream format, memory map, the model</a></li>
+  <li><a href="#unit">The compute: <code>matvec_unit</code></a></li>
+  <li><a href="#clocks">Clock domains and crossings</a></li>
+  <li><a href="#mem">Memories and budgets</a></li>
+  <li><a href="#numbers">Expected numbers</a></li>
+  <li><a href="#verify">Verification plan</a></li>
+  <li><a href="#board">Board I/O</a></li>
+  <li><a href="#decisions">Design decisions</a></li>
+  <li><a href="#scope">Out of scope, later versions</a></li>
+  <li><a href="#risks">Risks and fallbacks</a></li>
+  <li><a href="#plan">Build order</a></li>
+  <li><a href="#review">Open questions for the review</a></li>
+</ol>
+</div>
+
+<h2 id="req">1 · Requirements</h2>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Requirement</th><th>How it is checked</th></tr>
+<tr><td>R1</td><td>Aggregate SDRAM throughput <b>&ge; 170 MB/s measured on the board</b> while N channels stream (85 % of the 200 MB/s a 16-bit bus gives at 100 MHz).</td><td>Board: all channels in <code>loop</code> mode over the stories15M blob; <code>SDRAM_BUSY_CLOCKS / SDRAM_TOTAL_CLOCKS</code> and the fetched-word counters against a stopwatch.</td></tr>
+<tr><td>R2</td><td>Burst length is a <b>runtime register per channel</b> (1..MAX_BURST words); the controller handles row boundaries and refresh inside a burst by itself.</td><td>Simulation: random bursts across row boundaries with forced refreshes, scoreboard. Board: memory test at several burst lengths.</td></tr>
+<tr><td>R3</td><td><b>N</b> (channels and units) and the FIFO depth are <b>compile-time parameters</b>; the demo builds N = 6.</td><td>Build N = 1, 2, 6 in simulation; N = 6 on the board.</td></tr>
+<tr><td>R4</td><td>Results go back to the SDRAM through <b>one write-back channel</b> (N lanes, one arbiter slot each) and are read with example 14.</td><td>Board: y read back with <code>sdram_load.py</code>, compared with numpy bit by bit.</td></tr>
+<tr><td>R5</td><td>The example 14 loader keeps working <b>unchanged</b> beside the fabric; the PC controls the fabric over the same USB-Blaster.</td><td><code>sdram_load.py bench</code> on the fabric build gives the same 583 KB/s; <code>fabric_ctl.py</code> runs over the direct and the Quartus routes.</td></tr>
+<tr><td>R6</td><td>Every module has a self-checking testbench that runs on Icarus; the matrix-vector result is <b>bit-exact</b> with a Python model.</td><td><code>pytest tests/test_stream_fabric.py</code>.</td></tr>
+<tr><td>R7</td><td>One 100 MHz clock for the fabric, the controller and the units; the FIFOs are dual-clock so a unit can later run on its own clock.</td><td>Timing closed at 100 MHz; <code>tb_async_fifo</code> with unrelated clocks.</td></tr>
+<tr><td>R8</td><td>Documented as a BKM: page, skill, gotchas, portal card; the lib modules reusable on their own (<code>lib/rtl</code>).</td><td><code>python -m pytest tests/</code> (hygiene, sync, example tests).</td></tr>
+</table></div>
+<p><b>Decision asked:</b> R1's threshold (170 MB/s) and N = 6 as the demo size.</p>
+
+<h2 id="picture">2 · The system in one picture</h2>
+<div class="diagram">
+<svg viewBox="0 0 900 470" role="img" aria-label="Block diagram: on the PC, fabric_ctl.py and sdram_load.py reach the USB-Blaster, which drives the MAX 10 JTAG port and the SLD hub; the hub routes to two virtual JTAG nodes, jtag_regs (register bus) and sdram_loader (legacy word port); both feed stream_fabric, which holds a round-robin arbiter, N read channels with FIFOs, N write-back lanes and a legacy bridge; the fabric issues bursts to sdram_burst_ctrl which drives the SDRAM chip at 100 MHz; below the fabric, N matvec units read the FIFOs, hold x in M9K buffers and return results to the write-back lanes.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <!-- clock domain frames -->
+  <rect x="340" y="6" width="200" height="190" rx="10" fill="none" stroke="var(--d-stroke)" stroke-dasharray="5 4"/>
+  <text class="small" x="350" y="22">TCK ↔ clk crossings</text>
+  <rect x="550" y="6" width="344" height="458" rx="10" fill="none" stroke="var(--d-stroke)" stroke-dasharray="5 4"/>
+  <text class="small" x="560" y="22">clk 100 MHz (PLL c0)</text>
+  <!-- PC -->
+  <rect class="ip" x="10" y="30" width="170" height="56" rx="8"/><text x="22" y="52">fabric_ctl.py</text><text class="small" x="22" y="70">registers, jobs, calib, bench</text>
+  <rect class="ip" x="10" y="100" width="170" height="56" rx="8"/><text x="22" y="122">sdram_load.py (ex. 14)</text><text class="small" x="22" y="140">load the blob, read y back</text>
+  <rect class="pin" x="10" y="180" width="170" height="56" rx="8"/><text x="22" y="202">USB-Blaster</text><text class="small" x="22" y="220">direct (D2XX) or quartus_stp</text>
+  <rect class="blk" x="210" y="180" width="110" height="56" rx="8"/><text x="222" y="202">MAX 10 TAP</text><text class="small" x="222" y="220">+ SLD hub</text>
+  <!-- JTAG nodes -->
+  <rect class="blk" x="350" y="36" width="180" height="60" rx="8"/><text x="362" y="58">jtag_regs (new)</text><text class="small" x="362" y="76">VJTAG inst 1: ADDR, WRITE, READ</text><text class="small" x="362" y="90">32-bit registers, auto-increment</text>
+  <rect class="blk" x="350" y="120" width="180" height="60" rx="8"/><text x="362" y="142">sdram_loader (ex. 14)</text><text class="small" x="362" y="160">VJTAG inst 0, unchanged</text><text class="small" x="362" y="174">single-word master port</text>
+  <!-- fabric -->
+  <rect class="blk" x="560" y="30" width="200" height="300" rx="8"/><text x="572" y="52">stream_fabric</text>
+  <rect class="ip" x="572" y="62" width="176" height="44" rx="6"/><text x="582" y="80">arbiter</text><text class="small" x="582" y="96">round-robin, one burst per grant</text>
+  <rect class="ip" x="572" y="116" width="176" height="70" rx="6"/><text x="582" y="134">read channel × N</text><text class="small" x="582" y="150">BASE LEN BURST CTRL</text><text class="small" x="582" y="164">credit: room for a whole burst</text><text class="small" x="582" y="178">async_fifo 1024 × 16 (2 M9K)</text>
+  <rect class="ip" x="572" y="196" width="176" height="70" rx="6"/><text x="582" y="214">write-back lane × N</text><text class="small" x="582" y="230">WB_BASE auto-increment</text><text class="small" x="582" y="244">64 × 32 FIFO (1 M9K)</text><text class="small" x="582" y="258">request at WBURST or flush</text>
+  <rect class="ip" x="572" y="276" width="176" height="44" rx="6"/><text x="582" y="294">legacy bridge</text><text class="small" x="582" y="310">word port → burst of 1, lowest prio</text>
+  <!-- controller + SDRAM -->
+  <rect class="blk" x="766" y="100" width="124" height="100" rx="8"/><text x="776" y="122">sdram_burst_ctrl</text><text class="small" x="776" y="140">(new)</text><text class="small" x="776" y="156">ACT, R/W × L, PRE</text><text class="small" x="776" y="170">refresh, row split</text><text class="small" x="776" y="184">rd_delay 2..6</text>
+  <rect class="pin" x="766" y="230" width="124" height="90" rx="6"/><text x="776" y="252">SDRAM</text><text class="small" x="776" y="270">IS42S16320</text><text class="small" x="776" y="284">32M × 16, 4 banks</text><text class="small" x="776" y="298">DRAM_CLK 100 MHz</text><text class="small" x="776" y="312">phase P (PLL c1)</text>
+  <!-- units -->
+  <rect class="blk" x="560" y="350" width="200" height="104" rx="8"/><text x="572" y="372">matvec_unit × N</text><text class="small" x="572" y="390">pops one word = 2 int8 weights</text><text class="small" x="572" y="404">× T x-vectors in M9K (512 × 18 each)</text><text class="small" x="572" y="418">group sum × int16 scale → 48-bit acc</text><text class="small" x="572" y="432">int32 out → write-back lane</text>
+  <rect class="ip" x="766" y="350" width="124" height="104" rx="8"/><text x="776" y="372">seg7 / LEDs</text><text class="small" x="776" y="390">bus utilisation %</text><text class="small" x="776" y="404">channel busy</text><text class="small" x="776" y="418">init_done</text>
+  <!-- wires -->
+  <path class="wire" d="M95,86 V100"/><path class="wire" d="M95,156 V180"/>
+  <path class="wire" d="M180,208 H210" marker-end="url(#a)"/>
+  <path class="wire" d="M320,208 H335 V66 H350" marker-end="url(#a)"/>
+  <path class="wire" d="M335,150 H350" marker-end="url(#a)"/>
+  <path class="wire" d="M530,66 H545 V84 H560" marker-end="url(#a)"/>
+  <text class="small" x="536" y="60">reg bus</text>
+  <path class="wire" d="M530,150 H545 V298 H560" marker-end="url(#a)"/>
+  <path class="wire" d="M545,180 V402 H560" marker-end="url(#a)"/>
+  <path class="wire" d="M760,150 H766" marker-end="url(#a)"/>
+  <path class="wire" d="M828,200 V230" marker-end="url(#a)"/>
+  <path class="wire" d="M620,330 V350" marker-end="url(#a)"/><text class="small" x="626" y="344">N FIFOs</text>
+  <path class="wire" d="M700,350 V330" marker-end="url(#a)"/><text class="small" x="706" y="344">results</text>
+  <path class="wire" d="M760,90 H763 V402 H766" marker-end="url(#a)"/>
+</svg>
+</div>
+
+<h3>Modules and hierarchy</h3>
+<div class="tablewrap"><table>
+<tr><th>Module</th><th>File</th><th>Status</th><th>Role</th></tr>
+<tr><td><code>fabric_top</code></td><td><code>examples/15_sdram_stream_fabric/src/fabric_top.sv</code></td><td>new</td><td>The DE10-Lite top: PLL, reset, the fabric, N units, the two JTAG nodes, LEDs and 7-segment.</td></tr>
+<tr><td><code>pll_100</code></td><td><code>src/pll_100.v</code> (altpll, generated by <code>new_project.py</code> style)</td><td>new</td><td>50 MHz in → c0 100 MHz (<code>clk</code>), c1 100 MHz with phase P (<code>DRAM_CLK</code>). P is swept on the board.</td></tr>
+<tr><td><code>sdram_burst_ctrl</code></td><td><code>lib/rtl/sdram_burst_ctrl.sv</code></td><td>new, lib</td><td>One burst command → ACT, L column accesses, precharge; refresh; row-boundary split; init; programmable read capture delay.</td></tr>
+<tr><td><code>stream_fabric</code></td><td><code>lib/rtl/stream_fabric.sv</code></td><td>new, lib</td><td>Arbiter + N <code>stream_rd_channel</code> + N <code>wb_lane</code> + <code>legacy_bridge</code>; register interface for the channels.</td></tr>
+<tr><td><code>stream_rd_channel</code></td><td><code>lib/rtl/stream_rd_channel.sv</code></td><td>new, lib</td><td>Descriptor registers, credit check, burst requests, the channel's <code>async_fifo</code>.</td></tr>
+<tr><td><code>wb_lane</code></td><td><code>lib/rtl/wb_lane.sv</code></td><td>new, lib</td><td>32-bit results in, 16-bit SDRAM words out; auto-incrementing base; flush.</td></tr>
+<tr><td><code>legacy_bridge</code></td><td>inside <code>stream_fabric.sv</code></td><td>new</td><td>Turns the example 06/14 single-word master port (req, we, addr, wdata, ready, rvalid, rdata) into bursts of one word.</td></tr>
+<tr><td><code>async_fifo</code></td><td><code>lib/rtl/async_fifo.sv</code></td><td>new, lib</td><td>Dual-clock FIFO, gray-code pointers, 2-FF synchronizers, inferred M9K, show-ahead output, level on both sides.</td></tr>
+<tr><td><code>matvec_unit</code></td><td><code>lib/rtl/matvec_unit.sv</code></td><td>new, lib</td><td>Weight-streaming, activation-stationary int8 matrix-vector unit with T vectors.</td></tr>
+<tr><td><code>jtag_regs</code></td><td><code>lib/rtl/jtag_regs.sv</code></td><td>new, lib</td><td>Virtual JTAG node (instance 1) → 32-bit register bus with auto-increment; reusable by any design that wants PC-visible registers.</td></tr>
+<tr><td><code>sdram_loader</code></td><td><code>lib/rtl/sdram_loader.sv</code></td><td>reused, unchanged</td><td>Example 14's loader (instance 0), now on the legacy port of the fabric.</td></tr>
+<tr><td><code>seg7</code>, <code>sync_reset</code></td><td><code>lib/rtl/</code></td><td>reused</td><td>7-segment digits; PLL-locked reset synchronizer.</td></tr>
+</table></div>
+<p><b>Decision asked:</b> the module names and that the new pieces go to <code>lib/rtl/</code> (reusable) rather than
+staying inside the example.</p>
+
+<h2 id="sdram">3 · The SDRAM side: <code>sdram_burst_ctrl</code></h2>
+<h3>Why bursts</h3>
+<p>The SDRAM's data bus is 16 bits wide and moves one word per clock: at 100 MHz that is <b>200 MB/s, the ceiling</b>. A
+single-word access pays the row open/close every time (example 06's controller: about 13 clocks per read at 50 MHz,
+≈ 8 MB/s). A burst pays it once per L words: ACT, one wait clock (tRCD), L column commands, the precharge and its tRP.
+Measured in simulation (<code>lib/sim/tb_sdram_burst_ctrl.sv</code>, 9 bursts back to back, refresh included):</p>
+<div class="tablewrap"><table>
+<tr><th>Burst L (words)</th><th>Clocks per read burst</th><th>Clocks per write burst</th><th>Bus efficiency (read / write)</th><th>MB/s at 100 MHz</th><th>Note</th></tr>
+<tr><td>1 (legacy port)</td><td>7</td><td>7</td><td>14 %</td><td>28.6</td><td>tRC-bound; what the loader needs, far above the cable's 0.58 MB/s</td></tr>
+<tr><td>8</td><td>12</td><td>13</td><td>67 / 62 %</td><td>133 / 123</td><td></td></tr>
+<tr><td>32</td><td>36</td><td>37</td><td>89 / 86 %</td><td>178 / 173</td><td></td></tr>
+<tr><td>64</td><td>68</td><td>69</td><td>92 / 91 %</td><td>184 / 182</td><td>the smallest L that meets R1</td></tr>
+<tr><td>128</td><td>132</td><td>133</td><td>95 / 95 %</td><td>190 / 190</td><td></td></tr>
+<tr><td>256</td><td>260</td><td>261</td><td>96.8 / 96.4 %</td><td>194 / 193</td><td>the demo's default BURST</td></tr>
+<tr><td>512</td><td>516</td><td>517</td><td>97.8 / 97.3 %</td><td>196 / 195</td><td>MAX_BURST of the demo (FIFO depth 1024 = 2 bursts)</td></tr>
+<tr><td>1024 (a full row)</td><td>1028</td><td>1029</td><td>98.0 / 97.9 %</td><td>196 / 196</td><td>compile-time maximum</td></tr>
+</table></div>
+<p>Period = L + 4 clocks for a read burst, L + 5 for a write burst (tWR), never under 7 (tRC); plus a 12-clock pause
+every 7.5 µs for a refresh (1.6 %). The efficiency column is what the testbench measured with the refresh pauses in.</p>
+
+<h3>The chip and its timing at 100 MHz (10 ns)</h3>
+<div class="tablewrap"><table>
+<tr><th>Item</th><th>IS42S16320D-7TL</th><th>Clocks at 100 MHz</th><th>Where it matters</th></tr>
+<tr><td>Organisation</td><td>32M × 16: 4 banks × 8192 rows × 1024 columns</td><td></td><td>word address [24:23] bank, [22:10] row, [9:0] column; a row is 2 KB</td></tr>
+<tr><td>CAS latency</td><td>CL 2 at tCK ≥ 10 ns; CL 3 at tCK ≥ 7 ns</td><td>CL 3</td><td>CL 2 sits exactly on the limit at 100 MHz; CL 3 gives margin</td></tr>
+<tr><td>tRCD (ACT → READ/WRITE)</td><td>20 ns</td><td>2</td><td>ACT, one wait clock, then the column accesses</td></tr>
+<tr><td>tRP (PRE → ACT)</td><td>20 ns</td><td>2</td><td>between bursts to the same bank</td></tr>
+<tr><td>tRC (ACT → ACT, same bank)</td><td>63 ns</td><td>7</td><td>only bites for L &lt; 3</td></tr>
+<tr><td>tRAS (ACT → PRE)</td><td>42 ns min, 100 µs max</td><td>5 min</td><td>the max: a burst must never keep a row open for 100 µs (max burst is 10 µs)</td></tr>
+<tr><td>tWR (last write data → PRE)</td><td>2 clocks</td><td>2</td><td>write bursts end 2 clocks later than read bursts</td></tr>
+<tr><td>tRFC (AUTO REFRESH → next)</td><td>63 ns</td><td>7</td><td>the refresh pause</td></tr>
+<tr><td>Refresh</td><td>8192 per 64 ms</td><td>one per 750</td><td>the refresh timer (7.5 µs, so the pause until a burst can stop still keeps the 7.8 µs average); a 1024-word burst (10.3 µs) always meets one</td></tr>
+<tr><td>Mode register</td><td>BL 1, sequential, CL 3, standard, write burst = BL</td><td><code>0x030</code></td><td>one READ or WRITE command per word; the controller makes the burst, not the chip</td></tr>
+<tr><td>Read data window (bare chip)</td><td>driven from T(CL−1) + tAC 5.4 ns, held to T(CL) + tOH 2.7 ns</td><td></td><td>26.65–33.95 ns after the READ edge with DRAM_CLK 45° behind: the FPGA samples at 30 ns = <code>rd_delay</code> 3; the board adds a few ns (section 8)</td></tr>
+</table></div>
+
+<h3>Command sequences</h3>
+<pre><code>read burst, L words: ACT, one wait clock, one READ per clock (A10 = 0: no auto-precharge),
+PRE of that bank when the last READ is out and tRAS is met, tRP, then the next ACT
+clk   0    1    2    3    4    5    ...  L+1      L+2   L+3   L+4
+cmd   ACT  nop  RD0  RD1  RD2  RD3  ...  RD[L-1]  PRE   nop   ACT (next burst)
+DQ                             D0   D1   ...      ...   ...   D[L-1] (sampled at clk L+1+rd_delay)
+period = L + 4 clocks (L ≥ 3; 7 clocks below that, tRC); the next ACT may go to any bank
+
+write burst, L words: data rides with each WRITE; tWR (2) then PRE, tRP (2)
+clk   0    1    2    3    ...  L+1      L+2  L+3  L+4  L+5
+cmd   ACT  nop  WR0  WR1  ...  WR[L-1]  nop  PRE  nop  ACT (next burst)
+DQ              D0   D1   ...  D[L-1]
+period = L + 5 clocks (L ≥ 2); a clock without wvalid is a NOP in the middle (allowed, costs the clock)
+
+refresh inside a burst (the timer fired): no column command this clock, then
+PRE(bank) when tRAS/tWR allow  nop  AUTO REFRESH  nop ×6  ACT(same row)  nop  next column
+pause ≈ 12 clocks; rvalid / wready simply stay low meanwhile
+
+row boundary inside a burst (column 1023 issued): PRE, tRP, ACT row+1 (or bank+1 when the
+row wraps; the end of memory wraps to address 0) and continue. The channel never sees it:
+one command in, L words out.
+
+after a read burst, a write burst's first WRITE waits until rd_delay + 1 clocks after the
+last READ so the chip has let go of DQ (the read's own PRE/tRP gap covers most of it).</code></pre>
+<p>Explicit PRE rather than auto-precharge: the same clock count, and one path handles the normal end of a burst, a
+refresh pause and a row boundary alike, with tRAS (5 clocks) and tWR (2) enforced by two small counters instead of by
+the chip's lockout.</p>
+
+<h3>Port (the burst master interface)</h3>
+<div class="tablewrap"><table>
+<tr><th>Signal</th><th>Dir</th><th>Width</th><th>Meaning</th></tr>
+<tr><td><code>clk, rst_n</code></td><td>in</td><td></td><td>100 MHz, synchronous reset (PLL locked, synchronized)</td></tr>
+<tr><td><code>cmd_valid / cmd_ready</code></td><td>in / out</td><td>1</td><td>one burst command per handshake; ready only when init is done, no refresh is due and the previous burst's PRE has had its tRP. <b>Ready comes before a read burst's last data is out</b> (the last READ is issued, the PRE and tRP follow, the data trails by rd_delay + 1): a requester with several readers must remember whose burst is in flight (a 2-deep owner queue, popped by <code>done</code>)</td></tr>
+<tr><td><code>cmd_we</code></td><td>in</td><td>1</td><td>0 read, 1 write</td></tr>
+<tr><td><code>cmd_addr</code></td><td>in</td><td>25</td><td>word address of the first word (same convention as the loader)</td></tr>
+<tr><td><code>cmd_len</code></td><td>in</td><td>11</td><td>1..1024 words (0 means 1024)</td></tr>
+<tr><td><code>wdata / wvalid / wready</code></td><td>in / in / out</td><td>16</td><td>write stream; the controller takes one word per clock while <code>wready</code>; a clock without <code>wvalid</code> inserts a NOP (allowed, costs a clock; the fabric never does it)</td></tr>
+<tr><td><code>rdata / rvalid</code></td><td>out</td><td>16</td><td>read stream, no backpressure: the requester guaranteed the room; one word per clock, rd_delay + 1 clocks after its READ</td></tr>
+<tr><td><code>done</code></td><td>out</td><td>1</td><td>one pulse per burst: with the last read word, or when the last write is committed (its PRE)</td></tr>
+<tr><td><code>init_done</code></td><td>out</td><td>1</td><td>after the 105 µs wait, PRE ALL, 8 refreshes and the mode register set (105.6 µs in simulation)</td></tr>
+<tr><td><code>rd_delay</code></td><td>in</td><td>3</td><td>2..6: the clock, counted from the READ command, on which the FPGA's input register samples DQ. 3 for the bare chip with DRAM_CLK 45° or 90° behind clk, 4 at 270°; the board's extra delay moves it (section 8); set from a register, found by <code>fabric_ctl.py calib</code></td></tr>
+<tr><td><code>stat_busy, stat_refresh</code></td><td>out</td><td>1, 1</td><td>pulses for the utilisation counters (a clock with data moving; a refresh issued)</td></tr>
+<tr><td><code>DRAM_*</code></td><td>out / inout</td><td></td><td>CKE, CS_N, RAS_N, CAS_N, WE_N, BA[1:0], ADDR[12:0], DQ[15:0], UDQM, LDQM; all through I/O registers (<code>FAST_OUTPUT_REGISTER</code>, <code>FAST_INPUT_REGISTER</code>, <code>FAST_OUTPUT_ENABLE_REGISTER</code>); DRAM_CLK comes from the PLL</td></tr>
+</table></div>
+
+<h3>State machine</h3>
+<pre><code>S_INIT (105 µs) → PRE ALL → S_INIT_REF ×8 (tRFC apart) → MRS 0x030 → S_INIT_MRS (tMRD) → S_IDLE
+S_IDLE    : refresh due → AUTO REFRESH, wait tRFC, stay ; cmd_valid → ACT bank/row → S_ACT
+S_ACT     : one clock (tRCD); a write burst also waits until the previous read has let go of DQ → S_ACCESS
+S_ACCESS  : one READ or WRITE per clock, address++ ; a clock without wvalid is a NOP
+            last word, or column 1023, or refresh due → S_PRE
+S_PRE     : when tRAS (5 clocks from ACT) and tWR (2 from the last WRITE) allow: PRE bank
+            words remain → S_RP ; burst complete → S_IDLE (done for a write)
+S_RP      : wait tRP ; refresh due → AUTO REFRESH, wait tRFC, stay ; else ACT the next row → S_ACT
+read data : an 8-bit shift register with one bit per READ issued; the bit at rd_delay says "the input
+            register holds this word": rdata, rvalid, and done for the last word of the burst</code></pre>
+<p><b>Decided:</b> CL 3 and the BL = 1 "controller makes the burst" approach (versus the chip's own burst modes, which
+would need interrupting bursts and give nothing here); explicit PRE rather than auto-precharge (above). Verified in
+simulation against the JEDEC-timed model: 550 bursts with every length and every boundary, 0 data errors, 0 timing
+errors, also with a refresh forced every 97 clocks (a pause inside almost every burst).</p>
+
+<h2 id="fabric">4 · The fabric: <code>stream_fabric</code></h2>
+<h3>The two rules that keep the bus busy</h3>
+<ol>
+  <li><b>Credit.</b> A read channel asks for a burst only when its FIFO has <b>room for the whole burst</b> (depth − level −
+  words already in flight ≥ BURST). A write lane asks only when it <b>holds the whole burst</b> (or is flushing). So a
+  burst, once granted, never stalls in the middle: the SDRAM port needs no backpressure and every granted clock moves
+  a word.</li>
+  <li><b>One burst per grant.</b> The arbiter is round-robin over all requesters (N read channels, N write lanes, the
+  legacy bridge) at burst granularity. Fairness costs nothing: with credits, a channel that has room is a channel whose
+  unit is consuming.</li>
+</ol>
+<p>Continuity needs <b>FIFO depth ≥ 2 × BURST</b>: while the unit drains one burst the next one is being fetched. The demo
+uses DEPTH 1024 words (two M9K in 1024 × 9 mode… see <a href="#mem">section 9</a>) and BURST ≤ 512. An optional
+"emptiest first" policy (grant the channel with the lowest level) is a parameter, off by default; the testbench measures
+both.</p>
+<p><b>Who owns the read data.</b> The controller accepts the next command (<code>cmd_ready</code>) while the previous read
+burst's last words are still on their way (<a href="#sdram">section 3</a>: the data trails the READ by
+<code>rd_delay</code> + 1 clocks, the PRE and tRP run meanwhile). So the arbiter keeps a <b>2-entry queue of read
+owners</b>: a granted read pushes its channel number, each <code>done</code> of a read burst pops one, and
+<code>rvalid</code> words go to the channel at the head. Two read bursts' data never overlap (there are at least 4 clocks
+between the last word of one and the first of the next), so the head is always unambiguous. A write burst's
+<code>done</code> does not touch the queue; the write lane is the only one driving <code>wdata</code> while it is granted.</p>
+
+<h3>Read channel (<code>stream_rd_channel</code>)</h3>
+<div class="tablewrap"><table>
+<tr><th>Register</th><th>Bits</th><th>Meaning</th></tr>
+<tr><td><code>BASE</code></td><td>25</td><td>first word address of the channel's region</td></tr>
+<tr><td><code>LEN</code></td><td>25</td><td>region length in words; the last burst is shortened to what remains</td></tr>
+<tr><td><code>BURST</code></td><td>11</td><td>1..MAX_BURST words per request</td></tr>
+<tr><td><code>CTRL</code></td><td>32</td><td>bit 0 enable, bit 1 loop (restart at BASE when LEN is reached: for throughput tests), bit 2 start (self-clearing), bit 3 abort, bit 4 clear counters</td></tr>
+<tr><td><code>STAT</code></td><td>32</td><td>[10:0] FIFO level, bit 16 running, bit 17 done, bit 18 fifo overflow (must never set)</td></tr>
+<tr><td><code>FETCHED</code></td><td>32</td><td>words delivered to the FIFO since start</td></tr>
+<tr><td><code>WAITED</code></td><td>32</td><td>clocks the channel had a request pending and was not granted (contention)</td></tr>
+</table></div>
+<p>FIFO read side (to the unit): show-ahead, <code>dout[15:0]</code> valid while <code>!empty</code>, <code>rd_en</code> pops;
+<code>level</code> for diagnostics. The read side is on the unit's clock (= <code>clk</code> in this example).</p>
+
+<h3>Write-back lane (<code>wb_lane</code>)</h3>
+<p>A unit pushes 32-bit results (<code>wb_data, wb_valid, wb_ready</code>); the lane stores them in a 64 × 32 FIFO and
+writes them as 16-bit words, low half first, to <code>WB_BASE</code>, which auto-increments. It requests a burst when it
+holds <code>WBURST</code> words (default 64 words = 32 results) or when the unit raises <code>wb_flush</code> at the end
+of a job and anything is left. Registers: <code>WB_BASE</code> (25), <code>WB_CTRL</code> ([10:0] WBURST, bit 16 flush
+self-clearing, bit 17 clear), <code>WB_STAT</code> ([6:0] level in results, [31:8] words written).</p>
+
+<h3>Legacy bridge</h3>
+<p>The example 06/14 master port (<code>req, we, addr[24:0], wdata, ready, rvalid, rdata</code>) becomes a burst of one
+word at the lowest priority with a bounded wait: at most one longest burst plus a refresh, ≈ 1024 + 5 + 12 clocks ≈
+10.4 µs. The loader's words arrive every 3.4 µs at the cable's rate and its 16-word FIFO absorbs that; in practice the
+loader runs when no job runs. This is how example 14 stays untouched and still proven (R5).</p>
+
+<h3><code>async_fifo</code></h3>
+<p>Own module instead of Altera's <code>dcfifo</code> so Icarus simulates it: binary pointers, gray-coded copies crossed
+with 2-FF synchronizers, inferred simple dual-port RAM (one M9K per 1024 × 9 or 512 × 18), show-ahead read, level on
+both sides from the synchronized pointers (conservative on each side, which is exactly what the credit rule needs). With
+both clocks tied it is an ordinary synchronous FIFO two clocks of latency slower, which the demo accepts for the sake
+of R7.</p>
+<p><b>Decision asked:</b> credit-based bursts with round-robin, DEPTH 1024 / BURST 256 as defaults, one 64-entry lane
+per unit.</p>
+
+<h2 id="pc">5 · The PC side: <code>jtag_regs</code>, <code>fabric_ctl.py</code>, the register map</h2>
+<p><code>jtag_regs</code> is a second virtual JTAG node (<code>sld_virtual_jtag</code>, instance index 1; the loader is 0)
+with a 4-bit IR: <b>1 ADDR</b> (shift 16 bits: the register address), <b>2 WRITE</b> (shift 32 bits; on update the word is
+written to ADDR and ADDR increments), <b>3 READ</b> (capture returns the register at ADDR; on update ADDR increments),
+<b>4 ID</b> (capture a fixed 32-bit identifier and version). Auto-increment makes a block transfer one DR pass per word.
+The TCK ↔ clk crossing reuses the loader's pattern (toggle + 2-FF synchronizer + acknowledge). On the fabric side it is a
+plain bus: <code>addr[15:0], wdata[31:0], we, rdata[31:0]</code>, one clock per access.</p>
+<p><code>scripts/fabric_ctl.py</code> drives it over both routes of example 14 (<code>usb_blaster.py</code>'s
+<code>SldHub</code> directly, or <code>quartus_stp</code> with a small Tcl answer file): <code>regs</code> (dump), <code>poke
+/ peek</code>, <code>calib</code> (sweep <code>rd_delay</code> with a known pattern written by the loader), <code>memtest</code>
+(full chip through the fabric at a chosen BURST), <code>bench</code> (loop mode on all channels, report MB/s and
+utilisation), <code>job</code> (program a matvec job from the model's JSON map, run it, wait for done), <code>stats</code>.</p>
+
+<h3>Register map (32-bit registers, 16-bit addresses)</h3>
+<div class="tablewrap"><table>
+<tr><th>Address</th><th>Name</th><th>Meaning</th></tr>
+<tr><td><code>0x000</code></td><td>ID</td><td><code>0x5F15_0001</code>: "SF", example 15, version 1 (also at IR 4)</td></tr>
+<tr><td><code>0x001</code></td><td>CTRL</td><td>bit 0 soft reset of channels and units, bit 1 start all enabled channels and units (self-clearing), bit 2 abort all, bit 3 clear all counters, bit 8 emptiest-first (if built)</td></tr>
+<tr><td><code>0x002</code></td><td>STATUS</td><td>bit 0 init_done, bit 1 pll_locked, bit 2 any channel running, bit 3 any unit busy, bit 4 legacy port busy, [15:8] N, [23:16] T, [31:24] log2 MAX_BURST</td></tr>
+<tr><td><code>0x003</code></td><td>RD_DELAY</td><td>[2:0] the controller's read capture delay (default 3)</td></tr>
+<tr><td><code>0x004</code></td><td>BUSY_CLOCKS</td><td>clocks with a word moving on the SDRAM bus since clear</td></tr>
+<tr><td><code>0x005</code></td><td>TOTAL_CLOCKS</td><td>clocks since clear (utilisation = BUSY / TOTAL)</td></tr>
+<tr><td><code>0x006</code></td><td>REFRESHES</td><td>refresh commands since clear</td></tr>
+<tr><td><code>0x007</code></td><td>BURSTS</td><td>bursts granted since clear</td></tr>
+<tr><td><code>0x010 + 8c</code></td><td>read channel c</td><td>+0 BASE, +1 LEN, +2 BURST, +3 CTRL, +4 STAT, +5 FETCHED, +6 WAITED, +7 reserved</td></tr>
+<tr><td><code>0x080 + 4u</code></td><td>write lane u</td><td>+0 WB_BASE, +1 WB_CTRL, +2 WB_STAT, +3 reserved</td></tr>
+<tr><td><code>0x100 + 16u</code></td><td>unit u</td><td>+0 ROWS, +1 K, +2 T, +3 SHIFT, +4 CTRL, +5 STAT, +6 CYCLES_BUSY, +7 CYCLES_STARVED, +8 XADDR, +9 XDATA, +10 ROWS_DONE, +11..15 reserved</td></tr>
+<tr><td><code>0x1F0</code></td><td>unit broadcast</td><td>same layout as a unit; a write lands in every unit (all units get the same x and the same job shape; only their rows differ)</td></tr>
+</table></div>
+<p><b>Decision asked:</b> a generic register node in <code>lib</code> (future designs get PC-visible registers for free)
+and this map.</p>
+
+<h2 id="data">6 · The data: weight stream format, memory map, the model</h2>
+<h3>Which model</h3>
+<div class="tablewrap"><table>
+<tr><th>llama2.c model</th><th>dim / layers / heads / FFN</th><th>Vocab, context</th><th>int8 size</th><th>KV per token</th><th>Fits?</th></tr>
+<tr><td>stories260K</td><td>64 / 5 / 8 (4 KV) / 172</td><td>512, 512</td><td>0.26 MB</td><td>640 B</td><td>yes; KV for the full context fits in M9K: the <b>bring-up and simulation</b> model</td></tr>
+<tr><td><b>stories15M</b></td><td>288 / 6 / 6 / 768</td><td>32000, 256</td><td>15.2 MB (16.1 with scales)</td><td>3.4 KB (884 KB at full context)</td><td>yes; the classifier (32000 × 288, 9.2 MB) is the biggest single stream: <b>the target</b></td></tr>
+<tr><td>stories42M</td><td>512 / 8 / 8 / 1376</td><td>32000, 1024</td><td>41.7 MB</td><td>8 KB</td><td>fits the SDRAM, ≈ 4 tokens/s memory-bound: later</td></tr>
+<tr><td>stories110M</td><td>768 / 12 / 12 / 2048</td><td>32000, 1024</td><td>110 MB</td><td>18 KB</td><td>no</td></tr>
+</table></div>
+
+<h3>Weight stream format (<code>model.q8.bin</code>)</h3>
+<p>Each matrix W (ROWS × K) is stored row after row. A row is split along K into <b>groups of G = 32</b> weights (32
+divides 288 and 768; stories260K's 172 is padded to 192 with zeros). A group on the stream is <b>17 words</b>: 16 words
+of int8 pairs (word j = {w[2j+1], w[2j]}, little-endian) followed by one word holding the group's <b>int16 scale</b>
+s_g. The real weight is w = q · s_g · 2<sup>E</sup>, with E one exponent per matrix kept in the JSON map; the exporter
+picks E so that the largest s_g is 32767. The hardware never sees E or the activation scale: it computes
+Σ<sub>g</sub> (Σ<sub>j</sub> q<sub>j</sub> x<sub>j</sub>) · s<sub>g</sub> exactly and the host applies the two scalars.
+Overhead of the scales: 1/16 = 6 %. Every matrix starts on a 1024-word boundary (a row of the SDRAM) so no burst of a
+power-of-two length ever crosses a row inside a matrix.</p>
+<pre><code>row i of W, K = 288:  9 groups × 17 words = 153 words
+  g0: w[0..31] as 16 words | s_0 | g1: w[32..63] as 16 words | s_1 | ... | g8 | s_8
+row i of W, K = 768: 24 groups × 17 words = 408 words
+matrix: ROWS × (K/32 × 17) words, then zero padding to the next multiple of 1024 words
+
+tools/export_q8.py stories15M.bin -o model.q8.bin --map model.json
+  model.json: per matrix { name, offset_words, rows, k, exponent } + dims, layer order</code></pre>
+
+<h3>SDRAM memory map (word addresses, 32M words = 64 MB)</h3>
+<div class="tablewrap"><table>
+<tr><th>Region</th><th>Words</th><th>Size</th><th>Contents</th></tr>
+<tr><td>WEIGHTS</td><td><code>0x000_0000 – 0x0FF_FFFF</code></td><td>32 MB</td><td><code>model.q8.bin</code> as loaded by example 14 at address 0 (stories15M uses 16.1 MB of it)</td></tr>
+<tr><td>KV</td><td><code>0x100_0000 – 0x17F_FFFF</code></td><td>16 MB</td><td>reserved for the KV cache of a later project (stories15M at full context: 884 KB)</td></tr>
+<tr><td>X</td><td><code>0x180_0000 – 0x1BF_FFFF</code></td><td>8 MB</td><td>activation vectors staged in memory (v2: the units fetch x from here instead of the host writing it)</td></tr>
+<tr><td>Y</td><td><code>0x1C0_0000 – 0x1FF_FFFF</code></td><td>8 MB</td><td>results: lane u writes at <code>0x1C0_0000 + u × 0x08_0000</code> (1 MB each, 6 of 8 used)</td></tr>
+</table></div>
+<p><b>Decision asked:</b> stories15M as the target, G = 32 with int16 group scales and a per-matrix exponent, this map.</p>
+
+<h2 id="unit">7 · The compute: <code>matvec_unit</code></h2>
+<p>A unit computes <b>y = W<sub>slice</sub> · x</b> for its slice of rows (ROWS of them, K wide) against <b>T activation
+vectors</b> at once (T = 1 for decoding, up to 8 for prefill or batching), which is where the array pays off: every
+weight word read from memory is used 2 · T times. The weights stream; the activations stay.</p>
+<h3>Per clock</h3>
+<pre><code>pop one word from the FIFO  →  two int8 weights w0 (column k), w1 (column k+1)
+for every t in 0..T-1 in parallel:
+    read x_t[k], x_t[k+1] from x-buffer t      (one M9K in 512 × 18 mode: one 2-byte read per clock)
+    p_t = w0 · x_t[k] + w1 · x_t[k+1]          (two 9 × 9 signed multiplies = one 18 × 18 DSP block)
+    gsum_t += p_t                              (20-bit signed: |32 · 127 · 127| = 516,128 fits)
+every 17th word is the scale s_g:
+    swap the gsum bank (ping-pong), then over the next 16 clocks, one t at a time:
+    acc_t += gsum_t × s_g                      (20 × 16 → 36 bits: one 18 × 18 block, two passes;
+                                                48-bit accumulator)
+end of a row (K/32 groups):
+    for every t: y = saturate_int32(acc_t >>> SHIFT) → write-back lane (wb_data), acc_t = 0
+end of the job (ROWS rows): wb_flush, STAT.done</code></pre>
+<h3>Registers (per unit, also at the broadcast address)</h3>
+<div class="tablewrap"><table>
+<tr><th>Register</th><th>Meaning</th></tr>
+<tr><td><code>ROWS</code></td><td>rows in this unit's slice (the host splits a matrix across units: ROWS<sub>u</sub> and BASE<sub>u</sub> of channel u match)</td></tr>
+<tr><td><code>K</code></td><td>row length, a multiple of 32, ≤ 1024</td></tr>
+<tr><td><code>T</code></td><td>vectors in use, 1..T_MAX (compile-time T_MAX = 8 in the demo)</td></tr>
+<tr><td><code>SHIFT</code></td><td>0..47: output = acc &gt;&gt;&gt; SHIFT, saturated to int32</td></tr>
+<tr><td><code>CTRL</code></td><td>bit 0 start (self-clearing), bit 1 abort, bit 2 clear counters</td></tr>
+<tr><td><code>STAT</code></td><td>bit 0 busy, bit 1 done, bit 2 lane stalled the unit (wb_ready low) at least once</td></tr>
+<tr><td><code>CYCLES_BUSY / CYCLES_STARVED</code></td><td>clocks computing / clocks waiting for the FIFO while running: the two numbers that say whether memory or compute is the limit</td></tr>
+<tr><td><code>XADDR / XDATA</code></td><td>write x: a write to XDATA stores 4 bytes of a vector at XADDR (see the note below) and adds 4 to XADDR</td></tr>
+<tr><td><code>ROWS_DONE</code></td><td>progress</td></tr>
+</table></div>
+<p class="note">x-buffer addressing: <code>XADDR[15:12]</code> selects the vector t, <code>XADDR[11:0]</code> the byte
+position in it. The host writes x once per token to the broadcast address (every unit multiplies the same x by its own
+rows), 4 bytes per DR pass. For stories15M that is 288 bytes per matrix input = 72 passes: a few milliseconds over the
+direct route. Prefill with T = 8 writes 8 vectors.</p>
+<h3>Output layout</h3>
+<p>Lane u receives, row after row, T int32 values: <code>Y_u[(i × T + t)]</code> at word <code>WB_BASE_u + (i × T + t) × 2</code>.
+The host (<code>ref_matvec.py</code>) reassembles y[row][t] from the N regions and compares with numpy's
+<code>(Wq.astype(int32) @ x.astype(int32))</code> grouped and scaled the same way: bit-exact or fail.</p>
+<p><b>Decision asked:</b> T_MAX = 8, int8 × int8 → 48-bit accumulate → int32 with a job-level SHIFT; x written by the
+host in v1.</p>
+
+<h2 id="clocks">8 · Clock domains and crossings</h2>
+<div class="tablewrap"><table>
+<tr><th>Clock</th><th>Source</th><th>Frequency</th><th>Drives</th></tr>
+<tr><td><code>clk</code></td><td>PLL c0 (50 MHz × 2)</td><td>100 MHz</td><td>controller, fabric, units, jtag_regs' and the loader's clk side, LEDs/7-segment</td></tr>
+<tr><td><code>DRAM_CLK</code></td><td>PLL c1</td><td>100 MHz, phase P</td><td>the SDRAM chip only. P is a build parameter swept on the board (example 06 needed 180° at 50 MHz; at 100 MHz the window is narrower and is the risk item, see <a href="#risks">15</a>)</td></tr>
+<tr><td><code>TCK</code></td><td>USB-Blaster</td><td>≈ 6 MHz, asynchronous</td><td>the two virtual JTAG nodes; crossings: the loader's existing toggle/handshake synchronizers; jtag_regs copies them</td></tr>
+<tr><td><code>unit clk</code></td><td>= <code>clk</code> in this example</td><td>100 MHz</td><td>the read side of the channel FIFOs and the units; the FIFOs are dual-clock so a later design can change this without touching the fabric</td></tr>
+</table></div>
+<h3>The read window: phase P and <code>rd_delay</code></h3>
+<p>The chip drives a read word from edge T(CL−1) + tAC (5.4 ns) of <i>its</i> clock and holds it until T(CL) + tOH
+(2.7 ns). With DRAM_CLK P ns behind <code>clk</code> and CL 3, the word is on DQ from 20 + P + 5.4 to 30 + P + 2.7 ns
+after the READ edge, plus whatever the board and the FPGA input path add (≈ 5 ns was the fit at 50 MHz in example 06).
+The FPGA's input register samples at a 10 ns multiple: <code>rd_delay</code> × 10 ns. Simulated against the JEDEC-timed
+model (<code>tb_sdram_burst_ctrl -D P_NS=… -D RD_DELAY=… -D DQ_DELAY=…</code>):</p>
+<div class="tablewrap"><table>
+<tr><th>P (DRAM_CLK behind clk)</th><th>Extra path delay</th><th>Window on DQ after READ (ns)</th><th>Working <code>rd_delay</code></th><th>Margin</th></tr>
+<tr><td>1.25 ns (45°)</td><td>0</td><td>26.7 – 34.0</td><td>3</td><td>setup 3.3 ns, hold 4.0 ns</td></tr>
+<tr><td>2.5 ns (90°)</td><td>0</td><td>27.9 – 35.2</td><td>3</td><td>setup 2.1 ns, hold 5.2 ns</td></tr>
+<tr><td>5 ns (180°)</td><td>0</td><td>30.4 – 37.7</td><td>none</td><td>the window straddles 30 and misses 40</td></tr>
+<tr><td>7.5 ns (270°)</td><td>0</td><td>32.9 – 40.2</td><td>4</td><td>hold 0.2 ns: marginal</td></tr>
+<tr><td>5 ns (180°)</td><td>5 ns</td><td>35.4 – 42.7</td><td>4</td><td>the 50 MHz board result of example 06, scaled: 180° and rd_delay 4</td></tr>
+<tr><td>1.25 ns (45°)</td><td>5 ns</td><td>31.7 – 39.0</td><td>none</td><td></td></tr>
+</table></div>
+<p>So the phase and the delay are chosen together and only the board can say which pair it is: the memory test (section
+11) sweeps P over builds and <code>rd_delay</code> 2..6 over a register, and the pair with the most margin becomes the
+default. (The old <code>sdram_model</code> had the data one clock late, which is why example 06's simulation "needed"
+rd_delay 4 like the board: the new model is JEDEC-exact and the testbenches use 3 for the bare chip.)</p>
+<p>Reset: PLL <code>locked</code> through a 2-FF synchronizer → <code>rst_n</code>; the SDRAM init waits its 100 µs after
+that. KEY0 forces a reset for the memory test. Timing constraints: <code>create_clock</code> 50 MHz on MAX10_CLK1_50,
+<code>derive_pll_clocks</code>, <code>derive_clock_uncertainty</code>, the SDRAM pins constrained as in example 06
+(input/output delays against DRAM_CLK) with the numbers rescaled to 10 ns, and false paths on the TCK crossings as in
+example 14.</p>
+
+<h2 id="mem">9 · Memories and budgets</h2>
+<div class="tablewrap"><table>
+<tr><th>Memory</th><th>Shape</th><th>M9K each</th><th>Count (N = 6, T = 8)</th></tr>
+<tr><td>Channel FIFO</td><td>1024 × 16</td><td>2 (two 1024 × 9 slices)</td><td>12</td></tr>
+<tr><td>Write lane FIFO</td><td>64 × 32</td><td>1 (256 × 36 mode, 1/4 used)</td><td>6</td></tr>
+<tr><td>x-buffer</td><td>512 × 16 per vector t</td><td>1 (512 × 18 mode)</td><td>48</td></tr>
+<tr><td>Loader write FIFO</td><td>16 × 16</td><td>0 (logic)</td><td>0</td></tr>
+<tr><td colspan="3"><b>Total</b></td><td><b>≈ 66 of 182</b> (36 %)</td></tr>
+</table></div>
+<div class="tablewrap"><table>
+<tr><th>Resource</th><th>Expected</th><th>Of</th><th>From</th></tr>
+<tr><td>Logic elements</td><td>≈ 10,500</td><td>49,760 (21 %)</td><td>controller ≈ 400, fabric with 6 channels + 6 lanes + arbiter ≈ 2,000, 12 FIFOs ≈ 600, jtag_regs ≈ 400, loader ≈ 600, 6 units × ≈ 1,100 (T = 8 accumulators and saturation)</td></tr>
+<tr><td>18 × 18 multipliers</td><td>54</td><td>144 (38 %)</td><td>per unit T blocks for the MACs (two 9 × 9 each) + 1 for the scale</td></tr>
+<tr><td>M9K</td><td>≈ 66</td><td>182 (36 %)</td><td>table above</td></tr>
+<tr><td>PLL</td><td>1</td><td>4</td><td></td></tr>
+<tr><td>Fmax</td><td>≥ 100 MHz on <code>clk</code></td><td></td><td>I/O registers on all SDRAM pins; the 48-bit accumulators are the longest paths (one adder each, fine at 100 MHz on MAX 10)</td></tr>
+</table></div>
+
+<h2 id="numbers">10 · Expected numbers</h2>
+<div class="tablewrap"><table>
+<tr><th>What</th><th>Expected</th><th>How</th></tr>
+<tr><td>Load stories15M into the SDRAM</td><td>28 s + 2.4 s CRC</td><td>16.1 MB at example 14's 583 KB/s</td></tr>
+<tr><td>Aggregate stream rate, 6 channels, BURST 256</td><td>≈ 190 MB/s (R1 asks ≥ 170)</td><td>section 3's table; measured by <code>fabric_ctl.py bench</code></td></tr>
+<tr><td>One stories15M token, all weights (decode, T = 1)</td><td>≈ 90 ms → ≈ 11 tokens/s</td><td>16.1 MB at 180 MB/s; memory-bound</td></tr>
+<tr><td>The classifier alone (32000 × 288)</td><td>9.8 MB → ≈ 54 ms</td><td>the throughput measurement of the example: one job, 6 units × 5,334 rows (the last takes the remainder)</td></tr>
+<tr><td>Prefill of a 32-token prompt, T = 8</td><td>4 passes ≈ 0.36 s (versus 2.9 s one token at a time)</td><td>weight reuse: the point of T</td></tr>
+<tr><td>stories260K, layer-0 wq (64 × 64), 2 units</td><td>a few µs; the bit-exact test</td><td>simulation and board</td></tr>
+<tr><td>MAC capacity at T = 8</td><td>96 MAC/clock = 9.6 GMAC/s</td><td>6 units × 2 weights × 8 vectors</td></tr>
+<tr><td>MACs the memory can feed at T = 8</td><td>16 MAC/clock = 1.6 GMAC/s</td><td>one word per clock, shared by all units</td></tr>
+</table></div>
+<div class="panel"><b>What the last two lines say.</b> With one 16-bit SDRAM the units share 200 MB/s; N does not add
+bandwidth, it adds <i>independence</i> (each unit starves or stalls on its own, the arbiter keeps the bus full from
+whoever has room) and <i>places to put compute</i> that later gets its data from somewhere else: the KV cache in M9K,
+a neighbour unit, a second memory. The lever on throughput today is <b>T</b> (weight reuse), and that is what the
+prefill demo shows. <code>CYCLES_BUSY</code> / <code>CYCLES_STARVED</code> per unit make this visible on the board.</div>
+
+<h2 id="verify">11 · Verification plan</h2>
+<h3>Simulation (Icarus, <code>scripts/sim.py</code>; <code>tests/test_stream_fabric.py</code>)</h3>
+<div class="tablewrap"><table>
+<tr><th>Testbench</th><th>Checks</th></tr>
+<tr><td><code>tb_sdram_burst_ctrl</code></td><td><code>lib/sim/sdram_model.sv</code> extended to full command semantics (ACT/READ/WRITE/PRE/REFRESH/MRS, a 4-bank row state, auto-precharge, tRCD/tRP/tRC/tRAS/tWR/tRFC/refresh-interval checks that <code>$error</code> on violation, data driven only in the CL window). Random read/write bursts, lengths 1..1024, addresses crossing rows and banks, refresh forced to land inside bursts, scoreboard against a Python-generated expected stream; efficiency reported per length and compared with section 3's table ± 2 %.</td></tr>
+<tr><td><code>tb_async_fifo</code></td><td>unrelated clocks (e.g. 100 and 37 MHz, then swapped), random push/pop, never loses or duplicates a word, level never over-reports room.</td></tr>
+<tr><td><code>tb_stream_fabric</code></td><td>N = 1, 2, 6; random descriptors (BASE, LEN, BURST) per channel; units modelled as random-rate consumers; write lanes with random producers; scoreboard per channel and per lane; the legacy port doing single words throughout and never waiting more than the bound; utilisation ≥ 90 % at BURST 256 with 6 greedy consumers; round-robin fairness (each channel's share within 10 %).</td></tr>
+<tr><td><code>tb_matvec_unit</code></td><td>numpy produces W (int8), x (int8, T vectors), the stream file and the expected y for several ROWS/K/T/SHIFT including saturation cases; the FIFO is fed with random gaps; bit-exact compare; CYCLES counters checked against the gaps.</td></tr>
+<tr><td><code>tb_fabric_top</code></td><td>the real top with the SDRAM model preloaded from <code>model.q8.bin</code> of stories260K; the job of layer-0 wq split over 2 units through the jtag_regs bus model; y compared with <code>ref_matvec.py</code>.</td></tr>
+</table></div>
+<h3>Board</h3>
+<ol>
+  <li><b>Memory test at 100 MHz</b>: <code>fabric_ctl.py memtest</code> fills the 64 MB with a pattern through one channel's
+  write lane and reads it back through a channel (both directions through the fabric), at BURST 1, 8, 64, 256, 512, 1024,
+  over the phase P builds (e.g. 0°, 90°, 180°, 270°, then finer) and <code>rd_delay</code> 2..6: a table of pass/fail,
+  the window's centre becomes the default. Also example 14's <code>bench</code> on the same build (R5).</li>
+  <li><b>Throughput</b>: loop mode on 6 channels over the stories15M blob for 10 s: MB/s from the counters and a stopwatch;
+  the R1 number.</li>
+  <li><b>Correctness</b>: load stories260K's blob with example 14, run the wq job on 2 units, read y back, compare: 0 differences.</li>
+  <li><b>The real thing</b>: load stories15M's blob, run the classifier job on 6 units (T = 1) and time it; then T = 8 with 8
+  vectors (prefill), time it; both compared bit-exact with numpy.</li>
+</ol>
+<h3>Tools and scripts</h3>
+<ul>
+  <li><code>scripts/fabric_ctl.py</code> (direct and Quartus routes), <code>scripts/jtag_regs.tcl</code> (the Quartus route's
+  answer file, like <code>sdram_load.tcl</code>).</li>
+  <li><code>examples/15_sdram_stream_fabric/tools/export_q8.py</code> (llama2.c fp32 <code>.bin</code> → <code>model.q8.bin</code>
+  + JSON map), <code>tools/ref_matvec.py</code> (expected y, compare), <code>tools/stream_file.py</code> (stream files for
+  the testbenches).</li>
+  <li>Tests: <code>tests/test_stream_fabric.py</code> (unit testbenches + the exporter/reference round trip), on the model
+  of <code>tests/test_sdram_loader.py</code>.</li>
+</ul>
+
+<h2 id="board">12 · Board I/O</h2>
+<div class="tablewrap"><table>
+<tr><th>I/O</th><th>Use</th></tr>
+<tr><td>LEDR[5:0]</td><td>channel 0..5 running</td></tr>
+<tr><td>LEDR[8]</td><td>any unit busy</td></tr>
+<tr><td>LEDR[9]</td><td>SDRAM init_done</td></tr>
+<tr><td>HEX5..HEX4</td><td>bus utilisation in % (BUSY/TOTAL over the last second)</td></tr>
+<tr><td>HEX3..HEX0</td><td>MB/s over the last second (decimal)</td></tr>
+<tr><td>KEY0</td><td>reset</td></tr>
+<tr><td>SW0</td><td>1: loop mode on all channels after reset without the PC (a stand-alone throughput demo)</td></tr>
+<tr><td>SDRAM pins</td><td>as <code>lib/board/de10_lite_pins.csv</code> and example 06's <code>extra.qsf</code></td></tr>
+</table></div>
+
+<h2 id="decisions">13 · Design decisions</h2>
+<div class="tablewrap"><table>
+<tr><th>Decision</th><th>Instead of</th><th>Why</th></tr>
+<tr><td>Credit-based bursts (room/data for the whole burst before the grant)</td><td>backpressure on the SDRAM port</td><td>a stalled burst holds a row open and wastes the bus; with credits every granted clock moves a word and the controller stays simple (no wready/rready on the memory side)</td></tr>
+<tr><td>Round-robin at burst granularity</td><td>priorities or word-level interleave</td><td>fair, trivially provable, and under credits a requesting channel is a consuming channel; "emptiest first" kept as an optional knob to measure</td></tr>
+<tr><td>BL = 1 with one column command per clock</td><td>the chip's burst modes (BL 4/8/full page)</td><td>same bus efficiency, arbitrary lengths, trivial early termination, no burst-terminate commands; the controller makes the burst</td></tr>
+<tr><td>CL 3 at 100 MHz</td><td>CL 2</td><td>CL 2's limit is exactly 10 ns on the -7 part: no margin</td></tr>
+<tr><td>Refresh pauses a burst</td><td>refresh only between bursts</td><td>a 1024-word burst lasts longer than the refresh interval; pausing costs 12 clocks, forbidding long bursts costs more</td></tr>
+<tr><td>Own <code>async_fifo</code></td><td>Altera <code>dcfifo</code></td><td>Icarus must simulate the whole fabric (R6); dual-clock from day one (R7)</td></tr>
+<tr><td>Scales interleaved in the stream (17th word)</td><td>a separate scale table</td><td>one stream per matrix, no second channel or address pattern; 6 % overhead</td></tr>
+<tr><td>G = 32, int16 scale, per-matrix exponent</td><td>per-row or per-tensor scales, fp16 scales</td><td>32 divides every dimension of the target; int16 keeps the unit's math integer and exact; the host does the two floating-point scalars</td></tr>
+<tr><td>Loader on a legacy single-word port</td><td>rewriting the loader for bursts</td><td>example 14 stays proven and untouched; the loader is cable-bound at 0.58 MB/s anyway</td></tr>
+<tr><td>Everything on 100 MHz</td><td>50 MHz fabric with a 100 MHz memory</td><td>one clock domain, no CDC on the hot path; the FIFOs are dual-clock for later</td></tr>
+<tr><td>y[i][t] contiguous per unit</td><td>a single interleaved y region</td><td>each lane writes its own region with a plain incrementing address; the host reassembles</td></tr>
+<tr><td>N write lanes in one write-back channel</td><td>one shared lane with a mux</td><td>a unit never waits for another's results; each lane is one arbiter requester, one M9K</td></tr>
+<tr><td>Generic <code>jtag_regs</code> in <code>lib</code></td><td>loader-style special-purpose VIRs</td><td>every future design wants PC-visible registers; one Python helper serves them all</td></tr>
+</table></div>
+
+<h2 id="scope">14 · Out of scope, later versions</h2>
+<ul>
+  <li>Softmax, RMSNorm, RoPE, attention, the tokenizer, sampling: the end-to-end LLM is a future <i>project</i>
+  (<code>projects/</code>) that builds on this example; here only the matvec and the data flow.</li>
+  <li>x fetched from the SDRAM X region by the fabric (v2); today the host writes x through jtag_regs.</li>
+  <li>Bank pipelining in the controller (ACT the next burst's bank while the current one streams: overhead → 1–2 clocks,
+  efficiency ≈ 99 % at every length; v2 option when the measurement asks for it).</li>
+  <li>133 MHz (the -7 part's CL 3 limit is 143 MHz; the PLL gives 50 × 8/3): a stretch, tried only if 100 MHz is stable.</li>
+  <li>KV cache in M9K or in the KV region; unit-to-unit links (the systolic neighbours); several units per channel.</li>
+</ul>
+
+<h2 id="risks">15 · Risks and fallbacks</h2>
+<div class="tablewrap"><table>
+<tr><th>Risk</th><th>Likelihood</th><th>Mitigation / fallback</th></tr>
+<tr><td>Read capture window at 100 MHz (board traces, the chip's tAC 5.4 ns at CL 3, the FPGA input setup)</td><td>the main one</td><td>phase P as a build parameter and <code>rd_delay</code> as a register: a sweep finds the window and its width is reported on the page. Fallback: 83.3 MHz (50 × 5/3) or 66.7 MHz (50 × 4/3) with the same RTL; R1 then scales to 140 / 115 MB/s and the page says so.</td></tr>
+<tr><td>The loader does not close 100 MHz</td><td>low (96 MHz measured with a loose 50 MHz constraint)</td><td>keep the loader at 50 MHz on PLL c2 and bridge the legacy port with a req/ack handshake CDC</td></tr>
+<tr><td>M9K count with T_MAX = 8</td><td>low (66 of 182)</td><td>T_MAX = 4 halves the x-buffers</td></tr>
+<tr><td>Refresh inside bursts has corner cases (a refresh due during the ACT, during a row split…)</td><td>medium</td><td>the extended SDRAM model asserts every timing parameter; the testbench forces refresh at every state</td></tr>
+<tr><td>Build path on OneDrive</td><td>known</td><td><code>de10.py</code> already mirrors the project to <code>%LOCALAPPDATA%</code></td></tr>
+</table></div>
+
+<h2 id="plan">16 · Build order</h2>
+<ol>
+  <li>This spec: your review and corrections.</li>
+  <li><code>sdram_burst_ctrl</code> + the extended SDRAM model + <code>tb_sdram_burst_ctrl</code>; a memory-test top at 100 MHz
+  on the board with the phase / <code>rd_delay</code> sweep. <b>The risk retires here.</b></li>
+  <li><code>async_fifo</code>, <code>stream_fabric</code> (channels, lanes, legacy bridge), <code>tb_stream_fabric</code>;
+  <code>jtag_regs</code> + <code>fabric_ctl.py</code>; the fabric on the board with example 14 riding along; the R1 measurement.</li>
+  <li><code>matvec_unit</code> + <code>export_q8.py</code> + <code>ref_matvec.py</code> + <code>tb_matvec_unit</code>; stories260K
+  bit-exact on the board; stories15M classifier and prefill timings.</li>
+  <li>Package: <code>index.html</code> with the measured numbers, skill <code>stream-from-sdram</code>, gotchas, portal card 15,
+  tests, <code>.qar</code>; a PR.</li>
+</ol>
+
+<h2 id="review">17 · Open questions for the review</h2>
+<ol>
+  <li>N = 6 and T_MAX = 8 as the demo's size (one unit per stories15M head; 66 M9K, 54 multipliers)?</li>
+  <li>R1 = 170 MB/s at 100 MHz; accept the 83 MHz fallback if the capture window is too narrow?</li>
+  <li>The weight format: G = 32, int16 scale as the 17th word, exponent per matrix in the JSON map. Any reason to prefer
+  per-row scales or a separate scale table?</li>
+  <li>The unit's output: int32 after a job-level SHIFT, host applies the scales. Or should the unit output the 48-bit
+  accumulator and let the host do everything?</li>
+  <li>x written by the host in v1 (fast enough for the demos; v2 fetches it from the X region): fine for now?</li>
+  <li>Names: <code>sdram_burst_ctrl</code>, <code>stream_fabric</code>, <code>stream_rd_channel</code>, <code>wb_lane</code>,
+  <code>async_fifo</code>, <code>matvec_unit</code>, <code>jtag_regs</code>; the example <code>15_sdram_stream_fabric</code>; the
+  skill <code>stream-from-sdram</code>.</li>
+  <li>Anything in <a href="#scope">14</a> that should move into this example?</li>
+</ol>
+
+<footer>Example 15 of the DE10-Lite BKM. Specification for review; the overview page with the measured results comes after
+the build. See <a href="../14_usb_sdram_loader/index.html">example 14</a> for the loader and
+<a href="../06_sdram/index.html">example 06</a> for the single-word SDRAM controller this one replaces.</footer>
+</main>
+</body>
+</html>
