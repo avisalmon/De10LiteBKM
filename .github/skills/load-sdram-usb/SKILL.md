@@ -14,8 +14,9 @@ description: >
 # Load the SDRAM over USB
 
 Proven on the board: `examples/14_usb_sdram_loader` (64 MB written, CRC-checked on the board and read back, 0 errors,
-twice). Numbers (KB = 1024 bytes): direct route **583 KB/s** written (112 s for 64 MB), 476 KB/s read (470-540: USB
+three runs: two direct, one quartus). Numbers (KB = 1024 bytes): direct route **583 KB/s** written (112 s for 64 MB), 476 KB/s read (470-540: USB
 bus bound); quartus route 525-547 / 300-355 KB/s; JTAG UART text link ~82 KB/s. The board CRCs its own SDRAM at 6.7 MB/s.
+The SDRAM controller itself, its pins and its bugs: `use-sdram` (example 06).
 
 ## Wire it (the design side)
 

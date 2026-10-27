@@ -111,6 +111,11 @@ python scripts/de10.py build examples/06_sdram</code></pre>
 <h3>Test without the board</h3>
 <pre><code>python scripts/sim.py lib/sim/tb_sdram_ctrl.sv      → 300 words, 0 read errors, 0 protocol errors   PASS</code></pre>
 
+<h2>Next: fill it from the PC</h2>
+<p>To put your own data in this memory (parameters, tables, a file) and read it back, see
+<a href="../14_usb_sdram_loader/index.html">example 14, Fill the SDRAM from the PC</a>: the same controller behind a
+virtual JTAG loader, 64 MB over the USB-Blaster in 112 s, CRC-checked on the board.</p>
+
 <h2>Files</h2>
 <div class="tablewrap"><table>
 <tr><th>File</th><th>What</th></tr>
