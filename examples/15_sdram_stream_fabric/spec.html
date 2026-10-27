@@ -85,7 +85,7 @@ run yet. Section <a href="#review">17</a> lists the open questions in one place.
   <rect class="ip" x="572" y="62" width="176" height="44" rx="6"/><text x="582" y="80">arbiter</text><text class="small" x="582" y="96">round-robin, one burst per grant</text>
   <rect class="ip" x="572" y="116" width="176" height="70" rx="6"/><text x="582" y="134">read channel × N</text><text class="small" x="582" y="150">BASE LEN BURST CTRL</text><text class="small" x="582" y="164">credit: room for a whole burst</text><text class="small" x="582" y="178">async_fifo 1024 × 16 (2 M9K)</text>
   <rect class="ip" x="572" y="196" width="176" height="70" rx="6"/><text x="582" y="214">write-back lane × N</text><text class="small" x="582" y="230">WB_BASE auto-increment</text><text class="small" x="582" y="244">64 × 32 FIFO (1 M9K)</text><text class="small" x="582" y="258">request at WBURST or flush</text>
-  <rect class="ip" x="572" y="276" width="176" height="44" rx="6"/><text x="582" y="294">legacy bridge</text><text class="small" x="582" y="310">word port → burst of 1, lowest prio</text>
+  <rect class="ip" x="572" y="276" width="176" height="44" rx="6"/><text x="582" y="294">legacy bridge</text><text class="small" x="582" y="310">word port → burst of 1, served first</text>
   <!-- controller + SDRAM -->
   <rect class="blk" x="766" y="100" width="124" height="100" rx="8"/><text x="776" y="122">sdram_burst_ctrl</text><text class="small" x="776" y="140">(new)</text><text class="small" x="776" y="156">ACT, R/W × L, PRE</text><text class="small" x="776" y="170">refresh, row split</text><text class="small" x="776" y="184">rd_delay 2..6</text>
   <rect class="pin" x="766" y="230" width="124" height="90" rx="6"/><text x="776" y="252">SDRAM</text><text class="small" x="776" y="270">IS42S16320</text><text class="small" x="776" y="284">32M × 16, 4 banks</text><text class="small" x="776" y="298">DRAM_CLK 100 MHz</text><text class="small" x="776" y="312">phase P (PLL c1)</text>
@@ -232,21 +232,24 @@ errors, also with a refresh forced every 97 clocks (a pause inside almost every 
   words already in flight ≥ BURST). A write lane asks only when it <b>holds the whole burst</b> (or is flushing). So a
   burst, once granted, never stalls in the middle: the SDRAM port needs no backpressure and every granted clock moves
   a word.</li>
-  <li><b>One burst per grant.</b> The arbiter is round-robin over all requesters (N read channels, N write lanes, the
-  legacy bridge) at burst granularity. Fairness costs nothing: with credits, a channel that has room is a channel whose
-  unit is consuming.</li>
+  <li><b>One burst per grant.</b> The arbiter is round-robin over the 2N streaming requesters (N read channels, N write
+  lanes) at burst granularity; the legacy bridge is not in the ring, it is <b>served first</b> (below). Fairness costs
+  nothing: with credits, a channel that has room is a channel whose unit is consuming.</li>
 </ol>
 <p>Continuity needs <b>FIFO depth ≥ 2 × BURST</b>: while the unit drains one burst the next one is being fetched. The demo
-uses DEPTH 1024 words (two M9K in 1024 × 9 mode… see <a href="#mem">section 9</a>) and BURST ≤ 512. An optional
-"emptiest first" policy (grant the channel with the lowest level) is a parameter, off by default; the testbench measures
-both.</p>
+uses DEPTH 1024 words (two M9K in 1024 × 9 mode… see <a href="#mem">section 9</a>) and BURST ≤ 512. An "emptiest first"
+policy (grant the channel with the lowest level) was considered and <b>not built</b>: plain round-robin already measures
+96.6 % of the bus with every channel finishing within one burst of the others (<a href="#verify">section 11</a>), so
+there was nothing left to gain.</p>
 <p><b>Who owns the read data.</b> The controller accepts the next command (<code>cmd_ready</code>) while the previous read
 burst's last words are still on their way (<a href="#sdram">section 3</a>: the data trails the READ by
-<code>rd_delay</code> + 1 clocks, the PRE and tRP run meanwhile). So the arbiter keeps a <b>2-entry queue of read
-owners</b>: a granted read pushes its channel number, each <code>done</code> of a read burst pops one, and
-<code>rvalid</code> words go to the channel at the head. Two read bursts' data never overlap (there are at least 4 clocks
-between the last word of one and the first of the next), so the head is always unambiguous. A write burst's
-<code>done</code> does not touch the queue; the write lane is the only one driving <code>wdata</code> while it is granted.</p>
+<code>rd_delay</code> + 1 clocks, the PRE and tRP run meanwhile). So the arbiter keeps a <b>4-entry queue of accepted
+commands</b> (kind and owner: read channel, write lane, legacy read or write): every accepted command pushes, every
+<code>done</code> pops (the controller finishes commands strictly in order), and <code>rvalid</code> words go to the
+owner at the head. Two read bursts' data never overlap (there are at least 4 clocks between the last word of one and
+the first of the next), so the head is always unambiguous. The owner of <code>wdata</code> is set when a write is
+accepted and cleared when its <code>done</code> pops it; at most three commands are ever outstanding, and a
+<code>fault</code> flag (STATUS bit 5) catches the queue overflowing, which must never happen.</p>
 
 <h3>Read channel (<code>stream_rd_channel</code>)</h3>
 <div class="tablewrap"><table>
@@ -267,13 +270,17 @@ between the last word of one and the first of the next), so the head is always u
 writes them as 16-bit words, low half first, to <code>WB_BASE</code>, which auto-increments. It requests a burst when it
 holds <code>WBURST</code> words (default 64 words = 32 results) or when the unit raises <code>wb_flush</code> at the end
 of a job and anything is left. Registers: <code>WB_BASE</code> (25), <code>WB_CTRL</code> ([10:0] WBURST, bit 16 flush
-self-clearing, bit 17 clear), <code>WB_STAT</code> ([6:0] level in results, [31:8] words written).</p>
+self-clearing, bit 17 clear), <code>WB_STAT</code> ([6:0] level in results, bit 7 underrun: the lane was granted a
+burst and ran out of results, it sent zeros and the pointer stayed consistent; sticky until clear, [31:8] words
+written).</p>
 
 <h3>Legacy bridge</h3>
 <p>The example 06/14 master port (<code>req, we, addr[24:0], wdata, ready, rvalid, rdata</code>) becomes a burst of one
-word at the lowest priority with a bounded wait: at most one longest burst plus a refresh, ≈ 1024 + 5 + 12 clocks ≈
-10.4 µs. The loader's words arrive every 3.4 µs at the cable's rate and its 16-word FIFO absorbs that; in practice the
-loader runs when no job runs. This is how example 14 stays untouched and still proven (R5).</p>
+word that is <b>served first</b>: the word goes straight to the controller ahead of the arbiter's slot, so its wait is
+bounded by the one burst in progress plus the refreshes that came due during it, ≈ 1024 + 5 + 2 × 12 clocks ≈ 10.5 µs
+at BURST 1024 (2.8 µs at 256). Measured in <code>tb_stream_fabric</code>: a worst wait of 1063 clocks with 1024-word
+bursts in flight. The loader's words arrive every 3.4 µs at the cable's rate and its 16-word FIFO absorbs that; in
+practice the loader runs when no job runs. This is how example 14 stays untouched and still proven (R5).</p>
 
 <h3><code>async_fifo</code></h3>
 <p>Own module instead of Altera's <code>dcfifo</code> so Icarus simulates it: binary pointers, gray-coded copies crossed
@@ -301,8 +308,8 @@ utilisation), <code>job</code> (program a matvec job from the model's JSON map, 
 <div class="tablewrap"><table>
 <tr><th>Address</th><th>Name</th><th>Meaning</th></tr>
 <tr><td><code>0x000</code></td><td>ID</td><td><code>0x5F15_0001</code>: "SF", example 15, version 1 (also at IR 4)</td></tr>
-<tr><td><code>0x001</code></td><td>CTRL</td><td>bit 0 soft reset of channels and units, bit 1 start all enabled channels and units (self-clearing), bit 2 abort all, bit 3 clear all counters, bit 8 emptiest-first (if built)</td></tr>
-<tr><td><code>0x002</code></td><td>STATUS</td><td>bit 0 init_done, bit 1 pll_locked, bit 2 any channel running, bit 3 any unit busy, bit 4 legacy port busy, [15:8] N, [23:16] T, [31:24] log2 MAX_BURST</td></tr>
+<tr><td><code>0x001</code></td><td>CTRL</td><td>bit 0 soft reset of channels and units, bit 1 start all enabled channels and units (self-clearing), bit 2 abort all, bit 3 clear all counters</td></tr>
+<tr><td><code>0x002</code></td><td>STATUS</td><td>bit 0 init_done, bit 1 pll_locked, bit 2 any channel running, bit 3 any unit busy, bit 4 legacy port busy, bit 5 fabric fault (the command queue overflowed: must never set), bit 6 idle (nothing running, granted or queued), [15:8] N, [23:16] T, [31:24] log2 MAX_BURST</td></tr>
 <tr><td><code>0x003</code></td><td>RD_DELAY</td><td>[2:0] the controller's read capture delay (default 3)</td></tr>
 <tr><td><code>0x004</code></td><td>BUSY_CLOCKS</td><td>clocks with a word moving on the SDRAM bus since clear</td></tr>
 <tr><td><code>0x005</code></td><td>TOTAL_CLOCKS</td><td>clocks since clear (utilisation = BUSY / TOTAL)</td></tr>
@@ -310,7 +317,7 @@ utilisation), <code>job</code> (program a matvec job from the model's JSON map, 
 <tr><td><code>0x007</code></td><td>BURSTS</td><td>bursts granted since clear</td></tr>
 <tr><td><code>0x010 + 8c</code></td><td>read channel c</td><td>+0 BASE, +1 LEN, +2 BURST, +3 CTRL, +4 STAT, +5 FETCHED, +6 WAITED, +7 reserved</td></tr>
 <tr><td><code>0x080 + 4u</code></td><td>write lane u</td><td>+0 WB_BASE, +1 WB_CTRL, +2 WB_STAT, +3 reserved</td></tr>
-<tr><td><code>0x100 + 16u</code></td><td>unit u</td><td>+0 ROWS, +1 K, +2 T, +3 SHIFT, +4 CTRL, +5 STAT, +6 CYCLES_BUSY, +7 CYCLES_STARVED, +8 XADDR, +9 XDATA, +10 ROWS_DONE, +11..15 reserved</td></tr>
+<tr><td><code>0x100 + 16u</code></td><td>unit u</td><td>+0 ROWS, +1 K, +2 T, +3 SHIFT, +4 CTRL, +5 STAT, +6 CYCLES_BUSY, +7 CYCLES_STARVED, +8 XADDR, +9 XDATA, +10 ROWS_DONE, +11 CYCLES_STALLED, +12 WORDS, +13..15 reserved</td></tr>
 <tr><td><code>0x1F0</code></td><td>unit broadcast</td><td>same layout as a unit; a write lands in every unit (all units get the same x and the same job shape; only their rows differ)</td></tr>
 </table></div>
 <p><b>Decision asked:</b> a generic register node in <code>lib</code> (future designs get PC-visible registers for free)
@@ -357,32 +364,46 @@ tools/export_q8.py stories15M.bin -o model.q8.bin --map model.json
 <p>A unit computes <b>y = W<sub>slice</sub> · x</b> for its slice of rows (ROWS of them, K wide) against <b>T activation
 vectors</b> at once (T = 1 for decoding, up to 8 for prefill or batching), which is where the array pays off: every
 weight word read from memory is used 2 · T times. The weights stream; the activations stay.</p>
-<h3>Per clock</h3>
+<h3>Per clock (as built in <code>lib/rtl/matvec_unit.sv</code>)</h3>
 <pre><code>pop one word from the FIFO  →  two int8 weights w0 (column k), w1 (column k+1)
-for every t in 0..T-1 in parallel:
-    read x_t[k], x_t[k+1] from x-buffer t      (one M9K in 512 × 18 mode: one 2-byte read per clock)
-    p_t = w0 · x_t[k] + w1 · x_t[k+1]          (two 9 × 9 signed multiplies = one 18 × 18 DSP block)
-    gsum_t += p_t                              (20-bit signed: |32 · 127 · 127| = 516,128 fits)
+for every t in 0..T_MAX-1 in parallel:
+    read x_t[k..k+3] from x-buffer t           (one M9K as 256 × 32: one word per clock, the pair
+                                                selected by the word's parity)
+    p_t = w0 · x_t[k] + w1 · x_t[k+1]          (two 9 × 9 signed multiplies, 17-bit result)
+    gsum_t += p_t                              (21-bit signed: |16 · 2 · 128 · 128| = 2^19 fits)
 every 17th word is the scale s_g:
-    swap the gsum bank (ping-pong), then over the next 16 clocks, one t at a time:
-    acc_t += gsum_t × s_g                      (20 × 16 → 36 bits: one 18 × 18 block, two passes;
-                                                48-bit accumulator)
+    ghold ← gsum, gsum ← 0 (so the next group starts at once), then one t per clock:
+    acc_t += ghold_t × s_g                     (21 × 16 → 37 bits into a 48-bit accumulator;
+                                                T + 2 clocks, always under the 17 pops of a group)
 end of a row (K/32 groups):
-    for every t: y = saturate_int32(acc_t >>> SHIFT) → write-back lane (wb_data), acc_t = 0
+    swap the accumulator bank; for every t in use: y = saturate_int32(acc_t &gt;&gt;&gt; SHIFT) →
+    write-back lane (wb_data), acc_t = 0: 3 clocks per value, overlapped with the next row's
+    pops; the unit holds the next row's LAST scale word until the previous row is fully written
+    (that wait is CYCLES_STALLED)
 end of the job (ROWS rows): wb_flush, STAT.done</code></pre>
-<h3>Registers (per unit, also at the broadcast address)</h3>
+<p>Three pipeline stages (word register, products, group sum) and a 3-stage MAC: a weight word is in the group sum
+4 clocks after its pop. Every operand is declared <code>signed</code> so Quartus maps the multiplies to the embedded
+multipliers (<code>use-dsp-multipliers</code>): expected 2 × 9 × 9 per vector for the pairs plus one 18 × 18 pair for
+the MAC, about 18 DSP elements per unit at T_MAX = 8.</p>
+<h3>Registers (per unit, also at the broadcast address; broadcast reads return 0)</h3>
 <div class="tablewrap"><table>
 <tr><th>Register</th><th>Meaning</th></tr>
-<tr><td><code>ROWS</code></td><td>rows in this unit's slice (the host splits a matrix across units: ROWS<sub>u</sub> and BASE<sub>u</sub> of channel u match)</td></tr>
-<tr><td><code>K</code></td><td>row length, a multiple of 32, ≤ 1024</td></tr>
-<tr><td><code>T</code></td><td>vectors in use, 1..T_MAX (compile-time T_MAX = 8 in the demo)</td></tr>
+<tr><td><code>ROWS</code></td><td>rows in this unit's slice, 20 bits (the host splits a matrix across units: ROWS<sub>u</sub> and BASE<sub>u</sub> of channel u match). <b>ROWS = 0 means "not in this job"</b>: the global start pulse skips the unit; a direct CTRL start sets done at once</td></tr>
+<tr><td><code>K</code></td><td>row length, a multiple of 32, ≤ 1024 (the unit uses K[10:5] groups, at least 1)</td></tr>
+<tr><td><code>T</code></td><td>vectors in use, 1..T_MAX (compile-time T_MAX = 8 in the demo; 0 or more than T_MAX is clamped)</td></tr>
 <tr><td><code>SHIFT</code></td><td>0..47: output = acc &gt;&gt;&gt; SHIFT, saturated to int32</td></tr>
-<tr><td><code>CTRL</code></td><td>bit 0 start (self-clearing), bit 1 abort, bit 2 clear counters</td></tr>
-<tr><td><code>STAT</code></td><td>bit 0 busy, bit 1 done, bit 2 lane stalled the unit (wb_ready low) at least once</td></tr>
+<tr><td><code>CTRL</code></td><td>bit 0 start (self-clearing; ignored while running), bit 1 abort (stops at once, position and accumulators cleared; config and x stay), bit 2 clear counters and the done / aborted / stalled flags</td></tr>
+<tr><td><code>STAT</code></td><td>bit 0 busy, bit 1 done, bit 2 lane stalled the unit (wb_ready low) at least once, bit 3 aborted (by CTRL, the fabric's abort or its soft reset), [15:8] T_MAX</td></tr>
 <tr><td><code>CYCLES_BUSY / CYCLES_STARVED</code></td><td>clocks computing / clocks waiting for the FIFO while running: the two numbers that say whether memory or compute is the limit</td></tr>
+<tr><td><code>CYCLES_STALLED</code></td><td>clocks the unit waited for the write-back lane (a word was there, the lane was not): the third number</td></tr>
 <tr><td><code>XADDR / XDATA</code></td><td>write x: a write to XDATA stores 4 bytes of a vector at XADDR (see the note below) and adds 4 to XADDR</td></tr>
-<tr><td><code>ROWS_DONE</code></td><td>progress</td></tr>
+<tr><td><code>ROWS_DONE / WORDS</code></td><td>progress: rows finished in the job, words popped since the last clear</td></tr>
 </table></div>
+<p>The fabric's global pulses map onto the same controls: <code>start</code> = CTRL.start on every unit with ROWS ≠ 0,
+<code>abort</code> and <code>soft reset</code> = CTRL.abort, <code>clear</code> = CTRL.clear. Verified by
+<code>lib/sim/tb_matvec_unit.sv</code>: ten cases against a Python-style reference in the testbench (K = 32..1024,
+T = 1..8, random FIFO gaps, a slow and a blocked lane, saturation, abort and restart, broadcast, ROWS = 0), results
+bit-exact, one flush per job, all counters checked.</p>
 <p class="note">x-buffer addressing: <code>XADDR[15:12]</code> selects the vector t, <code>XADDR[11:0]</code> the byte
 position in it. The host writes x once per token to the broadcast address (every unit multiplies the same x by its own
 rows), 4 bytes per DR pass. For stories15M that is 288 bytes per matrix input = 72 passes: a few milliseconds over the
@@ -469,8 +490,8 @@ prefill demo shows. <code>CYCLES_BUSY</code> / <code>CYCLES_STARVED</code> per u
 <tr><th>Testbench</th><th>Checks</th></tr>
 <tr><td><code>tb_sdram_burst_ctrl</code></td><td><code>lib/sim/sdram_model.sv</code> extended to full command semantics (ACT/READ/WRITE/PRE/REFRESH/MRS, a 4-bank row state, auto-precharge, tRCD/tRP/tRC/tRAS/tWR/tRFC/refresh-interval checks that <code>$error</code> on violation, data driven only in the CL window). Random read/write bursts, lengths 1..1024, addresses crossing rows and banks, refresh forced to land inside bursts, scoreboard against a Python-generated expected stream; efficiency reported per length and compared with section 3's table ± 2 %.</td></tr>
 <tr><td><code>tb_async_fifo</code></td><td>unrelated clocks (e.g. 100 and 37 MHz, then swapped), random push/pop, never loses or duplicates a word, level never over-reports room.</td></tr>
-<tr><td><code>tb_stream_fabric</code></td><td>N = 1, 2, 6; random descriptors (BASE, LEN, BURST) per channel; units modelled as random-rate consumers; write lanes with random producers; scoreboard per channel and per lane; the legacy port doing single words throughout and never waiting more than the bound; utilisation ≥ 90 % at BURST 256 with 6 greedy consumers; round-robin fairness (each channel's share within 10 %).</td></tr>
-<tr><td><code>tb_matvec_unit</code></td><td>numpy produces W (int8), x (int8, T vectors), the stream file and the expected y for several ROWS/K/T/SHIFT including saturation cases; the FIFO is fed with random gaps; bit-exact compare; CYCLES counters checked against the gaps.</td></tr>
+<tr><td><code>tb_stream_fabric</code></td><td><b>Passes</b> for N = 1, 2, 6, 14, with a refresh every 97 clocks (stress) and with the unit clock equal to <code>clk</code> or at 13 ns. Four phases: one channel; everything at once (N channels over random regions with BURST from {1, 7, 64, 100, 256, 1024} and random-rate consumers, N lanes with random-rate producers flushed by the unit or the host, the legacy port writing and reading single words throughout, its wait measured); throughput at BURST 256 with greedy consumers; loop mode, abort, soft reset and a channel re-reading a lane's region. Scoreboards per channel and per lane against a reference memory; the SDRAM model's timing checks on. Measured: <b>96.6 % of the bus</b> at N ≥ 2 (85 % at N = 1, where the one consumer at 13 ns is the limit), all channels finishing within one burst of each other, legacy worst wait 1063 clocks (bound 1087), BURSTS = Σ ⌈LEN / BURST⌉, no overflow, underrun or fault.</td></tr>
+<tr><td><code>tb_matvec_unit</code></td><td><b>Passes.</b> Self-contained: the testbench builds W (int8), x (int8, T vectors), the stream and the expected y in 64-bit integers (saturation counted) for ten cases: K = 32..1024, T = 1..8, SHIFT 0..20, extreme values (−128 and 127 everywhere: 7 of 12 results saturate), random FIFO gaps (30–50 %), a lane ready 70 % of the time and a lane blocked for 400 clocks, abort of a running job then restart, broadcast writes read back, ROWS = 0. Bit-exact results, exactly one flush per job, the stream consumed to the last word, STAT, ROWS_DONE, WORDS, CYCLES_BUSY (± 8 of the wall clock) and CYCLES_STARVED / STALLED zero or not as the case demands. Full rate: 3 rows of K = 64 at T = 1 in 115 clocks for 102 words.</td></tr>
 <tr><td><code>tb_fabric_top</code></td><td>the real top with the SDRAM model preloaded from <code>model.q8.bin</code> of stories260K; the job of layer-0 wq split over 2 units through the jtag_regs bus model; y compared with <code>ref_matvec.py</code>.</td></tr>
 </table></div>
 <h3>Board</h3>
@@ -513,7 +534,7 @@ prefill demo shows. <code>CYCLES_BUSY</code> / <code>CYCLES_STARVED</code> per u
 <div class="tablewrap"><table>
 <tr><th>Decision</th><th>Instead of</th><th>Why</th></tr>
 <tr><td>Credit-based bursts (room/data for the whole burst before the grant)</td><td>backpressure on the SDRAM port</td><td>a stalled burst holds a row open and wastes the bus; with credits every granted clock moves a word and the controller stays simple (no wready/rready on the memory side)</td></tr>
-<tr><td>Round-robin at burst granularity</td><td>priorities or word-level interleave</td><td>fair, trivially provable, and under credits a requesting channel is a consuming channel; "emptiest first" kept as an optional knob to measure</td></tr>
+<tr><td>Round-robin at burst granularity; the legacy word served first</td><td>priorities, word-level interleave, or "emptiest first"</td><td>fair, trivially provable, and under credits a requesting channel is a consuming channel; measured 96.6 % of the bus with finish times one burst apart, so "emptiest first" was dropped; the legacy word ahead of the ring halves its worst wait (one burst instead of two) at no cost to the streams</td></tr>
 <tr><td>BL = 1 with one column command per clock</td><td>the chip's burst modes (BL 4/8/full page)</td><td>same bus efficiency, arbitrary lengths, trivial early termination, no burst-terminate commands; the controller makes the burst</td></tr>
 <tr><td>CL 3 at 100 MHz</td><td>CL 2</td><td>CL 2's limit is exactly 10 ns on the -7 part: no margin</td></tr>
 <tr><td>Refresh pauses a burst</td><td>refresh only between bursts</td><td>a 1024-word burst lasts longer than the refresh interval; pausing costs 12 clocks, forbidding long bursts costs more</td></tr>
