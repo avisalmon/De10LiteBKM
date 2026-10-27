@@ -68,18 +68,18 @@ localparam [3:0] C_NOP = 4'b0111, C_ACT = 4'b0011, C_READ = 4'b0101, C_WRITE = 4
 // mode register: burst length 1, sequential, CAS latency 3, standard operation, write burst = burst length
 localparam [12:0] MODE = 13'b000_0_00_011_0_000;
 // data-sheet times in clocks (rounded up); the "- 1" forms are what the counters are loaded with
-localparam T_INIT   = CLK_MHZ * INIT_US;
-localparam T_RP_CK  = (20 * CLK_MHZ + 999) / 1000;		// precharge to activate
-localparam T_RCD_CK = (20 * CLK_MHZ + 999) / 1000;		// activate to read/write
-localparam T_RFC_CK = (63 * CLK_MHZ + 999) / 1000;		// refresh to the next command
-localparam T_RAS_CK = (42 * CLK_MHZ + 999) / 1000;		// activate to precharge
-localparam T_RC_CK  = (63 * CLK_MHZ + 999) / 1000;		// activate to activate, same bank
-localparam T_WR_CK  = 2;											// last write data to precharge
-localparam T_MRD_CK = 2;											// mode register set to the next command
+localparam [15:0] T_INIT   = 16'(CLK_MHZ * INIT_US);
+localparam [15:0] T_RP_CK  = 16'((20 * CLK_MHZ + 999) / 1000);		// precharge to activate
+localparam [15:0] T_RCD_CK = 16'((20 * CLK_MHZ + 999) / 1000);		// activate to read/write
+localparam [15:0] T_RFC_CK = 16'((63 * CLK_MHZ + 999) / 1000);		// refresh to the next command
+localparam [15:0] T_RAS_CK = 16'((42 * CLK_MHZ + 999) / 1000);		// activate to precharge
+localparam [15:0] T_RC_CK  = 16'((63 * CLK_MHZ + 999) / 1000);		// activate to activate, same bank
+localparam [1:0] T_WR_CK  = 2'd2;											// last write data to precharge
+localparam [15:0] T_MRD_CK = 16'd2;											// mode register set to the next command
 // the ACT state lasts one clock by itself, so the first column command is 2 clocks after the ACT
-localparam T_ACT_WAIT = (T_RCD_CK > 2) ? T_RCD_CK - 2 : 0;
+localparam [15:0] T_ACT_WAIT = (T_RCD_CK > 16'd2) ? T_RCD_CK - 16'd2 : 16'd0;
 // a row stays open at least this long, so that both tRAS and tRC (through the tRP that follows) are met
-localparam T_OPEN   = (T_RC_CK - T_RP_CK > T_RAS_CK) ? T_RC_CK - T_RP_CK : T_RAS_CK;
+localparam [3:0] T_OPEN   = 4'((T_RC_CK - T_RP_CK > T_RAS_CK) ? T_RC_CK - T_RP_CK : T_RAS_CK);
 
 localparam S_INIT = 0, S_INIT_REF = 1, S_INIT_MRS = 2, S_IDLE = 3, S_ACT = 4, S_ACCESS = 5, S_PRE = 6, S_RP = 7;
 
@@ -153,7 +153,7 @@ always @(posedge clk) begin
 		S_INIT: if (t == 0) begin
 			cmd <= C_PRE;
 			DRAM_ADDR <= 13'h400;						// A10: all banks
-			t <= T_RP_CK - 1;
+			t <= T_RP_CK - 1'b1;
 			nref <= 8;
 			st <= S_INIT_REF;
 		end
@@ -161,13 +161,13 @@ always @(posedge clk) begin
 			if (nref != 0) begin
 				cmd <= C_REF;
 				nref <= nref - 1'b1;
-				t <= T_RFC_CK - 1;
+				t <= T_RFC_CK - 1'b1;
 			end
 			else begin
 				cmd <= C_MRS;
 				DRAM_ADDR <= MODE;
 				DRAM_BA <= 2'b00;
-				t <= T_MRD_CK - 1;
+				t <= T_MRD_CK - 1'b1;
 				st <= S_INIT_MRS;
 			end
 		end
@@ -182,7 +182,7 @@ always @(posedge clk) begin
 				refi <= 0;
 				ref_due <= 0;
 				stat_refresh <= 1;
-				t <= T_RFC_CK - 1;
+				t <= T_RFC_CK - 1'b1;
 			end
 			else if (cmd_valid) begin					// accepted: cmd_ready is true here
 				r_we <= cmd_we;
@@ -192,7 +192,7 @@ always @(posedge clk) begin
 				DRAM_BA <= cmd_addr[24:23];
 				DRAM_ADDR <= cmd_addr[22:10];
 				cur_ba <= cmd_addr[24:23];
-				ras_cnt <= T_OPEN - 1;
+				ras_cnt <= T_OPEN - 1'b1;
 				t <= T_ACT_WAIT;
 				st <= S_ACT;
 			end
@@ -207,7 +207,7 @@ always @(posedge clk) begin
 				dq_out <= wdata;
 				dq_oe <= r_we;
 				if (r_we)
-					wr_cnt <= T_WR_CK - 1;
+					wr_cnt <= T_WR_CK - 1'b1;
 				else begin
 					rd_pipe[0] <= 1'b1;
 					last_pipe[0] <= last_word;
@@ -223,7 +223,7 @@ always @(posedge clk) begin
 			cmd <= C_PRE;
 			DRAM_BA <= cur_ba;
 			DRAM_ADDR <= 13'd0;							// A10 = 0: this bank only
-			t <= T_RP_CK - 1;
+			t <= T_RP_CK - 1'b1;
 			if (rem == 0) begin
 				st <= S_IDLE;
 				wr_done <= r_we;
@@ -237,14 +237,14 @@ always @(posedge clk) begin
 				refi <= 0;
 				ref_due <= 0;
 				stat_refresh <= 1;
-				t <= T_RFC_CK - 1;
+				t <= T_RFC_CK - 1'b1;
 			end
 			else begin
 				cmd <= C_ACT;
 				DRAM_BA <= r_addr[24:23];
 				DRAM_ADDR <= r_addr[22:10];
 				cur_ba <= r_addr[24:23];
-				ras_cnt <= T_OPEN - 1;
+				ras_cnt <= T_OPEN - 1'b1;
 				t <= T_ACT_WAIT;
 				st <= S_ACT;
 			end

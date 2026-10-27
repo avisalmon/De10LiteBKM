@@ -16,6 +16,10 @@
     freq      freq_counter
     sdram     sdram_ctrl (the 64 MB SDRAM)
     loader    sdram_ctrl + sdram_loader (PC <-> SDRAM over the USB-Blaster cable: scripts/sdram_load.py)
+    burst     sdram_burst_ctrl (the 100 MHz burst SDRAM controller, example 15)
+    memtest   sdram_burst_ctrl + sdram_memtest (the register-driven SDRAM memory test)
+    jtagregs  jtag_regs (a 32-bit register bus driven from the PC over JTAG)
+    dps       pll_de10_dps + pll_phase_step (the PLL with a run-time phase shift on c1)
 * Device: 10M50DAF484C7G (the production DE10-Lite part). Every RAM goes into M9K (resource-aware inference off).
 Re-running it overwrites the three files; keep project-specific settings in src/extra.qsf (appended if present).
 """
@@ -49,6 +53,10 @@ LIB_PARTS = {
     "bcdseq": ["bin2bcd_seq.sv"],
     "sdram": ["sdram_ctrl.sv"],
     "loader": ["sdram_ctrl.sv", "sdram_loader.sv"],
+    "burst": ["sdram_burst_ctrl.sv"],
+    "memtest": ["sdram_burst_ctrl.sv", "sdram_memtest.sv"],
+    "jtagregs": ["jtag_regs.sv"],
+    "dps": ["pll_de10_dps.v", "pll_phase_step.sv"],
 }
 KIND = {".v": "VERILOG_FILE", ".sv": "SYSTEMVERILOG_FILE", ".vhd": "VHDL_FILE", ".qip": "QIP_FILE",
         ".sdc": "SDC_FILE", ".mif": "MIF_FILE", ".hex": "HEX_FILE"}
@@ -57,7 +65,8 @@ KIND = {".v": "VERILOG_FILE", ".sv": "SYSTEMVERILOG_FILE", ".vhd": "VHDL_FILE", 
 def top_ports(path, top):
     text = open(path, encoding="utf-8").read()
     text = re.sub(r"//.*", "", text)
-    m = re.search(r"\bmodule\s+" + re.escape(top) + r"\b[^(]*\((.*?)\);", text, re.S)
+    m = re.search(r"\bmodule\s+" + re.escape(top) + r"\b\s*(?:#\s*\((?:[^()]|\([^()]*\))*\))?\s*\((.*?)\);",
+                  text, re.S)
     if not m:
         sys.exit(f"FAIL: module {top} not found in {path}")
     ports = []
