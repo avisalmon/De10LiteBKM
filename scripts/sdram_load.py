@@ -73,18 +73,22 @@ class Direct:
 
     name = "direct"
 
-    def __init__(self, instance=0, chunk=CHUNK, quiet=False):
+    def __init__(self, instance=0, chunk=CHUNK, quiet=False, jtag=None):
+        """jtag: an open usb_blaster.UsbBlaster to share with another node (the caller closes it)."""
         import usb_blaster
-        self.jtag = usb_blaster.UsbBlaster()
+        self.owns = jtag is None
+        self.jtag = jtag or usb_blaster.UsbBlaster()
         try:
             self.node = usb_blaster.SldHub(self.jtag).find(node_id=8, instance=instance)
         except BaseException:
-            self.jtag.close()
+            if self.owns:
+                self.jtag.close()
             raise
         self.chunk, self.quiet = chunk, quiet
 
     def close(self):
-        self.jtag.close()
+        if self.owns:
+            self.jtag.close()
 
     def status(self):
         self.node.ir(IR_STATUS)

@@ -14,6 +14,11 @@
 // second bank (ping-pong), so the next row accumulates while this one is read, shifted, saturated and pushed, one
 // value per 3 clocks. The stream only waits when a row's results are still being pushed (the lane stalled) as the
 // next row's last scale word reaches the FIFO head; CYCLES_STALLED counts those clocks.
+// Pipeline, built for 100 MHz on the MAX 10 (every M9K read uses the block's output register, every multiply has
+// registers on both sides, no array select feeds an adder in the same clock): pop -> x address (1) -> M9K (2) ->
+// products (3) -> group sum (4); scale word -> ghold (4) -> selected sum (5) -> product (6) -> accumulator (7),
+// the accumulator being read a clock ahead of its add (the one read is never the one written meanwhile: the MAC
+// walks t). The control pulses (start, abort, clear) are registered once before they fan out.
 // Registers, 16 at REG_BASE (0x100 + 16u), also written through REG_BCAST (0x1F0: every unit takes the write,
 // none answers a read):
 //   +0 ROWS   rows in this unit's slice; 0 = disabled (ignores the fabric's global start; a direct start sets done)
@@ -56,7 +61,8 @@ module matvec_unit #(
 	input			[31:0]		reg_wdata,
 	input							reg_we,
 	output reg	[31:0]		reg_rdata,
-	output						busy
+	output						busy,
+	output		[19:0]		rows_out				// = ROWS_DONE, for a display
 	);
 
 localparam GW = 21;									// group sum: |16 words x 2 x 128 x 128| = 2^19
@@ -92,11 +98,18 @@ localparam [1:0] E_IDLE = 2'd0, E_SEL = 2'd1, E_SHIFT = 2'd2, E_PUSH = 2'd3;
 reg	[1:0]		estate = E_IDLE;					// the result path
 reg	[3:0]		emit_t = 0;
 
-wire				abort_req = (ctrl_wr && reg_wdata[1]) || g_ctrl[2] || g_ctrl[0];
-wire				clear_req = (ctrl_wr && reg_wdata[2]) || g_ctrl[3];
-wire				start_req = (ctrl_wr && reg_wdata[0]) || (g_ctrl[1] && (r_rows != 0));
+// the control pulses are registered once: the address decode fanned out to every accumulator bit
+reg				abort_req = 0, clear_req = 0, start_req = 0, start_dir = 0;
+always @(posedge clk) begin
+	abort_req <= (ctrl_wr && reg_wdata[1]) || g_ctrl[2] || g_ctrl[0];
+	clear_req <= (ctrl_wr && reg_wdata[2]) || g_ctrl[3];
+	start_req <= (ctrl_wr && reg_wdata[0]) || (g_ctrl[1] && (r_rows != 0));
+	start_dir <= ctrl_wr && reg_wdata[0];
+end
 wire				start_go = start_req && !running && !abort_req && (r_rows != 0);
-wire				start_empty = ctrl_wr && reg_wdata[0] && !running && !abort_req && (r_rows == 0);
+wire				start_empty = start_dir && !running && !abort_req && (r_rows == 0);
+reg				bank_clr = 0;						// clears the sums a clock later still: the first product is 5 clocks away
+always @(posedge clk) bank_clr <= !rst_n || abort_req || start_go;
 wire				is_scale = (wcnt == 5'd16);
 wire				last_g = (gcnt == job_g - 1'b1);
 wire				want_pop = running && (rcnt != job_rows);
@@ -107,6 +120,7 @@ wire				row_end = push && (emit_t == job_t - 1'b1);
 wire				job_end = row_end && (rows_done + 1'b1 == job_rows);
 assign s_rd_en = pop;
 assign busy = running;
+assign rows_out = rows_done;
 
 wire	[5:0]		k_groups = r_k[10:5];
 
@@ -161,51 +175,65 @@ always @(posedge clk) begin
 	else if (row_end) row_pending <= 1'b0;
 end
 
-// ---- x-buffers: T_MAX RAMs of 256 x 32 (byte k of vector t at word k/4), read at the pair (k, k+1) ----
+// ---- x-buffers: T_MAX RAMs of 256 x 32 (byte k of vector t at word k/4), read at the pair (k, k+1). The read
+// takes two clocks (the M9K's address register, then its output register) so the multiply gets a clock of its
+// own: with a one-clock read the RAM's 2.5 ns flow-through output, the select, the DSP multiply and the add did
+// not fit in 10 ns ----
 wire	[7:0]				x_raddr = {gcnt[4:0], wcnt[3:1]};
 wire	[T_MAX*32-1:0]	xq;
 genvar t;
 generate for (t = 0; t < T_MAX; t = t + 1) begin : xb
 	reg	[31:0]	mem [0:255];
-	reg	[31:0]	q = 0;
+	reg	[31:0]	q = 0, q2 = 0;
 	always @(posedge clk) begin
 		if (x_we && (r_xaddr[15:12] == t)) mem[r_xaddr[9:2]] <= reg_wdata;
 		q <= mem[x_raddr];
+		q2 <= q;
 	end
-	assign xq[32*t +: 32] = q;
+	assign xq[32*t +: 32] = q2;
 end endgenerate
 
-// ---- stage 1: the word and the x pair are both registered ----
+// ---- stage 1 (two clocks): the word and its flags travel beside the x read ----
 reg				v1 = 0, sc1 = 0, lg1 = 0, sel1 = 0;
-reg	[15:0]	d1 = 0;
+reg				v1b = 0, sc1b = 0, lg1b = 0, sel1b = 0;
+reg	[15:0]	d1 = 0, d1b = 0;
 always @(posedge clk) begin
-	if (!rst_n || abort_req) v1 <= 1'b0;
-	else v1 <= pop;
+	if (!rst_n || abort_req) begin
+		v1 <= 1'b0;
+		v1b <= 1'b0;
+	end else begin
+		v1 <= pop;
+		v1b <= v1;
+	end
 	sc1 <= is_scale;
 	lg1 <= last_g;
 	sel1 <= wcnt[0];
 	d1 <= s_data;
+	sc1b <= sc1;
+	lg1b <= lg1;
+	sel1b <= sel1;
+	d1b <= d1;
 end
 
 // ---- stage 2: p_t = w0 * x_t[k] + w1 * x_t[k+1] ----
 reg				v2 = 0, sc2 = 0, lg2 = 0;
 reg	[15:0]	d2 = 0;
-wire signed [7:0]		w0 = d1[7:0];
-wire signed [7:0]		w1 = d1[15:8];
+wire signed [7:0]		w0 = d1b[7:0];
+wire signed [7:0]		w1 = d1b[15:8];
 wire	[T_MAX*17-1:0]	p2;
 generate for (t = 0; t < T_MAX; t = t + 1) begin : pr
-	wire signed [7:0]	xa = sel1 ? xq[32*t+16 +: 8] : xq[32*t +: 8];
-	wire signed [7:0]	xc = sel1 ? xq[32*t+24 +: 8] : xq[32*t+8 +: 8];
+	wire signed [7:0]	xa = sel1b ? xq[32*t+16 +: 8] : xq[32*t +: 8];
+	wire signed [7:0]	xc = sel1b ? xq[32*t+24 +: 8] : xq[32*t+8 +: 8];
 	reg signed [16:0]	p = 0;
 	always @(posedge clk) p <= w0 * xa + w1 * xc;
 	assign p2[17*t +: 17] = p;
 end endgenerate
 always @(posedge clk) begin
 	if (!rst_n || abort_req) v2 <= 1'b0;
-	else v2 <= v1;
-	sc2 <= sc1;
-	lg2 <= lg1;
-	d2 <= d1;
+	else v2 <= v1b;
+	sc2 <= sc1b;
+	lg2 <= lg1b;
+	d2 <= d1b;
 end
 
 // ---- stage 3: group sums; the scale word holds them and starts the scale MAC ----
@@ -217,9 +245,9 @@ reg	[3:0]				mac_cnt = 0;
 integer i;
 initial for (i = 0; i < T_MAX; i = i + 1) begin gsum[i] = 0; ghold[i] = 0; end
 always @(posedge clk) begin
-	if (!rst_n || abort_req || start_go) begin
+	if (!rst_n || abort_req || start_go) mac_run <= 1'b0;
+	if (bank_clr) begin
 		for (i = 0; i < T_MAX; i = i + 1) gsum[i] <= 0;
-		mac_run <= 1'b0;
 	end else begin
 		if (v2 && !sc2)
 			for (i = 0; i < T_MAX; i = i + 1) gsum[i] <= gsum[i] + $signed(p2[17*i +: 17]);
@@ -239,38 +267,50 @@ always @(posedge clk) begin
 	end
 end
 
-// ---- the scale MAC: acc_t += ghold_t * s_g, one t per clock, into the accumulating bank ----
+// ---- the scale MAC: acc_t += ghold_t * s_g, one t per clock, into the accumulating bank. Two clocks: the
+// selected group sum is registered first (the 8-way select plus the 21 x 16 multiply did not fit in 10 ns) ----
+reg signed [GW-1:0]		gsel = 0;
+reg signed [15:0]			s_sel = 0;
 reg signed [PW-1:0]		prod = 0;
-reg							pv = 0, plast = 0, row_done = 0;
-reg	[3:0]					pt = 0;
+reg							pv0 = 0, plast0 = 0, pv = 0, plast = 0, row_done = 0;
+reg	[3:0]					pt0 = 0;
 reg							mbank = 0, ebank = 0;
 reg signed [ACC_W-1:0]	acc [0:2*T_MAX-1];
 initial for (i = 0; i < 2*T_MAX; i = i + 1) acc[i] = 0;
 always @(posedge clk) begin
 	if (!rst_n || abort_req) begin
+		pv0 <= 1'b0;
 		pv <= 1'b0;
 		row_done <= 1'b0;
 	end else begin
-		pv <= mac_run;
+		pv0 <= mac_run;
+		pv <= pv0;
 		row_done <= pv && plast;
 	end
-	prod <= ghold[mac_cnt] * s_hold;
-	pt <= mac_cnt;
-	plast <= hold_last && (mac_cnt == job_t - 1'b1);
+	gsel <= ghold[mac_cnt];
+	s_sel <= s_hold;
+	pt0 <= mac_cnt;
+	plast0 <= hold_last && (mac_cnt == job_t - 1'b1);
+	prod <= gsel * s_sel;
+	plast <= plast0;
 end
 
 // ---- results: the finished bank is read, shifted, saturated and pushed, one value per 3 clocks ----
 reg signed [ACC_W-1:0]	selv = 0, sh = 0;
-wire	[4:0]					midx = mbank ? (TM5 + {1'b0, pt}) : {1'b0, pt};
+wire	[4:0]					midx0 = mbank ? (TM5 + {1'b0, pt0}) : {1'b0, pt0};	// the accumulator the product in flight is for
+reg	[4:0]					midx = 0;
+reg signed [ACC_W-1:0]	acc_rd = 0;
 wire	[4:0]					eidx = ebank ? (TM5 + {1'b0, emit_t}) : {1'b0, emit_t};
 wire							fits = (sh[ACC_W-1:31] == {(ACC_W-31){sh[31]}});
 assign wb_data = fits ? sh[31:0] : (sh[ACC_W-1] ? 32'h8000_0000 : 32'h7FFF_FFFF);
 
 always @(posedge clk) begin
-	if (!rst_n || abort_req || start_go) begin
+	midx <= midx0;
+	acc_rd <= acc[midx0];								// read a clock before the add; the one written meanwhile is another t
+	if (bank_clr) begin
 		for (i = 0; i < 2*T_MAX; i = i + 1) acc[i] <= 0;
 	end else begin
-		if (pv) acc[midx] <= acc[midx] + prod;
+		if (pv) acc[midx] <= acc_rd + prod;
 		if (estate == E_SEL) acc[eidx] <= 0;				// the other bank: read into selv this same clock
 	end
 end

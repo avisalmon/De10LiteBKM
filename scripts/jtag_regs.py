@@ -23,18 +23,27 @@ NODE_ID = 8                         # sld_virtual_jtag
 
 
 class JtagRegs:
-    def __init__(self, instance=1):
+    def __init__(self, instance=1, jtag=None):
+        """jtag: an open usb_blaster.UsbBlaster to share with another node (the caller closes it); call forget()
+        after the other node has used the cable, so the next access re-selects this node."""
         import usb_blaster
-        self.jtag = usb_blaster.UsbBlaster()
+        self.owns = jtag is None
+        self.jtag = jtag or usb_blaster.UsbBlaster()
         try:
             self.node = usb_blaster.SldHub(self.jtag).find(node_id=NODE_ID, instance=instance)
         except BaseException:
-            self.jtag.close()
+            if self.owns:
+                self.jtag.close()
             raise
         self._ir = None
 
     def close(self):
-        self.jtag.close()
+        if self.owns:
+            self.jtag.close()
+
+    def forget(self):
+        """Another node used the cable: the hub no longer points at this node."""
+        self._ir = None
 
     def __enter__(self):
         return self

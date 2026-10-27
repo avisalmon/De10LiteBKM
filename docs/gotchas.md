@@ -88,3 +88,28 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
 34. **Two chats, one board.** Both programmed the board and each spoiled the other's test. A lock file
     (`%LOCALAPPDATA%\de10lite\board.lock`: who, what, since), checked before every board command, deleted when done
     with a "board free" message, kept them apart (`load-sdram-usb`).
+35. **An arbiter failed timing by 8 ns at 100 MHz.** Three things in one clock: a credit subtraction chain
+    (`DEPTH - wlevel - inflight >= len`), the round-robin search, and `addr[win*25 +: 25]` with a variable `win`,
+    which Quartus built as a multiplier plus a 290-node barrel mux. Register each requester's "ready" bit and its
+    credit the clock before, choose with a registered round-robin, and select the winner's fields with an N-way
+    equality loop (`if (sel_id == k) sel_addr = ch_addr[k]`) so every part-select is constant (`stream_fabric`).
+36. **A simulation deadlocked with X on a register that had `= 0` written on it.** An `always @(*)` block only runs when
+    an input changes; its inputs (`rr_req`, `sel_id`) stayed 0 from time 0, so its outputs (`win_v`, `sel_addr`) stayed X
+    forever and the first clock after start copied X into `sel_v`, then into every request register. Write
+    combinational blocks as `always_comb` (it runs once at time 0) and expect this whenever a combinational output is X
+    while all its inputs are known. Also: `scripts/sim.py` captures output, so a hung testbench shows nothing until its
+    timeout (40 ms of simulated time was 30 minutes of CPU). To watch a run, call `vvp -n x.vvp` yourself.
+37. **Closing 100 MHz on the MAX 10 is a list of six shapes, not a mystery.** The stream fabric went from -8.4 ns to
+    +0.3 ns by finding each repeated path shape in `report_timing -npaths 200 -detail summary` (strip the `[n]`,
+    `__n` and `~n` from the From/To names and count what is left) and fixing the shape, not the path:
+    (1) `q <= mem[addr]` with a combinational address is an M9K with its output *unregistered* (data appears 2.5 ns
+    after the edge); anything after it in the same clock is expensive: add `q2 <= q` so the M9K's own output
+    register is used. (2) A 9x9 DSP multiply costs ~3.5 ns: registered inputs, a register right after. (3) A dynamic
+    array select feeding a multiply or a wide add (`ghold[i] * s`, `acc[j] + prod`) must be split: register the
+    selected operand first (reading the accumulator one clock ahead is safe when consecutive steps use distinct
+    indices). (4) A register-bus decode must not fan out to hundreds of synchronous clears: register the pulse once.
+    (5) `for ... if (sel == k) out = in[k]` is N mux levels; a one-hot registered select with AND-OR is 2 LUT levels
+    for N <= 8. (6) A show-ahead FIFO's M9K output must not feed a bus: a one-entry head register refills with no
+    bubble, because the FIFO shows the next entry the clock after a pop. Each fix cost a pipeline clock, the
+    testbenches re-proved the hazards, and the count of path families went 6 -> 0 in three builds (`stream_fabric`,
+    `matvec_unit`).

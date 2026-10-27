@@ -62,6 +62,7 @@ pll_de10_dps #(.C0_MUL(MUL), .C0_DIV(DIV), .C1_MUL(MUL), .C1_DIV(DIV), .C1_PHASE
 wire				clk = pclk[0];
 assign DRAM_CLK = pclk[1];
 
+(* altera_attribute = "-name AUTO_SHIFT_REGISTER_RECOGNITION OFF" *)
 reg	[2:0]		lk = 0;
 always @(posedge clk) lk <= {lk[1:0], locked};
 wire				rst_n = lk[2];

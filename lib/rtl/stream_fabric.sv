@@ -5,7 +5,8 @@
 // its unit pops (show-ahead: ch_dout is the next word while ch_valid). Credit rule: a channel asks for a burst only
 // when its FIFO has room for all of it (DEPTH - level - words already granted and not yet arrived), so a granted
 // burst never stalls and the controller needs no backpressure. Continuity needs DEPTH >= 2 x BURST.
-// Write lane u takes 32-bit results from its unit (wb_valid / wb_ready), keeps them in a LANE_DEPTH-entry FIFO and
+// Write lane u takes 32-bit results from its unit (wb_valid / wb_ready), keeps them in a LANE_DEPTH-entry FIFO
+// plus one head register (the controller reads from a flip-flop, not from the FIFO's M9K output) and
 // writes them as 16-bit words, low half first, from WB_BASE on (the pointer advances): one burst of WBURST words
 // when it holds that many, or whatever is left when the unit (wb_flush, a pulse after its last push) or the host
 // (WB_CTRL bit 16) flushes.
@@ -13,9 +14,13 @@
 // the access is complete): example 14's loader plugs in unchanged. Its word goes to the controller ahead of the
 // arbiter's choice - one word, it cannot hog the bus - so it waits at most for the burst in progress plus a
 // refresh (about 10.5 us at 100 MHz with 1024-word bursts, 2.8 us with 256).
-// Arbiter: channels and lanes take turns, round-robin, one burst per grant. The chosen command is registered and
-// held until the controller takes it (cmd_ready), so the next command is already waiting when a burst ends and
-// the requester's credit is spent the moment it is chosen.
+// Arbiter: channels and lanes take turns, round-robin, one burst per grant, in three registered steps so it
+// runs at 100 MHz: each requester keeps its request in a register (cleared the clock a grant, an abort, a start
+// or a new BURST changes its terms, so the arbiter never sees a request that was just withdrawn); the round-robin
+// registers its choice (`sel`); and when the command slot is free the choice is granted: the slot takes the
+// requester's address and length registers and the credit is spent. The slot holds the command until the
+// controller takes it (cmd_ready), so the next command is already waiting when a burst ends. A requester can be
+// granted again 4 clocks after a grant at the earliest, which the burst in progress hides.
 // Who owns the data: the controller takes the next command before a read burst's last words are out, so every
 // accepted command is queued in order (4 deep) and `done` pops one. Read words go to the channel at the head of
 // the queue (dones and data come in command order); write words come from the lane whose write burst was accepted
@@ -165,50 +170,83 @@ wire			pop = done && !q_empty;
 integer		qi;
 initial for (qi = 0; qi < 4; qi = qi + 1) q_mem[qi] = 0;
 
-// the lane (or the legacy port) feeding the write burst the controller is running
+// the lane (or the legacy port) feeding the write burst the controller is running; the lane is one-hot so the
+// data mux is an AND-OR, two LUT levels for N <= 8
 reg			wr_act = 0, wr_lg = 0;
-reg	[3:0]	wr_owner = 0;
+reg	[N-1:0]	wr_sel = 0;
 
 // ---- round-robin over channels (0..N-1) and lanes (N..2N-1) ----
-wire	[N-1:0]		ch_req, ln_req;
+// Step 1 lives in the channel and lane blocks: the request `req_q` is a register the arbiter can trust (never a
+// stale 1; a stale 0 costs a clock). Step 2: the first requester after the last one served (or after `sel`, the
+// one already chosen and waiting for the slot, which is skipped) is registered into `sel`. Step 3: when the slot
+// is free, `sel` is granted with that requester's address and length as they stand: only a grant can shrink its
+// credit or change its next burst, and it has had none since it asked (an abort, start or BURST write cancels
+// the choice instead). Every step reads registers only, so no path crosses the whole arbiter in one clock.
+wire	[N-1:0]		ch_req, ln_req;								// the registered requests
+wire	[N-1:0]		ch_kill;											// a channel's abort, start or BURST write this clock
 wire	[N*25-1:0]	ch_addr_f, ln_addr_f;
 wire	[N*11-1:0]	ch_len_f, ln_len_f;
-wire	[NR-1:0]		rr_req = {ln_req, ch_req};
+reg					sel_v = 0, sel_lane = 0;
+reg	[3:0]			sel_id = 0;
+reg	[RW-1:0]		sel_idx = 0, rr_last = 0;
+wire	[NR-1:0]		sel_mask = sel_v ? (NR'(1) << sel_idx) : NR'(0);
+wire	[NR-1:0]		rr_req = {ln_req, ch_req} & ~sel_mask & ~{{N{1'b0}}, ch_kill};
+wire	[RW-1:0]		rr_base = sel_v ? sel_idx : rr_last;
 wire	[2*NR-1:0]	rr_dbl = {rr_req, rr_req};
-reg	[RW-1:0]		rr_last = 0;
 reg	[RW:0]		win;
 reg					win_v;
 integer				ka;
-always @(*) begin											// the first requester after rr_last, wrapping
+always_comb begin											// the first requester after rr_base, wrapping
 	win = 0;
 	win_v = 0;
 	for (ka = 2*NR - 1; ka >= 0; ka = ka - 1)
-		if (rr_dbl[ka] && (ka > rr_last)) begin
+		if (rr_dbl[ka] && (ka > rr_base)) begin
 			win = (ka >= NR) ? (ka - NR) : ka;
 			win_v = 1'b1;
 		end
 end
-wire			grant_rr = slot_free && win_v;
-wire			win_lane = (win >= N);
-wire	[3:0]	win_id = win_lane ? 4'(win - N) : 4'(win);
+wire			grant = sel_v && slot_free;
 wire	[N-1:0]	ch_grant, ln_grant;
+reg	[24:0]	sel_addr;
+reg	[10:0]	sel_len;
+reg			sel_kill;
+integer		ks;
+always_comb begin											// the chosen requester's address and length (an N-way select)
+	sel_addr = 25'd0;
+	sel_len = 11'd0;
+	sel_kill = 1'b0;
+	for (ks = 0; ks < N; ks = ks + 1)
+		if (sel_id == ks) begin
+			sel_addr = sel_lane ? ln_addr_f[ks*25 +: 25] : ch_addr_f[ks*25 +: 25];
+			sel_len  = sel_lane ? ln_len_f[ks*11 +: 11] : ch_len_f[ks*11 +: 11];
+			sel_kill = !sel_lane && ch_kill[ks];
+		end
+end
 genvar g;
 generate for (g = 0; g < N; g = g + 1) begin : gg
-	assign ch_grant[g] = grant_rr && !win_lane && (win_id == g);
-	assign ln_grant[g] = grant_rr && win_lane && (win_id == g);
+	assign ch_grant[g] = grant && !sel_lane && (sel_id == g);
+	assign ln_grant[g] = grant && sel_lane && (sel_id == g);
 end endgenerate
 
 always @(posedge clk) begin
-	if (accept_rr) cmd_v <= 1'b0;
-	if (grant_rr) begin
-		cmd_v <= 1'b1;
-		cmd_w <= win_lane;
-		cmd_a <= win_lane ? ln_addr_f[win_id*25 +: 25] : ch_addr_f[win_id*25 +: 25];
-		cmd_l <= win_lane ? ln_len_f[win_id*11 +: 11] : ch_len_f[win_id*11 +: 11];
-		g_kind <= win_lane ? K_WR : K_RD;
-		g_id <= win_id;
-		rr_last <= win[RW-1:0];
+	if (grant || !sel_v) begin								// the slot took the choice (or there was none): choose again
+		sel_v <= win_v;
+		sel_idx <= win[RW-1:0];
+		sel_lane <= (win >= N);
+		sel_id <= (win >= N) ? 4'(win - N) : 4'(win);
 	end
+	else if (sel_kill) sel_v <= 1'b0;						// the chosen channel was aborted or reprogrammed: choose again
+	if (accept_rr) cmd_v <= 1'b0;
+	if (grant) begin
+		cmd_v <= 1'b1;
+		cmd_w <= sel_lane;
+		cmd_a <= sel_addr;
+		cmd_l <= sel_len;
+		g_kind <= sel_lane ? K_WR : K_RD;
+		g_id <= sel_id;
+		rr_last <= sel_idx;
+	end
+	if (!frst_n) sel_v <= 1'b0;
 	if (!rst_n) begin
 		cmd_v <= 1'b0;
 		rr_last <= 0;
@@ -228,16 +266,19 @@ always @(posedge clk) begin
 	if (accept && a_kind[0]) begin
 		wr_act <= 1'b1;
 		wr_lg <= (a_kind == K_LGW);
-		wr_owner <= a_id;
+		wr_sel <= (a_kind == K_LGW) ? N'(0) : (N'(1) << a_id);
 	end
-	else if (pop && h_kind[0])
+	else if (pop && h_kind[0]) begin
 		wr_act <= 1'b0;
+		wr_sel <= N'(0);
+	end
 	if (!rst_n) begin
 		q_wr <= 0;
 		q_rd <= 0;
 		q_cnt <= 0;
 		fault <= 1'b0;
 		wr_act <= 1'b0;
+		wr_sel <= N'(0);
 	end
 end
 
@@ -271,10 +312,10 @@ end
 wire	[N*16-1:0]	ln_word_f;
 reg	[15:0]		ln_word;
 integer				kb;
-always @(*) begin
+always_comb begin
 	ln_word = 16'd0;
 	for (kb = 0; kb < N; kb = kb + 1)
-		if (wr_owner == kb) ln_word = ln_word_f[kb*16 +: 16];
+		ln_word = ln_word | (ln_word_f[kb*16 +: 16] & {16{wr_sel[kb]}});
 end
 assign wdata = wr_lg ? lg_wdata_r : ln_word;
 assign wvalid = wr_act;
@@ -284,11 +325,15 @@ wire	[N-1:0]		ch_running;
 wire	[N*32-1:0]	ch_rd_f;
 generate for (g = 0; g < N; g = g + 1) begin : ch
 	reg	[24:0]	base = 0, len = 0;
-	reg	[10:0]	burst = 11'd256;
+	reg	[10:0]	burst = 11'd256, burst_e = 11'd256;	// BURST as written, and clamped (0 or > MAX_BURST -> MAX_BURST)
 	reg				en = 0, loop = 0;
 	reg				running = 0, done_f = 0;
 	reg	[24:0]	naddr = 0, remain = 0;
 	reg	[10:0]	inflight = 0;
+	reg	[10:0]	this_len = 0;						// words of the next burst, min(burst_e, remain), a clock behind
+	reg	[11:0]	room = 0;							// DEPTH - level - inflight, a clock behind: pushes leave it as it
+	                                             // is (level up, inflight down), pops only grow it, grants shrink it
+	reg				req_q = 0, hold = 0;
 	reg	[31:0]	fetched = 0, waited = 0;
 	wire	[AW:0]	wlevel;
 	wire				full, empty, ovf;
@@ -296,13 +341,13 @@ generate for (g = 0; g < N; g = g + 1) begin : ch
 	wire				start = (my_reg && ch_reg == 3'd3 && reg_wdata[2]) || (ctrl_start && en);
 	wire				abort = (my_reg && ch_reg == 3'd3 && reg_wdata[3]) || ctrl_abort;
 	wire				clear = (my_reg && ch_reg == 3'd3 && reg_wdata[4]) || ctrl_clear;
-	wire	[10:0]	burst_e = (burst == 11'd0 || burst > MAXB) ? MAXB : burst;
-	wire	[10:0]	this_len = (remain > {14'd0, burst_e}) ? burst_e : remain[10:0];
-	wire	[11:0]	room = DEPTH_W - {{(11-AW){1'b0}}, wlevel} - {1'b0, inflight};
+	wire				burst_wr = my_reg && (ch_reg == 3'd2);
 	wire				push = rvalid && !q_empty && (h_kind == K_RD) && (h_id == g) && running;
 	wire				last_of_pass = (remain == {14'd0, this_len});
+	wire				live_req = running && (remain != 25'd0) && (room >= {1'b0, this_len});
 
-	assign ch_req[g] = running && (remain != 25'd0) && (room >= {1'b0, this_len});
+	assign ch_req[g] = req_q;
+	assign ch_kill[g] = abort || start || burst_wr;
 	assign ch_addr_f[g*25 +: 25] = naddr;
 	assign ch_len_f[g*11 +: 11] = this_len;
 	assign ch_running[g] = running;
@@ -311,13 +356,23 @@ generate for (g = 0; g < N; g = g + 1) begin : ch
 		if (my_reg) case (ch_reg)
 			3'd0: base <= reg_wdata[24:0];
 			3'd1: len <= reg_wdata[24:0];
-			3'd2: burst <= reg_wdata[10:0];
+			3'd2: begin
+				burst <= reg_wdata[10:0];
+				burst_e <= (reg_wdata[10:0] == 11'd0 || reg_wdata[10:0] > MAXB) ? MAXB : reg_wdata[10:0];
+			end
 			3'd3: {loop, en} <= reg_wdata[1:0];
 			default: ;
 		endcase
+		this_len <= (remain > {14'd0, burst_e}) ? burst_e : remain[10:0];
+		room <= DEPTH_W - {{(11-AW){1'b0}}, wlevel} - {1'b0, inflight};
+		// the request the arbiter sees: cleared by whatever changes its terms (a grant, abort, start, a new
+		// BURST) and held low one more clock while this_len and room catch up with the new state
+		hold <= ch_grant[g] || ch_kill[g];
+		req_q <= live_req && !hold;
+		if (ch_grant[g] || ch_kill[g]) req_q <= 1'b0;
 		inflight <= inflight + (ch_grant[g] ? this_len : 11'd0) - (push ? 11'd1 : 11'd0);
 		if (push) fetched <= fetched + 1'b1;
-		if (ch_req[g] && !ch_grant[g]) waited <= waited + 1'b1;
+		if (req_q && !ch_grant[g]) waited <= waited + 1'b1;
 		if (ch_grant[g]) begin
 			if (last_of_pass && loop) begin
 				naddr <= base;
@@ -348,6 +403,8 @@ generate for (g = 0; g < N; g = g + 1) begin : ch
 			done_f <= 1'b0;
 			remain <= 0;
 			inflight <= 0;
+			req_q <= 1'b0;
+			hold <= 1'b0;
 			fetched <= 0;
 			waited <= 0;
 		end
@@ -388,21 +445,32 @@ generate for (g = 0; g < N; g = g + 1) begin : ln
 	wire	[LAW:0]	rlevel;
 	wire	[31:0]	frd;
 	wire				full, empty;
+	// the head entry sits in a register: the controller takes its two half-words straight from a flip-flop
+	// instead of from the FIFO's M9K output (2.5 ns after the edge, then two muxes: too slow at 100 MHz). The
+	// FIFO shows the next entry the clock after a pop, so the register refills without a bubble, and the lane
+	// holds LANE_DEPTH + 1 entries. `lvl` is what the lane really has; it does not move when the head loads.
+	reg	[31:0]	hq = 0;
+	reg				hv = 0;
+	wire	[LAW:0]	lvl = rlevel + {{LAW{1'b0}}, hv};
 	wire				my_reg = reg_we && sel_ln && (ln_idx == g);
 	wire	[9:0]		wb_ent = wburst[10:1];									// WBURST in entries (2 words each)
 	wire	[LAW:0]	thr = (wb_ent == 10'd0) ? {{LAW{1'b0}}, 1'b1} :
 	                    (wb_ent > LANE_DEPTH) ? LD : wb_ent[LAW:0];
-	wire				thr_ok = (rlevel >= thr);
-	wire	[LAW:0]	n_ent = thr_ok ? thr : rlevel;
-	wire				sel = wr_act && !wr_lg && (wr_owner == g);
+	wire				thr_ok = (lvl >= thr);
+	reg	[LAW:0]	n_ent = 0;								// entries of the next write burst, a clock behind lvl
+	                                                // (which only grows while the lane waits for a grant)
+	reg				req_q = 0;
+	wire				live_req = !busy && (thr_ok || (flush_pend && lvl != 0));
+	wire				sel = wr_sel[g];
 	wire				take = sel && wready;
+	wire				hload = (!hv || (take && half)) && !empty;		// head empty, or emptied this clock: refill
 	wire				fl_pulse = fl_s3 ^ fl_s4;
 
-	assign ln_req[g] = !busy && (thr_ok || (flush_pend && rlevel != 0));
+	assign ln_req[g] = req_q;
 	assign ln_addr_f[g*25 +: 25] = ptr;
 	assign ln_len_f[g*11 +: 11] = 11'({n_ent, 1'b0});
 	assign ln_busy[g] = busy || flush_pend;
-	assign ln_word_f[g*16 +: 16] = empty ? 16'd0 : (half ? frd[31:16] : frd[15:0]);
+	assign ln_word_f[g*16 +: 16] = !hv ? 16'd0 : (half ? hq[31:16] : hq[15:0]);
 
 	// the unit's flush pulse crosses as a toggle (pulses at least 8 uclk apart), one clock later than a pointer
 	always @(posedge uclk) if (wb_flush[g]) fl_tog <= ~fl_tog;
@@ -419,8 +487,11 @@ generate for (g = 0; g < N; g = g + 1) begin : ln
 			2'd1: wburst <= reg_wdata[10:0];
 			default: ;
 		endcase
+		n_ent <= thr_ok ? thr : lvl;
+		req_q <= live_req;									// busy goes up the clock of the grant: never a stale 1
+		if (ln_grant[g]) req_q <= 1'b0;
 		if (fl_pulse || (my_reg && ln_reg == 2'd1 && reg_wdata[16])) flush_pend <= 1'b1;
-		else if (flush_pend && !busy && rlevel == 0) flush_pend <= 1'b0;
+		else if (flush_pend && !busy && lvl == 0) flush_pend <= 1'b0;
 		if (ln_grant[g]) begin
 			busy <= 1'b1;
 			half <= 1'b0;
@@ -430,8 +501,13 @@ generate for (g = 0; g < N; g = g + 1) begin : ln
 		if (take) begin
 			half <= !half;
 			words <= words + 1'b1;
-			if (empty) underrun <= 1'b1;
+			if (!hv) underrun <= 1'b1;
 		end
+		if (hload) begin
+			hq <= frd;
+			hv <= 1'b1;
+		end else if (take && half)
+			hv <= 1'b0;
 		if (my_reg && ln_reg == 2'd1 && reg_wdata[17]) begin
 			words <= 0;
 			underrun <= 1'b0;
@@ -441,7 +517,9 @@ generate for (g = 0; g < N; g = g + 1) begin : ln
 			flush_pend <= 1'b0;
 			busy <= 1'b0;
 			half <= 1'b0;
+			hv <= 1'b0;
 			underrun <= 1'b0;
+			req_q <= 1'b0;
 			words <= 0;
 		end
 	end
@@ -449,7 +527,7 @@ generate for (g = 0; g < N; g = g + 1) begin : ln
 	async_fifo #(.WIDTH(32), .DEPTH(LANE_DEPTH)) fifo(
 		.wclk(uclk), .wrst_n(ufrst_n), .wr_en(wb_valid[g] && !full), .wdata(wb_data[g*32 +: 32]), .full(full),
 		.wlevel(), .overflow(),
-		.rclk(clk), .rrst_n(frst_n), .rd_en(take && half && !empty), .rdata(frd), .empty(empty), .rlevel(rlevel),
+		.rclk(clk), .rrst_n(frst_n), .rd_en(hload), .rdata(frd), .empty(empty), .rlevel(rlevel),
 		.underflow());
 	assign wb_ready[g] = !full;
 
@@ -459,7 +537,7 @@ generate for (g = 0; g < N; g = g + 1) begin : ln
 		if (sel_ln && ln_idx == g) case (ln_reg)
 			2'd0: rd = {7'd0, ptr};
 			2'd1: rd = {21'd0, wburst};
-			2'd2: rd = {words, underrun, 7'(rlevel)};
+			2'd2: rd = {words, underrun, 7'(lvl)};
 			default: rd = 32'd0;
 		endcase
 	end
@@ -489,7 +567,7 @@ end
 
 assign any_running = |ch_running;
 assign lanes_busy = |ln_busy;
-assign idle = !any_running && !lanes_busy && !legacy_busy && !cmd_v && q_empty;
+assign idle = !any_running && !lanes_busy && !legacy_busy && !sel_v && !cmd_v && q_empty;
 
 reg	[31:0]	glob_rd, ch_rd_or, ln_rd_or;
 integer		kc;

@@ -1,4 +1,4 @@
-"""The SDRAM memory test and read-window sweep of examples/15_sdram_stream_fabric (memtest_top on the board).
+"""The SDRAM memory test and read-window sweep of examples/15_sdram_stream_fabric/memtest (memtest_top on the board).
 
   python scripts/sdram_memtest.py info                      what is on the board: clock, phase, SDRAM state
   python scripts/sdram_memtest.py run [options]             one test run (write pass, read pass, or both)
@@ -42,7 +42,7 @@ class Board:
         if got != ID:
             self.r.close()
             raise SystemExit(f"FAIL: the design on the board answers ID {got:08X}, memtest_top is {ID:08X}: "
-                             "program examples/15_sdram_stream_fabric first")
+                             "program examples/15_sdram_stream_fabric/memtest first")
         info = self.r.peek(R_INFO)
         self.step_ps, self.phase_ps = info >> 16, info & 0xFFFF
         self.clk_mhz = self.r.peek(R_CLK_MHZ)

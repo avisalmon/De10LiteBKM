@@ -241,6 +241,17 @@ uses DEPTH 1024 words (two M9K in 1024 × 9 mode… see <a href="#mem">section 9
 policy (grant the channel with the lowest level) was considered and <b>not built</b>: plain round-robin already measures
 96.6 % of the bus with every channel finishing within one burst of the others (<a href="#verify">section 11</a>), so
 there was nothing left to gain.</p>
+<p><b>The arbiter is a three-step pipeline</b> (the first version did everything in one clock and failed timing at
+100 MHz by 8 ns: the credit subtraction chain, the round-robin search and a <code>[win*25 +: 25]</code> part-select,
+which synthesis built as a multiplier and a barrel mux, in series). Step 1, in every requester: a registered
+<code>req</code> bit (channel: running, words remain, room ≥ this burst; lane: holds a burst or is flushing), computed
+from registered credit values and cleared on the grant, the abort or a BURST write (a channel keeps it low one more
+clock while its credit catches up). Step 2: a registered round-robin choice <code>sel</code> (valid, index, lane or
+channel) made from the <code>req</code> bits with the already-chosen and killed ones masked out; the ring position
+advances on every grant. Step 3: the grant itself, <code>sel</code> valid and a free controller slot, and the winner's
+address and length picked with an N-way equality loop so every part-select is constant. The same requester is granted
+again at the earliest 4 clocks after its previous grant, which a burst in progress always hides; the throughput is the
+one measured with the single-clock version.</p>
 <p><b>Who owns the read data.</b> The controller accepts the next command (<code>cmd_ready</code>) while the previous read
 burst's last words are still on their way (<a href="#sdram">section 3</a>: the data trails the READ by
 <code>rd_delay</code> + 1 clocks, the PRE and tRP run meanwhile). So the arbiter keeps a <b>4-entry queue of accepted
@@ -266,13 +277,15 @@ accepted and cleared when its <code>done</code> pops it; at most three commands 
 <code>level</code> for diagnostics. The read side is on the unit's clock (= <code>clk</code> in this example).</p>
 
 <h3>Write-back lane (<code>wb_lane</code>)</h3>
-<p>A unit pushes 32-bit results (<code>wb_data, wb_valid, wb_ready</code>); the lane stores them in a 64 × 32 FIFO and
-writes them as 16-bit words, low half first, to <code>WB_BASE</code>, which auto-increments. It requests a burst when it
-holds <code>WBURST</code> words (default 64 words = 32 results) or when the unit raises <code>wb_flush</code> at the end
-of a job and anything is left. Registers: <code>WB_BASE</code> (25), <code>WB_CTRL</code> ([10:0] WBURST, bit 16 flush
-self-clearing, bit 17 clear), <code>WB_STAT</code> ([6:0] level in results, bit 7 underrun: the lane was granted a
-burst and ran out of results, it sent zeros and the pointer stayed consistent; sticky until clear, [31:8] words
-written).</p>
+<p>A unit pushes 32-bit results (<code>wb_data, wb_valid, wb_ready</code>); the lane stores them in a 64 × 32 FIFO
+plus a one-entry head register (65 results at most; the head register exists so the FIFO's M9K output never feeds
+the controller's data bus directly, and it refills with no bubble because the FIFO shows its next entry the clock
+after a pop) and writes them as 16-bit words, low half first, to <code>WB_BASE</code>, which auto-increments. It
+requests a burst when it holds <code>WBURST</code> words (default 64 words = 32 results) or when the unit raises
+<code>wb_flush</code> at the end of a job and anything is left. Registers: <code>WB_BASE</code> (25),
+<code>WB_CTRL</code> ([10:0] WBURST, bit 16 flush self-clearing, bit 17 clear), <code>WB_STAT</code> ([6:0] level in
+results, bit 7 underrun: the lane was granted a burst and ran out of results, it sent zeros and the pointer stayed
+consistent; sticky until clear, [31:8] words written).</p>
 
 <h3>Legacy bridge</h3>
 <p>The example 06/14 master port (<code>req, we, addr[24:0], wdata, ready, rvalid, rdata</code>) becomes a burst of one
@@ -381,10 +394,16 @@ end of a row (K/32 groups):
     pops; the unit holds the next row's LAST scale word until the previous row is fully written
     (that wait is CYCLES_STALLED)
 end of the job (ROWS rows): wb_flush, STAT.done</code></pre>
-<p>Three pipeline stages (word register, products, group sum) and a 3-stage MAC: a weight word is in the group sum
-4 clocks after its pop. Every operand is declared <code>signed</code> so Quartus maps the multiplies to the embedded
-multipliers (<code>use-dsp-multipliers</code>): expected 2 × 9 × 9 per vector for the pairs plus one 18 × 18 pair for
-the MAC, about 18 DSP elements per unit at T_MAX = 8.</p>
+<p><b>Pipeline, built for 100 MHz.</b> A popped word takes 4 clocks to reach the group sum: pop → x-buffer address
+(1) → M9K read with its output register (2) → products in the DSP blocks (3) → group sum (4). A scale word takes
+7: ghold (4) → the selected vector's sum, registered (5) → product (6) → accumulator (7); the accumulator is read one
+clock ahead of its write (consecutive steps use distinct t, so the pre-read is always current). The register bus's
+start / abort / clear pulses are registered once before they fan out, and the clears of the 8 accumulators and
+sums come from one more register (<code>bank_clr</code>). Every operand is declared <code>signed</code> so Quartus maps the
+multiplies to the embedded multipliers (<code>use-dsp-multipliers</code>): 2 × 9 × 9 per vector for the pairs and one
+18 × 18 (two 9 × 9 elements) for the MAC: 20 DSP elements per unit at T_MAX = 8, measured. The first version did the
+M9K read, the products and the sum in one clock and the MAC in three; it ran at 85 MHz
+(<a href="../../docs/gotchas.md">gotcha 37</a> lists the six path shapes that had to change).</p>
 <h3>Registers (per unit, also at the broadcast address; broadcast reads return 0)</h3>
 <div class="tablewrap"><table>
 <tr><th>Register</th><th>Meaning</th></tr>
@@ -458,12 +477,13 @@ example 14.</p>
 <tr><td colspan="3"><b>Total</b></td><td><b>≈ 66 of 182</b> (36 %)</td></tr>
 </table></div>
 <div class="tablewrap"><table>
-<tr><th>Resource</th><th>Expected</th><th>Of</th><th>From</th></tr>
-<tr><td>Logic elements</td><td>≈ 10,500</td><td>49,760 (21 %)</td><td>controller ≈ 400, fabric with 6 channels + 6 lanes + arbiter ≈ 2,000, 12 FIFOs ≈ 600, jtag_regs ≈ 400, loader ≈ 600, 6 units × ≈ 1,100 (T = 8 accumulators and saturation)</td></tr>
-<tr><td>18 × 18 multipliers</td><td>54</td><td>144 (38 %)</td><td>per unit T blocks for the MACs (two 9 × 9 each) + 1 for the scale</td></tr>
-<tr><td>M9K</td><td>≈ 66</td><td>182 (36 %)</td><td>table above</td></tr>
-<tr><td>PLL</td><td>1</td><td>4</td><td></td></tr>
-<tr><td>Fmax</td><td>≥ 100 MHz on <code>clk</code></td><td></td><td>I/O registers on all SDRAM pins; the 48-bit accumulators are the longest paths (one adder each, fine at 100 MHz on MAX 10)</td></tr>
+<tr><th>Resource</th><th>Expected</th><th>Measured (build of the demo top)</th><th>Of</th><th>Notes</th></tr>
+<tr><td>Logic elements</td><td>≈ 10,500</td><td><b>29,128</b></td><td>49,760 (59 %)</td><td>fabric 5,767 (the two credit arbiters, 6 channels, 6 lanes, 12 FIFOs' logic), each unit ≈ 3,370 (8 vectors × (2 products + 21-bit sum + 48-bit accumulator with saturation) and the x-buffer write path), loader 1,574, controller 327, jtag_regs 199. The estimate missed the per-vector width: 8 × 48-bit accumulators and the saturation alone are ≈ 1,200 LEs a unit</td></tr>
+<tr><td>9 × 9 multipliers</td><td>108 (54 × 18 × 18)</td><td><b>120</b></td><td>288 (42 %)</td><td>per unit 16 for the pair products (2 per vector) and 4 for the 21 × 16 scale MAC</td></tr>
+<tr><td>M9K</td><td>≈ 66</td><td><b>67</b> (66 after the fix)</td><td>182 (37 %)</td><td>table above + 1 that Quartus spent on the top's 3-bit PLL-lock synchronizer, turned into an <code>altshift_taps</code> by auto shift-register replacement; the top now carries <code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> on that register</td></tr>
+<tr><td>Registers</td><td></td><td>16,105</td><td></td><td>1,820 a unit, 3,197 in the fabric</td></tr>
+<tr><td>PLL</td><td>1</td><td>1</td><td>4</td><td>c0 100 MHz logic, c1 100 MHz to the SDRAM pin, phase stepped</td></tr>
+<tr><td>Fmax</td><td>≥ 100 MHz on <code>clk</code></td><td><b>102.83 MHz</b> (slow 85 °C), setup slack +0.275 ns at 100 MHz, hold +0.100 ns</td><td></td><td>after the pipeline work of section 7 and gotcha 37; the first build had −8.4 ns, the second −1.8 ns</td></tr>
 </table></div>
 
 <h2 id="numbers">10 · Expected numbers</h2>

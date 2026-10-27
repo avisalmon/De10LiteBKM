@@ -20,6 +20,10 @@
     memtest   sdram_burst_ctrl + sdram_memtest (the register-driven SDRAM memory test)
     jtagregs  jtag_regs (a 32-bit register bus driven from the PC over JTAG)
     dps       pll_de10_dps + pll_phase_step (the PLL with a run-time phase shift on c1)
+    fifo      async_fifo (two-clock FIFO in M9K, show-ahead)
+    fabric    sdram_burst_ctrl + async_fifo + stream_fabric (N read channels + N write lanes on one SDRAM, example 15)
+    matvec    matvec_unit (int8 matrix-vector compute unit fed by a fabric channel)
+    usbloader sdram_loader alone (the PC <-> SDRAM link on another controller's port, e.g. the fabric's)
 * Device: 10M50DAF484C7G (the production DE10-Lite part). Every RAM goes into M9K (resource-aware inference off).
 Re-running it overwrites the three files; keep project-specific settings in src/extra.qsf (appended if present).
 """
@@ -57,6 +61,10 @@ LIB_PARTS = {
     "memtest": ["sdram_burst_ctrl.sv", "sdram_memtest.sv"],
     "jtagregs": ["jtag_regs.sv"],
     "dps": ["pll_de10_dps.v", "pll_phase_step.sv"],
+    "fifo": ["async_fifo.sv"],
+    "fabric": ["sdram_burst_ctrl.sv", "async_fifo.sv", "stream_fabric.sv"],
+    "matvec": ["matvec_unit.sv"],
+    "usbloader": ["sdram_loader.sv"],
 }
 KIND = {".v": "VERILOG_FILE", ".sv": "SYSTEMVERILOG_FILE", ".vhd": "VHDL_FILE", ".qip": "QIP_FILE",
         ".sdc": "SDC_FILE", ".mif": "MIF_FILE", ".hex": "HEX_FILE"}
@@ -65,6 +73,9 @@ KIND = {".v": "VERILOG_FILE", ".sv": "SYSTEMVERILOG_FILE", ".vhd": "VHDL_FILE", 
 def top_ports(path, top):
     text = open(path, encoding="utf-8").read()
     text = re.sub(r"//.*", "", text)
+    # what synthesis sees: no macro is defined, so an `ifdef branch is gone and an `ifndef branch stays
+    text = re.sub(r"`ifdef\s+\w+(.*?)(?:`else(.*?))?`endif", lambda m: m.group(2) or "", text, flags=re.S)
+    text = re.sub(r"`ifndef\s+\w+(.*?)(?:`else(.*?))?`endif", lambda m: m.group(1), text, flags=re.S)
     m = re.search(r"\bmodule\s+" + re.escape(top) + r"\b\s*(?:#\s*\((?:[^()]|\([^()]*\))*\))?\s*\((.*?)\);",
                   text, re.S)
     if not m:
