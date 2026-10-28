@@ -19,7 +19,8 @@ description: >
 Proven on the board: `examples/15_sdram_stream_fabric`. The SDRAM (IS42S16320, 16 bits wide) at 100 MHz moves one
 word per clock = 200 MB/s at most; this stack gets **196 MB/s** in the memory test (0 errors over 64 MB), **195 MB/s**
 into six units streaming at once (98 % of the bus), and runs int8 matrix-vector jobs bit-exact against numpy
-(ten random jobs up to 512 x 1024; `job --model` runs every matrix of a llama2.c model the same way). The
+(ten random jobs up to 512 x 1024, and every matrix of two llama2.c models: stories260K's 36 and stories15M's 43,
+the 15.4 MB of weights in 83.6 ms = 193 MB/s; the 32000 x 288 classifier at T 8: 1.32 GMAC/s). The
 single-word controller (`use-sdram`, example 06) does
 10 MB/s; the loader (`load-sdram-usb`, example 14) fills the memory at 0.58 MB/s and rides along unchanged.
 

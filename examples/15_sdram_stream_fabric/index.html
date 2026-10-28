@@ -15,10 +15,11 @@
 burst controller, a fabric of six FIFO channels that share the one memory bus by credits, six compute units that each eat
 one word per clock (int8 matrix times vector, eight vectors at once), six lanes that carry the results back, and a register
 file the PC drives over the same JTAG cable. Measured on the board: <b>196 MB/s over all 64 MB with 0 errors</b> (98 % of the
-bus's 200 MB/s), <b>195 MB/s into six units streaming at once</b>, and matrix-vector jobs <b>bit-exact against numpy</b> up to
-512 × 1024. It is the data-flow layer of an LLM on this board: the transformer project will stand on it.</p>
+bus's 200 MB/s), <b>195 MB/s into six units streaming at once</b>, and matrix-vector jobs <b>bit-exact against numpy</b>: random
+ones up to 512 × 1024 and <b>every matrix of two llama2.c models</b> (stories15M's 15.4 MB of weights in 83.6 ms, one token's
+worth at 12 tokens a second). It is the data-flow layer of an LLM on this board: the transformer project will stand on it.</p>
 <div class="badges">
-  <span class="badge ok">Verified on the board 2026-10-28: 64 MB memtest 0 errors, 195 MB/s six units, jobs bit-exact</span>
+  <span class="badge ok">Verified on the board 2026-10-28: 64 MB memtest 0 errors, 195 MB/s six units, 79 model matrices bit-exact</span>
   <span class="badge">Quartus Prime Lite 17.1</span>
   <span class="badge">No shield needed</span>
   <span class="badge">Skill: stream-from-sdram</span>
@@ -81,15 +82,17 @@ units consume one word per clock each, so with two or more they are starved most
 mouths). The rate is the whole stream's words over the longest unit's busy time.</p>
 <div class="tablewrap"><table>
 <tr><th>Units</th><th>Burst</th><th>Words</th><th>Clocks</th><th>MB/s</th><th>Bus use</th><th>Units starved</th></tr>
-<tr><td>1</td><td>64</td><td>557,056</td><td>603,572</td><td>184.6</td><td>92.6 %</td><td>7.7 %</td></tr>
-<tr><td>1</td><td>256</td><td>557,056</td><td>577,122</td><td>193.0</td><td>96.9 %</td><td>3.5 %</td></tr>
+<tr><td>1</td><td>64</td><td>557,056</td><td>603,552</td><td>184.6</td><td>92.6 %</td><td>7.7 %</td></tr>
+<tr><td>1</td><td>256</td><td>557,056</td><td>577,127</td><td>193.0</td><td>96.9 %</td><td>3.5 %</td></tr>
 <tr><td>1</td><td>1024</td><td>557,056</td><td>578,124</td><td>192.7</td><td>96.7 %</td><td>3.6 %</td></tr>
-<tr><td>2</td><td>1024</td><td>1,114,112</td><td>1,141,052</td><td>195.3</td><td>98.0 %</td><td>51.2 %</td></tr>
-<tr><td>3</td><td>1024</td><td>1,671,168</td><td>1,711,666</td><td>195.3</td><td>98.0 %</td><td>67.4 %</td></tr>
-<tr><td>6</td><td>64</td><td>3,342,336</td><td>3,621,001</td><td>184.6</td><td>92.6 %</td><td>84.6 %</td></tr>
-<tr><td>6</td><td>256</td><td>3,342,336</td><td>3,462,924</td><td>193.0</td><td>96.9 %</td><td>83.9 %</td></tr>
-<tr><td><b>6</b></td><td><b>1024</b></td><td>3,342,336</td><td>3,422,757</td><td><b>195.3</b></td><td><b>98.0 %</b></td><td>83.7 %</td></tr>
+<tr><td>2</td><td>1024</td><td>1,114,112</td><td>1,141,020</td><td>195.3</td><td>98.0 %</td><td>51.2 %</td></tr>
+<tr><td>3</td><td>1024</td><td>1,671,168</td><td>1,711,660</td><td>195.3</td><td>98.0 %</td><td>67.4 %</td></tr>
+<tr><td>6</td><td>64</td><td>3,342,336</td><td>3,621,026</td><td>184.6</td><td>92.6 %</td><td>84.6 %</td></tr>
+<tr><td>6</td><td>256</td><td>3,342,336</td><td>3,462,929</td><td>193.0</td><td>96.9 %</td><td>83.9 %</td></tr>
+<tr><td><b>6</b></td><td><b>1024</b></td><td>3,342,336</td><td>3,422,748</td><td><b>195.3</b></td><td><b>98.0 %</b></td><td>83.7 %</td></tr>
 </table></div>
+<p>(The build on this page; the build before gotcha 38's setting gave the same rows within 40 clocks:
+<a href="media/bench.txt">media/bench.txt</a> has both.)</p>
 <p>The fabric reaches the memory test's 98 % with two units or more; with one unit the 1,024-word FIFO cannot hold a
 burst ahead of a consumer that drains as fast as it fills, so 3.6 % is lost to the gap between bursts (the credit rule:
 a channel asks only when the whole burst fits, so continuity needs <code>DEPTH ≥ 2 × BURST</code>). N adds no
@@ -112,9 +115,42 @@ the same bits.</p>
 </table></div>
 <p>A job is slower than the bench by the per-row work (a group's scale word, the T results drained at the end of each row)
 and by its write-back traffic (two words per result, through the lanes, on the same bus). 512 × 1024 × 8 vectors is
-4.2 million multiply-accumulates in 2.94 ms: 1.4 GMAC/s from one 16-bit memory. The units' own capacity is 9.6 GMAC/s at
+4.2 million multiply-accumulates in 2.94 ms: 1.4 GMAC/s from one 16-bit memory. (These ten ran on the build before
+gotcha 38's setting; on the build on this page 64 × 64 took 2,396 clocks and 512 × 1024 took 293,997, both exact.)
+The units' own capacity is 9.6 GMAC/s at
 T = 8 (6 units × 2 weights × 8 vectors per clock); the memory feeds a sixth of it, which is the point of the next step
 (the KV cache and the small matrices in M9K, a second memory on the GPIO header, or more reuse).</p>
+
+<h3>A real model: every matrix of two TinyStories transformers (<code>fabric_ctl.py job --model</code>)</h3>
+<p><code>tools/export_q8.py</code> takes a llama2.c checkpoint, quantizes every weight matrix to the fabric's format
+(groups of 32 int8 with an int16 scale) and lays them out one after the other on 1,024-word boundaries.
+<code>job --model NAME --load</code> loads the whole file through the USB loader, has the board CRC it, then runs every
+matrix as a job against a random activation vector and compares each result with numpy. Both models, every matrix,
+bit-exact, on the build on this page:</p>
+<div class="tablewrap"><table>
+<tr><th>Model</th><th>Matrices</th><th>File</th><th>Load (USB)</th><th>Board CRC</th><th>Words streamed</th><th>Board time</th><th>MB/s</th><th>Results</th></tr>
+<tr><td>stories260K (dim 64, 5 layers, vocab 512)</td><td>36</td><td>0.32 MB</td><td>0.57 s = 570 KB/s</td><td>match, 0.02 s</td><td>141,168</td><td>1.46 ms</td><td>193.3</td><td>all 36 exact</td></tr>
+<tr><td>stories15M (dim 288, 6 layers, vocab 32000)</td><td>43</td><td>15.45 MB</td><td>27.9 s = 568 KB/s</td><td>match, 1.00 s</td><td>8,068,608</td><td>83.6 ms</td><td><b>193.1</b></td><td><b>all 43 exact</b></td></tr>
+</table></div>
+<p>The classifier of stories15M (<code>cls</code>, 32,000 × 288, 4,896,000 words = 9.3 MB) is the biggest matrix a
+small LLM has, and shows what T buys when the memory is the limit:</p>
+<div class="tablewrap"><table>
+<tr><th>Job</th><th>T</th><th>Units</th><th>Clocks</th><th>ms</th><th>MB/s</th><th>Bus use</th><th>Starved</th><th>Stalled</th><th>MACs</th><th>GMAC/s</th><th>Result</th></tr>
+<tr><td>cls</td><td>1</td><td>6</td><td>5,080,894</td><td>50.81</td><td>192.7</td><td>97.6 %</td><td>83.9 %</td><td>0.0 %</td><td>9.2 M</td><td>0.18</td><td>32,000 exact</td></tr>
+<tr><td>cls</td><td>1</td><td>1</td><td>5,123,336</td><td>51.23</td><td>191.1</td><td>96.8 %</td><td>4.4 %</td><td>0.0 %</td><td>9.2 M</td><td>0.18</td><td>32,000 exact</td></tr>
+<tr><td>cls</td><td>8</td><td>6</td><td>5,572,436</td><td>55.72</td><td>175.7</td><td>97.0 %</td><td>40.0 %</td><td>45.3 %</td><td>73.7 M</td><td><b>1.32</b></td><td>256,000 exact</td></tr>
+<tr><td>cls</td><td>8</td><td>1</td><td>5,916,754</td><td>59.17</td><td>165.5</td><td>91.4 %</td><td>5.4 %</td><td>11.8 %</td><td>73.7 M</td><td>1.25</td><td>256,000 exact</td></tr>
+<tr><td>stories260K l0.w1 (172 × 64)</td><td>4</td><td>2</td><td>7,704</td><td>0.077</td><td>151.8</td><td>93.8 %</td><td>19.1 %</td><td>42.2 %</td><td>44 K</td><td>0.57</td><td>688 exact</td></tr>
+</table></div>
+<p>Eight vectors instead of one cost 9 % more time and did eight times the work: 1.32 GMAC/s. One unit at T 1 already
+keeps the bus 96.8 % busy (a unit eats a word per clock, the memory gives one), so with the classifier the other five
+units only add independence. At T 8 the units <i>stall</i> instead of starving: eight results per row go back through
+the lanes, two words each, 512,000 words on top of the 4,896,000 read, on the same bus; the 9 % is exactly that extra
+traffic, and the lanes waiting behind the channels is where the units spend it. Streaming all 43 matrices once is one
+token's worth of weights: 83.6 ms at T 1, so this one 16-bit SDRAM bounds a token-at-a-time stories15M at 12 tokens a
+second, or eight tokens at once in about 90 ms, before the attention and the activations, which never touch the SDRAM.
+That is the number the Transformer project starts from. The transcript of every matrix:
+<a href="media/jobs_stories15M.txt">media/jobs_stories15M.txt</a>.</p>
 
 <h3>The read window (<code>sdram_memtest.py sweep</code>)</h3>
 <p>The controller samples the chip's data <code>rd_delay</code> clocks after the READ command. Which clock, and how much
@@ -279,8 +315,8 @@ python -m pytest tests/test_stream_fabric.py                 the seven testbench
 <tr><td>The SDRAM at 100 MHz: 64 MB, four patterns, the burst-size table, the read-window map</td><td>verified on the board (<code>memtest/</code> build)</td></tr>
 <tr><td>The fabric: 1, 2, 3 and 6 units streaming at once</td><td>verified on the board: 195.3 MB/s</td></tr>
 <tr><td>Ten random jobs, 3 × 32 to 512 × 1024, T 1..8, 2 to 6 units</td><td>verified on the board, bit-exact against numpy</td></tr>
-<tr><td>The build on this page (<code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> for the whole project, 66 M9K)</td><td>built, timing met; the board numbers above come from the build before that setting (its synchronizer chains had become shift-register blocks, gotcha 38): <b>this build's own bench run is pending</b></td></tr>
-<tr><td>stories260K and stories15M: <code>job --model</code>, the classifier at T 1 and 8, <code>load</code> with the CRC</td><td>exported and simulated; <b>pending on the board</b></td></tr>
+<tr><td>The build on this page (<code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> for the whole project, 66 M9K)</td><td>verified on the board: the bench, the random jobs and both models above were run on it; the memory numbers come from the <code>memtest/</code> build</td></tr>
+<tr><td>stories260K and stories15M: <code>load</code> with the CRC, <code>job --model</code> (every matrix), the classifier at T 1 and 8 with 1 and 6 units</td><td>verified on the board: both CRCs match, all 36 + 43 matrices bit-exact against numpy</td></tr>
 <tr><td>The seven testbenches, the tools, the pages, the archive</td><td>verified by <code>pytest tests/test_stream_fabric.py</code></td></tr>
 <tr><td><code>sdram_stream_fabric.qar</code></td><td>restored in a clean folder and recompiled there: the same bitstream checksum (<code>0x0140F9A8</code>)</td></tr>
 <tr><td>HEX display and LEDs as the table says</td><td>to do by a person</td></tr>

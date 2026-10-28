@@ -501,10 +501,12 @@ then measured them. Where the two differ, the measured value is here and the pre
 <tr><td>One job 512 × 1024, T = 8, 6 units</td><td><b>2.94 ms</b> = 293,988 clocks, 189.5 MB/s, 97.5 % of the bus, bit-exact; the same with SHIFT 9 and SHIFT 0</td><td>4,194,304 MACs → <b>1.43 GMAC/s</b>; the predicted 1.6 less the scale word (17 words per 32 weights: 15.1 MAC per word at T 8) and the 2.5 % the bus idles</td></tr>
 <tr><td>Ten random jobs, 3 × 32 to 512 × 1024, T 1–8, 2–6 units</td><td>all <b>bit-exact</b> against <code>tools/ref_matvec.py</code>; 180–190 MB/s from 10,000 words up</td><td><code>fabric_ctl.py job --random</code>; the 100 × 172 job on 2 units stalled 2.5 %: a row of 172 is short, so the push of the previous row's results (one value per 3 clocks) was not finished when the next row's last scale word arrived</td></tr>
 <tr><td>A 64 × 64 job (the size of stories260K's layer-0 wq), T = 2, 2 units</td><td>2,327 clocks = <b>23 µs</b>, bit-exact</td><td>the JTAG transaction that starts it takes ≈ 2 ms: tiny jobs are PC-bound, not board-bound</td></tr>
-<tr><td>Load stories15M into the SDRAM</td><td>8,097,792 words = 16.2 MB (15.45 MiB) at the loader's measured 556–561 KB/s → ≈ 28 s + CRC</td><td>example 14's path (JTAG UART → <code>sdram_loader</code>); 43 matrices, the classifier shared with the embedding, so one copy</td></tr>
-<tr><td>One stories15M token, all weights (decode, T = 1)</td><td>≈ 85 ms → ≈ 12 tokens/s, memory-bound</td><td>16.2 MB at the measured 189.5 MB/s; the model's matrices on the board are the next check (status table)</td></tr>
-<tr><td>The classifier alone (32000 × 288)</td><td>4,896,000 words = 9.8 MB → ≈ 52 ms per pass</td><td>one job, 6 units × 5,334 rows (the last takes the remainder); 153 words per row</td></tr>
-<tr><td>Prefill of a 32-token prompt, T = 8</td><td>4 passes ≈ 0.34 s (versus ≈ 2.7 s one token at a time)</td><td>weight reuse: the point of T</td></tr>
+<tr><td>Load stories15M into the SDRAM</td><td><b>27.86 s</b> for 16,195,584 bytes = 568 KB/s; board CRC32 <code>f86339db</code> over 8,097,792 words in 1.00 s, matches the file</td><td>example 14's path (JTAG UART → <code>sdram_loader</code>), the predicted ≈ 28 s; 43 matrices, the classifier shared with the embedding, so one copy; stories260K: 0.57 s, CRC <code>78d05ada</code></td></tr>
+<tr><td>Every matrix of both models as a job, compared with numpy</td><td>stories260K: <b>all 36 bit-exact</b>, 141,168 words in 1.46 ms = 193.3 MB/s; stories15M: <b>all 43 bit-exact</b>, 8,068,608 words in <b>83.57 ms</b> = 193.1 MB/s</td><td><code>fabric_ctl.py job --model NAME --load</code>, T = 1, 6 units, BURST 1024 (<code>media/jobs_stories15M.txt</code>); the predicted ≈ 85 ms per token</td></tr>
+<tr><td>One stories15M token, all weights (decode, T = 1)</td><td><b>83.6 ms → 12 tokens/s</b>, memory-bound (the row above)</td><td>the weights only: the attention over the KV cache and the activations never touch the SDRAM</td></tr>
+<tr><td>The classifier alone (32000 × 288), T = 1</td><td><b>50.81 ms</b> = 5,080,894 clocks, 192.7 MB/s, 97.6 % of the bus, 32,000 results bit-exact; with one unit 51.23 ms (the unit starved 4.4 %)</td><td>4,896,000 words, 153 per row; the predicted ≈ 52 ms; one unit at a word a clock keeps up with the memory</td></tr>
+<tr><td>The classifier, T = 8</td><td><b>55.72 ms</b>, 175.7 MB/s, 73.7 M MACs = <b>1.32 GMAC/s</b>, 256,000 results bit-exact; stalled 45.3 %, starved 40.0 %; with one unit 59.17 ms, 1.25 GMAC/s</td><td>eight times the work for 9.7 % more time: the write-back (512,000 words on top of 4,896,000) rides the same bus and the lanes wait behind the channels, so the units stall on their lanes instead of starving</td></tr>
+<tr><td>Prefill of a 32-token prompt, T = 8</td><td>4 passes ≈ 0.37 s (versus ≈ 2.7 s one token at a time)</td><td>weight reuse: the point of T; from the classifier's T 8 / T 1 ratio applied to the 83.6 ms pass</td></tr>
 <tr><td>MAC capacity at T = 8</td><td>96 MAC/clock = 9.6 GMAC/s</td><td>6 units × 2 weights × 8 vectors; 120 of the 288 9-bit multipliers</td></tr>
 <tr><td>MACs the memory can feed at T = 8</td><td>15.1 MAC/clock = 1.51 GMAC/s at 100 % of the bus; <b>1.43 measured</b></td><td>one word per clock, shared by all units; at T = 1 it is 0.19 GMAC/s, which is why the starved share is 84 % with 6 units</td></tr>
 </table></div>
@@ -620,10 +622,11 @@ needed anyway.</p>
   <code>jtag_regs</code> + <code>fabric_ctl.py</code>; the fabric on the board with example 14's loader riding along; the R1
   measurement by <code>bench</code>: 195 MB/s. ✓</li>
   <li><code>matvec_unit</code> + <code>export_q8.py</code> + <code>ref_matvec.py</code> + <code>tb_matvec_unit</code>; random jobs
-  bit-exact on the board ✓; stories260K and stories15M exported ✓, their jobs on the board and the classifier timings:
-  <b>pending</b> (the status table on the overview says what ran).</li>
+  bit-exact on the board ✓; stories260K and stories15M exported, loaded (CRC), every matrix of both run as a job and
+  bit-exact, the classifier timed at T 1 and T 8 with 1 and 6 units ✓ (section 10).</li>
   <li>Package: <code>index.html</code> with the measured numbers, skill <code>stream-from-sdram</code>, gotchas 35–40, portal
-  card 15, tests, <code>.qar</code> (restored and recompiled in a clean folder) ✓; the PR when the maintainer says so.</li>
+  card 15, tests, <code>.qar</code> (restored and recompiled in a clean folder, the same checksum; the bench and the models
+  above ran on that build) ✓; the PR when the maintainer says so.</li>
 </ol>
 
 <h2 id="review">17 · The review's questions, answered</h2>

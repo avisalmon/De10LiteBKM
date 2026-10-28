@@ -8,8 +8,9 @@ They come from real sessions; most of them came from something going wrong.
 - **The SDRAM streamed at its own speed into six compute units at once.** A 100 MHz burst controller (98 % of the
   bus, 196 MB/s over 64 MB with 0 errors), a fabric of N credit-based read channels and N write-back lanes behind a
   round-robin burst arbiter, int8 matrix-vector units with T-vector weight reuse, a generic register file over JTAG
-  and a PC tool: 195 MB/s into six units, ten random jobs up to 512 × 1024 bit-exact against numpy, and a
-  llama2.c model exported to the int8 stream format ready to run matrix by matrix. The data-flow layer for an LLM
+  and a PC tool: 195 MB/s into six units, ten random jobs up to 512 × 1024 bit-exact against numpy, and every
+  matrix of two llama2.c models (stories260K, stories15M) loaded over USB, CRC-checked and run bit-exact: the 15.4 MB
+  of stories15M in 83.6 ms, one token's weights at 12 tokens/s from one 16-bit memory. The data-flow layer for an LLM
   on the board.
   [examples/15_sdram_stream_fabric](../examples/15_sdram_stream_fabric/index.html),
   [stream-from-sdram](../.claude/skills/stream-from-sdram/SKILL.md)

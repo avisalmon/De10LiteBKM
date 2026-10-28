@@ -50,3 +50,39 @@ burst size (random pattern, 4M words): write / read MB/s, bus use
   8: 121.3 / 130.9, 63.0 %   16: 150.5 / 157.6, 77.0 %   32: 170.3 / 175.3, 86.4 %   64: 182.6 / 185.3, 92.0 %
   128: 189.5 / 190.9, 95.1 %   256: 193.1 / 193.8, 96.7 %   512: 195.0 / 195.3, 97.6 %   1024: 195.9 / 196.1, 98.0 %
 read window: rd_delay 4 passes -16..+16 steps of 208 ps (+-3.3 ns); rd_delay 3 passes +19..+27; 5 never (media/memtest_sweep.txt)
+
+--- the build on the page and in sdram_stream_fabric.qar (AUTO_SHIFT_REGISTER_RECOGNITION OFF, 66 M9K, checksum 0x0140F9A8): the same bench, 2026-10-28 11:30 ---
+The table above was measured on the build before that setting (gotcha 38). This build repeats it within 40 clocks per row
+(refreshes count the counters' window, which includes the PC's setup time, so they vary from run to run).
+
+units burst     words    clocks      ms   MB/s  bus % starved % bursts refreshes
+    1    64   557,056   603,552    6.04  184.6   92.6       7.7  8,736     2,033
+    1   256   557,056   577,127    5.77  193.0   96.9       3.5  2,208     2,020
+    1  1024   557,056   578,124    5.78  192.7   96.7       3.6    576     2,028
+    2    64 1,114,112 1,207,096   12.07  184.6   92.6      53.8 17,472     2,925
+    2   256 1,114,112 1,154,244   11.54  193.0   96.9      51.7  4,416     2,939
+    2  1024 1,114,112 1,141,020   11.41  195.3   98.0      51.2  1,152     2,935
+    3    64 1,671,168 1,810,561   18.11  184.6   92.6      69.2 26,208     3,519
+    3   256 1,671,168 1,731,349   17.31  193.0   96.9      67.8  6,624     3,301
+    3  1024 1,671,168 1,711,660   17.12  195.3   98.0      67.4  1,728     3,581
+    6    64 3,342,336 3,621,026   36.21  184.6   92.6      84.6 52,416     6,213
+    6   256 3,342,336 3,462,929   34.63  193.0   96.9      83.9 13,248     5,663
+    6  1024 3,342,336 3,422,748   34.23  195.3   98.0      83.7  3,456     5,686
+
+--- two real models on this build: python scripts/fabric_ctl.py job --model NAME --load (every matrix, each compared with tools/ref_matvec.py) ---
+stories260K (dim 64, hidden 172, 5 layers, vocab 512): 36 matrices, file 331,776 bytes
+  load 0.57 s = 570 KB/s (direct route); board CRC32 78d05ada over 165,888 words in 0.02 s: matches the file
+  all 36 matrices: 141,168 words (0.27 MB) in 1.46 ms of board time = 193.3 MB/s; 12.8 s wall with the PC's checks; all bit-exact
+stories15M (dim 288, hidden 768, 6 layers, vocab 32000): 43 matrices, file 16,195,584 bytes
+  load 27.86 s = 568 KB/s (direct route); board CRC32 f86339db over 8,097,792 words in 1.00 s: matches the file
+  all 43 matrices: 8,068,608 words (15.39 MB) in 83.57 ms of board time = 193.1 MB/s; 17.8 s wall with the PC's checks; all bit-exact
+  (media/jobs_stories15M.txt has every line)
+the classifier cls, 32,000 x 288 (4,896,000 words), and one small matrix with two units:
+  job                        T units    clocks      ms   MB/s  bus % starved % stalled %   MACs GMAC/s results
+  cls                        1     6 5,080,894   50.81  192.7   97.6      83.9       0.0  9.2 M   0.18  32,000 exact
+  cls                        1     1 5,123,336   51.23  191.1   96.8       4.4       0.0  9.2 M   0.18  32,000 exact
+  cls                        8     6 5,572,436   55.72  175.7   97.0      40.0      45.3 73.7 M   1.32 256,000 exact
+  cls                        8     1 5,916,754   59.17  165.5   91.4       5.4      11.8 73.7 M   1.25 256,000 exact
+  stories260K l0.w1 172x64   4     2     7,704    0.08  151.8   93.8      19.1      42.2   44 K   0.57     688 exact
+T 8 costs 9 % more time than T 1 for eight times the work: the extra is the write-back (512,000 words on top of the
+4,896,000 read, on the same bus); the units stall on their lanes (which wait behind the channels) instead of starving.
