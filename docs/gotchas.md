@@ -95,3 +95,8 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     have a value": use a `case` function), `$fgets` into anything but a `reg`, a `string` variable cast to a vector
     at run time (literals are fine), and a part-select after a variable index into a packed 2-D array (copy the
     element to a temporary first).
+37. **The LCD shield covers KEY0 and KEY1.** A design that takes its controls from the push keys cannot be operated
+    with the shield on; the first Accelerometer Cube image needed KEY1 to calibrate and nobody could press it. A shield
+    design takes its buttons from the game pad (`read-gamepad`) and keeps the keys as the bare-board fallback. The same
+    hand check found the LED bubble sliding the wrong way: the LEDs are outside the model and the testbenches, so a
+    person must watch them once (`read-accelerometer`).

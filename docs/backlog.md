@@ -9,9 +9,9 @@
 - [ ] Example 13: unplug and replug the USB cable; the flashed game-pad tester must start by itself.
 - [ ] Example 08 count mode (SW9 down, KEY0 / KEY1) by hand.
 - [ ] Projects, by a person: Pac-Man and RISC-V Tetris with the joystick (feel, auto-repeat), the sounds, the pace.
-- [ ] Accelerometer Cube, by a person: tilt the board and check the cube leans the same way (the `HEADING` parameter),
-      the pitch sign, the LED bubble direction, KEY1 calibration, a photo of the board (the webcam failed). It is in
-      the flash now, in place of Pac-Man; the power cycle brought it back (2026-10-27).
+- [ ] Accelerometer Cube, by a person: press B, Select and Start on the game pad (A and the tilt directions were checked
+      on 2026-10-28), watch the LED bubble slide toward the lifted edge after the fix, a photo of the board (the webcam
+      failed). It is in the flash now, in place of Pac-Man; the power cycle brought it back (2026-10-27).
 - [ ] FFT Lab, by a person: the wheel, joystick, A / B / Start / Select and the keys by hand, the buzzer, the LEDs and the
       7-segment. On the board: how long the evaluation IP runs once the programmer disconnects (Intel says one hour; it
       still ran after 32 minutes), and whether KEY0 or `D` brings an expired IP back.

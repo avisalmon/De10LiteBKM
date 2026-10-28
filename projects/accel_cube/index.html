@@ -21,7 +21,7 @@ first made by a bit-exact Python model; the simulation and the board captures ma
   <span class="badge ok">Runs on the board</span>
   <span class="badge">Quartus Prime Lite 17.1</span>
   <span class="badge">LCD / game-pad shield needed (the screen)</span>
-  <span class="badge">12,513 logic elements (25 %)</span>
+  <span class="badge">13,238 logic elements (27 %)</span>
   <span class="badge">Skill: read-accelerometer</span>
 </div>
 <div class="downloads">
@@ -32,40 +32,44 @@ first made by a bit-exact Python model; the simulation and the board captures ma
 one build makes it in a few minutes. The <a href="guide.html">user guide</a> has every command.</p>
 
 <h2 id="resources">Resources</h2>
-<p class="note">The last build: MAX 10 10M50DAF484C7G, Quartus Prime 17.1.0 Lite, 00:02:34 to build. Made by <code>python scripts/de10.py report projects/accel_cube --html</code>.</p>
+<p class="note">The last build: MAX 10 10M50DAF484C7G, Quartus Prime 17.1.0 Lite, 00:03:04 to build. Made by <code>python scripts/de10.py report projects/accel_cube --html</code>.</p>
 <div class="tablewrap"><table class="res">
 <tr><th>Resource</th><th>Used</th><th>Of the device</th><th>What uses it</th></tr>
-<tr><td>Logic elements (area)</td><td>12,513</td><td>49,760 (25 %)</td><td>core/math (cube_math) 8,245; core/draw (cube_draw) 3,626; debug (debug_link) 446; core/printer (line_printer) 369; accel (adxl345) 236</td></tr>
-<tr><td>Registers</td><td>5,857</td><td>-</td><td>core/math (cube_math) 4,654; core/printer (line_printer) 215; accel (adxl345) 167</td></tr>
-<tr><td>Memory bits</td><td>942,080</td><td>1,677,312 (56 %)</td><td>debug (debug_link) 921,600; screens (Screens_dispaly) 16,384; uart (jtag_uart) 4,096</td></tr>
-<tr><td>M9K memory blocks (9 kbit each)</td><td>117</td><td>182 (64 %)</td><td>debug (debug_link) 114; screens (Screens_dispaly) 2; uart (jtag_uart) 1</td></tr>
+<tr><td>Logic elements (area)</td><td>13,238</td><td>49,760 (27 %)</td><td>core/math (cube_math) 8,265; core/draw (cube_draw) 3,597; debug (debug_link) 515; pad (gamepad) 389; core/printer (line_printer) 370</td></tr>
+<tr><td>Registers</td><td>6,395</td><td>-</td><td>core/math (cube_math) 4,654; pad (gamepad) 324; core/printer (line_printer) 215</td></tr>
+<tr><td>Memory bits</td><td>942,848</td><td>1,677,312 (56 %)</td><td>debug (debug_link) 921,600; screens (Screens_dispaly) 16,384; uart (jtag_uart) 4,096; pad (gamepad) 768</td></tr>
+<tr><td>M9K memory blocks (9 kbit each)</td><td>118</td><td>182 (65 %)</td><td>debug (debug_link) 114; screens (Screens_dispaly) 2; pad (gamepad) 1; uart (jtag_uart) 1</td></tr>
 <tr><td>Multipliers (9-bit elements)</td><td>82</td><td>288 (28 %)</td><td>core/draw (cube_draw) 80; core/math (cube_math) 2</td></tr>
-<tr><td>PLLs</td><td>1</td><td>4 (25 %)</td><td>pll clk[0] 25.0 MHz; pll clk[1] 50.0 MHz; pll clk[2] 100.0 MHz</td></tr>
+<tr><td>PLLs</td><td>2</td><td>4 (50 %)</td><td>pad/adc_pll clk[0] 10.0 MHz; pll clk[0] 25.0 MHz; pll clk[1] 50.0 MHz; pll clk[2] 100.0 MHz</td></tr>
 <tr><td>Pins</td><td>107</td><td>360 (30 %)</td><td></td></tr>
-<tr><td>ADC blocks</td><td>0</td><td>2 (0 %)</td><td></td></tr>
+<tr><td>ADC blocks</td><td>1</td><td>2 (50 %)</td><td></td></tr>
 <tr><td>JTAG hub (USB link)</td><td>1</td><td>1 (100 %)</td><td></td></tr>
 </table></div>
 <div class="tablewrap"><table class="res">
 <tr><th>Clock</th><th>Runs at</th><th>Fmax (slow model, 85 &deg;C)</th><th>Setup slack</th></tr>
-<tr><td>altera_reserved_tck</td><td>10.0 MHz</td><td>145.35 MHz</td><td>46.560 ns</td></tr>
+<tr><td>altera_reserved_tck</td><td>10.0 MHz</td><td>136.35 MHz</td><td>46.333 ns</td></tr>
 <tr><td>clk50</td><td>50.0 MHz</td><td>-</td><td>-</td></tr>
-<tr><td>pll clk[0]</td><td>25.0 MHz</td><td>47.83 MHz</td><td>12.024 ns</td></tr>
-<tr><td>pll clk[1]</td><td>50.0 MHz</td><td>173.43 MHz</td><td>14.234 ns</td></tr>
-<tr><td>pll clk[2]</td><td>100.0 MHz</td><td>410.51 MHz</td><td>5.242 ns</td></tr>
+<tr><td>pad/adc_pll clk[0]</td><td>10.0 MHz</td><td>-</td><td>-</td></tr>
+<tr><td>pll clk[0]</td><td>25.0 MHz</td><td>51.24 MHz</td><td>13.518 ns</td></tr>
+<tr><td>pll clk[1]</td><td>50.0 MHz</td><td>139.57 MHz</td><td>12.835 ns</td></tr>
+<tr><td>pll clk[2]</td><td>100.0 MHz</td><td>390.63 MHz</td><td>4.218 ns</td></tr>
 </table></div>
 <p class="note">Timing: met, worst slack +0.147 ns (all corners, setup, hold, recovery, removal).</p>
-<p>Three clocks come out of one PLL. The 25 MHz pixel clock runs everything the cube does: the filter and the controls
+<p>Three clocks come out of one PLL (the second PLL and the ADC block belong to the library's game-pad reader, which
+makes its own 10 MHz for the MAX 10 ADC). The 25 MHz pixel clock runs everything the cube does: the filter and the controls
 (<code>cube_core</code>), the per-frame math engine (<code>cube_math</code>), the pixel pipeline (<code>cube_draw</code>,
-<code>cube_text</code>), the USB link and the report line. The 50 MHz clock runs only the SPI reader of the ADXL345
-(<code>adxl345</code>): a sample crosses to 25 MHz through a held value and a toggle. The 100 MHz clock belongs to the
-library's LCD writer inside <code>Screens_dispaly</code>. The biggest user is the math engine, 8,245 logic elements and
+<code>cube_text</code>), the USB link and the report line. The 50 MHz clock runs the SPI reader of the ADXL345
+(<code>adxl345</code>; a sample crosses to 25 MHz through a held value and a toggle) and the game pad
+(<code>gamepad</code> with its 5 ms debounce; the four buttons cross through two flops). The 100 MHz clock belongs to the
+library's LCD writer inside <code>Screens_dispaly</code>. The biggest user is the math engine, 8,265 logic elements and
 4,654 registers: it is one step-by-step machine that keeps the whole frame's results (12 edge functions of 48 bits, 8 line
 segments with their boxes, 7 BCD numbers) in registers and shares one 18&times;18 multiplier, one divider, one square root,
-one CORDIC and one BCD converter between all its steps. The pixel pipeline is next, 3,626 logic elements and 80 of the 82
+one CORDIC and one BCD converter between all its steps. The pixel pipeline is next, 3,597 logic elements and 80 of the 82
 multiplier elements: it evaluates 20 line equations for every pixel, each a pair of 16&times;18-bit products. Nearly all the
 memory, 921,600 bits in 114 M9K blocks, is the screen capture buffer of <code>debug_link</code> (every 2nd pixel and line,
 320 &times; 240 &times; 12 bits): it exists only so a PC can
-read the picture back over USB for the tests; the design itself needs 3 blocks (the LCD command list and the JTAG UART).</p>
+read the picture back over USB for the tests; the design itself needs 4 blocks (the LCD command list, the JTAG UART and
+the ADC's sample store).</p>
 
 <h2>Contents</h2>
 <ol class="toc">
@@ -86,31 +90,35 @@ read the picture back over USB for the tests; the design itself needs 3 blocks (
   <figure><img src="media/screen_test6.png" alt="Test preset 6: the cube tilted hard, the X Y Z bars long, MAG 2.100 G, the arrow leaning with a dashed projection box, TEST 6 in the last row"><figcaption>Test preset 6, a 2.1 g shake frozen: the same picture the Python model draws, 0 of 76,800 pixels different on the board.</figcaption></figure>
 </div>
 <p>Plug the board in with the LCD shield on and load the design. The left 384 pixels hold the cube on a sky gradient, seen
-from 30&deg; above. Lay the board flat: the cube sits level, its blue +Z face on top. Lift the far edge: the cube pitches
-towards you; lift a side: it rolls. The cube follows the <em>filtered</em> reading (one eighth of the way to each new sample),
+from 30&deg; above. Lay the board flat: the cube sits level, its blue +Z face on top. Lift an edge of the board and the same
+side of the cube rises, as if the cube were glued to the board: the right edge up is PITCH, the near edge up is ROLL (checked
+by hand, see <a href="#tests">the tests</a>). The cube follows the <em>filtered</em> reading (one eighth of the way to each new sample),
 so it moves smoothly and ignores a tap. The right panel shows the <em>raw</em> reading: X, Y and Z in g with a bar each
 (1 g = 56 pixels), the magnitude, the highest magnitude since the last restart (PEAK), and pitch and roll in degrees.
 Below the numbers a 3D arrow shows the same raw vector in a small axis cross, 1 g = 64 pixels, with its dashed projection
 to the floor; shake the board and the arrow and bars jump while the cube stays calm. The last row says
-<code>LIVE</code>, <code>LIVE CAL</code> after you calibrate (KEY1 with the board flat), or <code>TEST n</code> for one of the eight
-test presets you can call up over USB. The 7-segment digits show the mode letter and |a| in g; the LEDs are a bubble
-level along x. Letters typed over the USB cable (<code>de10.py send</code>) do everything the keys do, and <code>r</code> prints
+<code>LIVE</code>, <code>LIVE CAL</code> after you calibrate (the shield's <strong>A</strong> button with the board flat), or
+<code>TEST n</code> for one of the eight test presets you can call up over USB. The shield's game pad is the control panel:
+A calibrates, B restarts the peak, Select forgets the calibration, Start turns the slow spin of the view on and off
+(the shield covers the board's own KEY0 and KEY1, which do the same as B and A on a bare board). The 7-segment digits
+show the mode letter and |a| in g; the LEDs are a bubble level along x: the lit LED slides toward the edge you lift.
+Letters typed over the USB cable (<code>de10.py send</code>) do everything the buttons do, and <code>r</code> prints
 one report line with every number.</p>
 <h2 id="diagram">Block diagram</h2>
 <div class="diagram">
-<svg viewBox="0 0 960 480" role="img" aria-label="Block diagram: the on-board ADXL345 is read over SPI by the library's adxl345 module at 50 MHz; each sample crosses to the 25 MHz pixel clock through a toggle synchroniser into cube_core, which filters it into the steady vector g, keeps the raw sample as the live vector a, subtracts the calibration offsets and takes the controls from KEY0, KEY1 and USB letters. On every frame tick, inside the vertical blanking, cube_math turns the two vectors into face edge functions, widget segments and BCD numbers in about 900 clocks; cube_draw then colours each pixel from them as Screens_dispaly scans the LCD, with cube_text supplying the characters. The numbers also go to the LEDs and the 7-segment display and, as the report line, over the USB-Blaster to the PC.">
+<svg viewBox="0 0 960 480" role="img" aria-label="Block diagram: the on-board ADXL345 is read over SPI by the library's adxl345 module at 50 MHz; each sample crosses to the 25 MHz pixel clock through a toggle synchroniser into cube_core, which filters it into the steady vector g, keeps the raw sample as the live vector a, subtracts the calibration offsets and takes the controls from the shield's game pad (A, B, Select, Start, read through the MAX 10 ADC and debounced), from KEY0 and KEY1 on a bare board, and from USB letters. On every frame tick, inside the vertical blanking, cube_math turns the two vectors into face edge functions, widget segments and BCD numbers in about 900 clocks; cube_draw then colours each pixel from them as Screens_dispaly scans the LCD, with cube_text supplying the characters. The numbers also go to the LEDs and the 7-segment display and, as the report line, over the USB-Blaster to the PC.">
   <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
   <text class="small" x="12" y="18">50 MHz (the sensor's side)</text>
   <rect class="pin" x="10" y="30" width="130" height="56" rx="6"/><text x="22" y="54">ADXL345</text><text class="small" x="22" y="72">on-board G-sensor</text>
   <rect class="ip" x="170" y="30" width="150" height="56" rx="8"/><text x="182" y="54">adxl345 (lib)</text><text class="small" x="182" y="72">spi_master, 4 wire, 100 Hz</text>
   <rect class="blk" x="350" y="30" width="130" height="56" rx="8"/><text x="362" y="54">toggle sync</text><text class="small" x="362" y="72">3 FF, 50 → 25 MHz</text>
-  <rect class="pin" x="500" y="30" width="130" height="56" rx="6"/><text x="512" y="54">KEY0, KEY1</text><text class="small" x="512" y="72">2 FF sync, 1 = pressed</text>
+  <rect class="pin" x="500" y="30" width="230" height="56" rx="6"/><text x="512" y="54">game pad A B Select Start</text><text class="small" x="512" y="72">ADC, 5 ms debounce, 2 FF; KEY0 KEY1 (bare board)</text>
   <path class="wire" d="M140,58 H170" marker-end="url(#a)"/><text class="small" x="143" y="52">SPI</text>
   <path class="wire" d="M320,58 H350" marker-end="url(#a)"/>
 
   <text class="small" x="12" y="128">25 MHz (the pixel clock: everything the cube does)</text>
   <path class="wire" d="M415,86 V135" marker-end="url(#a)"/><text class="small" x="421" y="112">x y z, valid</text>
-  <path class="wire" d="M565,86 V135" marker-end="url(#a)"/><text class="small" x="571" y="112">peak, calibrate</text>
+  <path class="wire" d="M565,86 V135" marker-end="url(#a)"/><text class="small" x="571" y="112">calibrate, peak, forget, spin</text>
 
   <rect class="pin" x="10" y="135" width="36" height="100" rx="6"/><text x="33" y="185" text-anchor="middle" transform="rotate(-90 33 185)">LCD / VGA</text>
   <rect class="ip" x="60" y="135" width="190" height="100" rx="8"/><text x="72" y="156">Screens_dispaly (lib)</text>
@@ -175,7 +183,7 @@ else is one sequential machine sharing one multiplier, which is what keeps the d
     them over 4-wire SPI at 50 MHz and flips its toggle; <code>cube_core</code> sees <code>acc_valid</code> at 25 MHz. The filter
     moves one eighth of the way to the new sample (<code>fx += (x &minus; fx) / 8</code> in 1/256 counts) and rounds to Q4 counts
     (1 g = 4096): that is <code>g</code>. The raw sample shifted left by 4 is <code>a</code>. Both lose the calibration offsets
-    (zero until KEY1 / <code>c</code>), and the <code>HEADING</code> parameter turns x, y into the screen's frame.</li>
+    (zero until A / KEY1 / <code>c</code>), and the <code>HEADING</code> parameter turns x, y into the screen's frame.</li>
   <li><strong>The frame tick.</strong> At the falling edge of VGA_VS the screen has finished its last visible line and the 10-line
     front porch; the sync and the back porch, 35 blank lines (28,000 clocks), follow before the first visible pixel. <code>cube_math</code> latches <code>g</code>, <code>a</code>, the view yaw and the peak-restart
     request, and runs its phases: squares and square roots give |a| and |g|; if |g| &ge; 0.25 g the CORDIC (vectoring) gives
@@ -197,8 +205,11 @@ else is one sequential machine sharing one multiplier, which is what keeps the d
     freezes the engine's inputs on a test preset, <code>l</code> goes back to the sensor, <code>c</code> / <code>u</code> take or
     forget the offsets, <code>s</code> starts the view turning 0.5&deg; a frame, <code>k</code> restarts the peak,
     <code>r</code> asks for the report. Between two frames <code>line_printer</code> sends the 114 characters of the report
-    through <code>tx_mux</code> and the same USB cable. KEY0 restarts the peak, KEY1 calibrates. <code>g</code> along x lights one
-    of the ten LEDs (a bubble level); |a| and the mode letter are on the 7-segment digits.</li>
+    through <code>tx_mux</code> and the same USB cable. The shield's game pad comes in through the MAX 10 ADC
+    (<code>gamepad</code> at 50 MHz, a 5 ms <code>debounce</code>, two flops into the pixel clock): A calibrates, B restarts
+    the peak, Select forgets the calibration, Start toggles the spin; KEY0 and KEY1 (hidden under the shield) do the same as
+    B and A. <code>g</code> along x lights one of the ten LEDs (a bubble level that slides toward the lifted edge); |a| and
+    the mode letter are on the 7-segment digits.</li>
 </ol>
 
 <h2 id="numbers">Numbers</h2>
@@ -208,7 +219,7 @@ else is one sequential machine sharing one multiplier, which is what keeps the d
 <tr><td>Sample rate</td><td>100 Hz from the ADXL345. The 1/8 filter is within 1 % of a new steady value after 35 samples (0.35 s); the raw path shows every sample as it comes</td></tr>
 <tr><td>Pixel pipeline</td><td>1 pixel per clock, 4 clocks deep, looking 4 pixels ahead so the colour is ready in the clock the screen asks for it</td></tr>
 <tr><td>Picture</td><td>640 &times; 480, 12-bit colour; 16 columns &times; 14 rows of 16 px text; the arrow 1 g = 64 px, the bars 1 g = 56 px</td></tr>
-<tr><td>Build</td><td>2 min 34 s. 37 warnings, none from this project's own files: pin stuck at GND / VCC (the unused decimal points, HEX4, four unused ARDUINO_IO pins), unused GSENSOR_INT, the tri-state SDI note (13010) from the library's adxl345</td></tr>
+<tr><td>Build</td><td>3 min 4 s. 105 warnings, none from this project's own files: pin stuck at GND / VCC (the unused decimal points, HEX4, four unused ARDUINO_IO pins), unused GSENSOR_INT, the tri-state SDI note (13010) from the library's adxl345, and since the game pad the ADC IP's own notes (truncated assignments in its generated code, SDC filters it does not need) plus the two expected Critical Warnings 16248 (VGA_HS and VGA_VS sit next to the ADC pins)</td></tr>
 <tr><td>Simulation</td><td><code>tb_cube_math</code>: 18 frames, 569 numbers, about 1 s in Icarus. <code>tb_accel_cube</code>: 13 frames, each captured as the board's capture does (every 2nd pixel and line, 320 &times; 240 = 76,800 pixels), about 20 minutes in Icarus (1.5 min a frame)</td></tr>
 </table></div>
 <h2 id="tests">How it was tested</h2>
@@ -235,14 +246,23 @@ the board flat on the table: <code>r</code> gave <code>Z+1.000 MAG 1.000 ... ID 
 <code>Z+0.998 MAG 0.998 PITCH +0.1 ROLL -0.0 ... LIVE CAL</code> and <code>u</code> went back; <code>s</code> made two captures a
 second apart differ with the cube visibly turned, <code>s</code> again stopped it; after <code>k</code> a 60-second watch of
 <code>r</code> showed PEAK steady at 1.009..1.012 g, so the raw path has no glitch samples. The <code>?</code> status line
-(<code>T=25B2 BTN=00 KEY=0 SW=3FF WHL=000</code>) came from <code>debug_link</code> as in every project.</p>
-<h3>Only a person can check</h3>
-<p>Which way the cube leans when you lift a given edge (the <code>HEADING</code> parameter, 0 by default, chooses where the
-board's +x points on the screen), that nose-down reads as a negative pitch, which way the LED bubble slides, and the feel
-of KEY1 (the USB <code>c</code> path is verified on the board; the key itself only in simulation). One PEAK reading of 2.359 g
-appeared once between two command batches with the board on the desk; it never recurred in the 60-second watch and was
-most likely a knock on the desk. The webcam capture (<code>de10.py cam</code>) failed on the build PC, so there is no board
-photo yet.</p>
+came from <code>debug_link</code> as in every project. After the game pad was added the flashed image was checked the same
+way: preset 1 again 0 of 76,800 pixels differ, <code>r</code> flat on the desk <code>X+0.043 Y+0.000 Z+1.000 ... LIVE</code>,
+and <code>?</code> now shows the pad (<code>T=071A BTN=00 KEY=0 SW=3FF WHL=009</code>: the wheel's position comes from the
+ADC).</p>
+<h3>Checked by hand</h3>
+<p>With the LCD readable (the shield's screen towards you), the sensor's x runs left to right and its y near to far. Lifting
+the right edge 22&deg; gave <code>X+0.383 Y+0.000 PITCH -22.1</code> (<code>logs/board_tilt_right.png</code>); lifting the near
+edge 33&deg; gave <code>Y-0.539 ROLL -32.7</code> (<code>logs/board_tilt_near.png</code>); both times the cube rose on the same
+side as the board, so <code>HEADING</code> 0 is right for both axes. Pressing <strong>A</strong> with the board flat gave
+<code>LIVE CAL</code> with <code>X-0.012 Y+0.006 Z+1.026</code> (the finger on the board is in the sample), so the game-pad
+path (ADC, debounce, the two flops, <code>key[1]</code>) works end to end. The LED bubble slid the wrong way in the first
+image (like a ball, away from the lifted edge) and the index was reversed; the fix is in the RTL and the flash but has not
+been watched since. B, Select and Start come in through the same ADC, debounce and synchroniser as A, and the letters
+<code>k</code>, <code>u</code> and <code>s</code> drive the same actions inside <code>cube_core</code> (verified in simulation and
+on the board); the three button bits themselves have not been pressed yet. One PEAK reading of 2.359 g appeared once between two command
+batches with the board on the desk; it never recurred in the 60-second watch and was most likely a knock on the desk.
+The webcam capture (<code>de10.py cam</code>) failed on the build PC, so there is no board photo yet.</p>
 
 <h2 id="review">Review log</h2>
 <p>Every source was read once, whole, before the pages were written; what it found and what the tests found, with the fix.</p>
@@ -258,6 +278,8 @@ photo yet.</p>
 <tr><td>Rework: the model clamped a segment's bounding box on one side only; a 3.8 g arrow wholly above the widget disagreed with the RTL</td><td>the RTL clamps both sides to 10 bits; both drew nothing, so no pixel differed</td><td><code>model.py</code> clamps both sides as the RTL does; caught by the math dump, not by a frame hash (gotcha)</td></tr>
 <tr><td>The math testbench failed all 569 lines after the expected file was regenerated</td><td>PowerShell's <code>&gt;</code> writes UTF-16 with a byte-order mark; <code>$fgets</code> read it as garbage</td><td>the expected file is written by Python (ASCII, LF); gotcha</td></tr>
 <tr><td>Rework (asked for after the first version): the cube wobbled with every shake and the view spun all the time; no way to zero a tilted desk; a YAW row that an accelerometer cannot measure</td><td>one vector served both the cube and the numbers; the spin was on by default; no calibration; a row filled for symmetry</td><td>two vectors (filtered for the cube, raw for arrow / bars / numbers), spin off by default (<code>s</code> toggles), KEY1 / <code>c</code> calibration with <code>u</code> to forget, the YAW row dropped; model, RTL, both testbenches and the board checks redone</td></tr>
+<tr><td>By hand: the lit LED slid away from the lifted edge, like a ball, not like a bubble</td><td>the index grew with g<sub>x</sub>, and on the board +x is the LEDR0 end</td><td>the index runs against g<sub>x</sub> (<code>4096 &minus; g<sub>x</sub></code>); the LEDs are not in the model, so no test saw it</td></tr>
+<tr><td>By hand: KEY1 could not be pressed, the LCD shield covers both keys</td><td>the controls were designed for a bare board</td><td>the shield's game pad added (the library's <code>gamepad</code> + <code>debounce</code>, two flops into the pixel clock): A calibrate, B peak restart, Select forget, Start spin; <code>key</code> is 4 bits; the pad's buttons and wheel now in the <code>?</code> line; +725 LEs, a second PLL and the ADC block</td></tr>
 </table></div>
 
 <h2 id="status">Status and what is next</h2>
@@ -266,12 +288,14 @@ photo yet.</p>
 <tr><td>The eight test presets, pixel for pixel</td><td><span class="status done">verified: simulation and board (0 of 76,800 pixels differ)</span></td></tr>
 <tr><td>The live path: filter, raw vector, numbers, bars, arrow</td><td><span class="status done">verified: simulation and board</span></td></tr>
 <tr><td>Calibration (<code>c</code> / <code>u</code>) and the report line (<code>r</code>)</td><td><span class="status done">verified: simulation and board</span></td></tr>
-<tr><td>Calibration from KEY1</td><td><span class="status done">verified: simulation</span> <span class="status todo">press it on the board</span></td></tr>
+<tr><td>Calibration from the game pad's A (KEY1 on a bare board)</td><td><span class="status done">verified: board (A pressed, <code>LIVE CAL</code>, 0.01 g residual) and simulation (<code>key[1]</code>)</span></td></tr>
+<tr><td>B (peak restart), Select (forget), Start (spin) on the game pad</td><td><span class="status done">the same path as A on the board; the actions verified through <code>k</code>, <code>u</code>, <code>s</code> in simulation and on the board</span> <span class="status todo">press the three buttons</span></td></tr>
 <tr><td>The spin (<code>s</code>)</td><td><span class="status done">verified: simulation and board</span></td></tr>
 <tr><td>The peak and its restart (<code>k</code> / KEY0)</td><td><span class="status done">verified: simulation and board (60 s watch)</span></td></tr>
 <tr><td>In the flash: starts by itself at power-up (<code>de10.py flash</code>)</td><td><span class="status done">verified: board (written and verified, 0 errors; preset 1 from the flashed image 0 of 76,800 pixels differ; the cable unplugged and plugged, the cube came back by itself)</span></td></tr>
 <tr><td>The engine's numbers (pitch, roll, shades, corners) for 18 frames</td><td><span class="status done">verified: simulation against the model</span></td></tr>
-<tr><td>Which way the cube leans for a given tilt (<code>HEADING</code>), the pitch sign, the LED bubble direction</td><td><span class="status todo">to do by a person with the board in hand</span></td></tr>
+<tr><td>Which way the cube leans for a given tilt (<code>HEADING</code>), the pitch and roll signs</td><td><span class="status done">verified: by hand, two tilts captured (right edge up: PITCH &minus;22.1&deg;; near edge up: ROLL &minus;32.7&deg;; the cube rose with the board)</span></td></tr>
+<tr><td>The LED bubble direction</td><td><span class="status done">found reversed by hand, fixed in the RTL</span> <span class="status todo">watch it once more</span></td></tr>
 <tr><td>A photo of the board</td><td><span class="status todo">to do by a person (the webcam failed)</span></td></tr>
 <tr><td>Yaw (which way the board points)</td><td>left out on purpose: an accelerometer cannot measure it (turning about gravity leaves it unchanged) and the DE10-Lite has no compass</td></tr>
 <tr><td>Possible next steps</td><td>a faster or adjustable filter; a trail of the arrow; a tap counter; the cube as a die that shows the face on top</td></tr>
@@ -283,7 +307,7 @@ photo yet.</p>
 <tr><td><code>index.html</code>, <code>spec.html</code>, <code>guide.html</code></td><td>this overview, the <a href="spec.html">architecture spec</a>, the <a href="guide.html">user guide</a></td></tr>
 <tr><td><code>accel_cube.qar</code></td><td>the whole Quartus project (<code>de10.py pack</code>)</td></tr>
 <tr><td><code>accel_cube.qpf</code>, <code>.qsf</code>, <code>.sdc</code></td><td>the Quartus project, pins and timing constraints (<code>scripts/new_project.py</code>)</td></tr>
-<tr><td><code>src/accel_cube_top.sv</code></td><td>the pins, the PLL, the sensor reader, the clock crossings, the display chain, the USB link</td></tr>
+<tr><td><code>src/accel_cube_top.sv</code></td><td>the pins, the PLL, the sensor reader, the game pad, the clock crossings, the display chain, the USB link</td></tr>
 <tr><td><code>src/cube_core.sv</code></td><td>the filter, the two vectors, the calibration offsets, the controls, the LEDs and 7-segment digits; instantiates the engine, the pipeline and the report printer</td></tr>
 <tr><td><code>src/cube_math.sv</code></td><td>the per-frame engine: 13 phases, the shared units, the outputs for the pipeline</td></tr>
 <tr><td><code>src/cube_units.sv</code></td><td>the shared divider, square root and CORDIC (16 clocks each)</td></tr>

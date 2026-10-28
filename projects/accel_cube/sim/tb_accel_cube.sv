@@ -23,7 +23,7 @@ logic rst = 1, reset_n = 0;
 logic rx_valid = 0, acc_valid = 0;
 logic [7:0] rx_data = 8'd0;
 logic signed [15:0] acc_x = 16'sd0, acc_y = 16'sd0, acc_z = 16'sd0;
-logic [1:0] key = 2'b00;
+logic [3:0] key = 4'b0000;			// {Start: spin, Select: forget, KEY1 / A: calibrate, KEY0 / B: peak}
 wire h_sync, v_sync, disp_ena;
 wire [31:0] column, row;
 wire [11:0] rgb;
