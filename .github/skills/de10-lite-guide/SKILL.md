@@ -71,6 +71,7 @@ and a verified example in `examples/` (index: `examples/index.html`): reuse its 
 | to see / test the screen from the PC, logs over USB | `read-screen` | 05 |
 | lots of memory (64 MB SDRAM) | `use-sdram` | 06 |
 | a file from the PC into the SDRAM (or back), fast | `load-sdram-usb` | 14 |
+| the SDRAM streamed into several compute units at full speed (FIFOs, bursts, int8 matvec, PC registers) | `stream-from-sdram` | 15 |
 | tilt / gravity, an SPI chip | `read-accelerometer` | 07 |
 | switches, keys, LEDs, 7-segment | `use-board-io` | 08 |
 | an Altera IP core or megafunction | `use-ip-library` | 10, 11 |

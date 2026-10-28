@@ -38,21 +38,29 @@ FAST_OUTPUT_ENABLE_REGISTER, FAST_INPUT_REGISTER on the DRAM pins).
 
 1. A request raised in the clock where a refresh becomes due was swallowed: the controller now latches requests.
 2. Request address changing in the same clock as req: every write landed one address late. Use a separate register.
-3. Read delay: measured 3 = first that works, use 4. 5-7 also "pass" because the bus keeps its last value: do not
-   trust a delay sweep's upper end. The sim model (`lib/sim/sdram_model.sv`) drives data only in its valid window.
+3. Read delay: the board sweep measured 3 = first that works, use 4. 5-7 also "pass" because the bus keeps its last
+   value: do not trust a delay sweep's upper end. The sim model (`lib/sim/sdram_model.sv`, JEDEC-timed since example
+   15: it drives data only in the chip's valid window and `$error`s on a timing violation) is the bare chip and passes
+   with `rd_delay` 3; the board's pin, trace and input-pad path adds about 5 ns, hence 4 (gotcha 47 for the 100 MHz
+   picture: two windows, side by side, that wrap around the period).
 4. Start files with `` `default_nettype none `` (end with `` `default_nettype wire ``): a name used before its
    declaration otherwise becomes a silent 1-bit wire.
 
 ## Check
 
-`python scripts/sim.py lib/sim/tb_sdram_ctrl.sv` (fails with read delay 3 or 5); on the board, `examples/06_sdram`
+`python scripts/sim.py lib/sim/tb_sdram_ctrl.sv` (the testbench uses `rd_delay` 3 against the bare-chip model and
+fails with 2 or 4); on the board, `examples/06_sdram`
 (SW0 injects one bad word per pass to prove the checker). Debug with Signal Tap on DRAM_* pins and the controller
 state (`scripts/make_stp.py`, `scripts/vcd_dump.py`).
 
 ## Faster
 
-Bursts (burst length 8, keep the row open, read pipelining) give 10-20x; or Altera's SDRAM controller IP in Platform
-Designer (with a Nios II system).
+`stream-from-sdram` (example 15): `lib/rtl/sdram_burst_ctrl.sv` runs the same chip at 100 MHz with bursts of up to
+1024 words (one column command per clock, refresh pauses a burst) and measured 196 MB/s, 98 % of the bus, over all
+64 MB; `lib/rtl/stream_fabric.sv` shares it between N FIFO read channels and N write-back lanes. At 100 MHz the
+DRAM_CLK phase is 6875 ps (`C1_PHASE "6875"`, c1 relative to c0) and `rd_delay` 4, a window of +-3.3 ns measured with
+`scripts/sdram_memtest.py sweep`. Altera's SDRAM controller IP in Platform Designer (with a Nios II system) is the
+other way.
 
 ## Fill it from the PC
 

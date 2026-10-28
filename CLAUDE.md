@@ -28,6 +28,8 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * Lots of memory, the 64 MB SDRAM -> `use-sdram` (06).
 * A file from the PC into the SDRAM (weights, parameters, tables) or back, as fast as the USB cable allows ->
   `load-sdram-usb` (14).
+* The SDRAM streamed at full speed into several compute units (FIFOs, bursts, write-back, int8 matrix-vector,
+  PC registers over JTAG): the data-flow layer for an LLM on the board -> `stream-from-sdram` (15).
 * Tilt, gravity, the accelerometer, any SPI chip -> `read-accelerometer` (07).
 * Switches, keys, LEDs, the 7-segment display -> `use-board-io` (08).
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).

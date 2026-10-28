@@ -98,8 +98,10 @@ request-address register set together with <code>req</code>.</li>
 which turns that into a compile error.</li>
 </ol>
 <p>The simulation (<code>lib/sim/tb_sdram_ctrl.sv</code> with the SDRAM model <code>lib/sim/sdram_model.sv</code>, which drives read data only in the
-datasheet's valid window) passed all along: it fails with read delay 3 or 5, so it checks the timing, but it could not see
-bugs that lived in how the test talked to the controller. The board and Signal Tap could.</p>
+datasheet's valid window) passed all along, so it checks the timing, but it could not see
+bugs that lived in how the test talked to the controller. The board and Signal Tap could. (Since example 15 the model is
+JEDEC-timed and checks every command's timing; the testbench runs it with read delay 3, the bare chip's number, where the
+board needs 4: the pin, trace and input-pad path adds about 5 ns.)</p>
 
 <h2>Run it</h2>
 <pre><code>python scripts/de10.py build examples/06_sdram

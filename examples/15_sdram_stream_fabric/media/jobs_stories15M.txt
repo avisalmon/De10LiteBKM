@@ -1,0 +1,138 @@
+# examples/15_sdram_stream_fabric: fabric_ctl.py job --model stories15M, every matrix, on the board (2026-10-28, the build in sdram_stream_fabric.qar)
+# The load, from the first run of the same session (job --model stories15M --load):
+#   loading the model at word 0x0: wrote 16,195,584 bytes in 27.86 s = 568 KB/s (direct route)
+#   board CRC32 of the SDRAM f86339db over 8,097,792 words in 1.00 s: matches the file
+# The jobs below were then run with --no-load on the same data (the first run was cut by the PC after l0.wq).
+
+model stories15M.q8.bin: stories15M.bin, dim 288, hidden 768, 6 layers, vocab 32000; 43 matrices, 8,097,792 words = 15.45 MB
+  the model is in the SDRAM (board CRC f86339db matches the file, 0.99 s)
+job: l0.wq: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x0; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,570 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,007 refreshes in the counters' 5.6 ms (one per 7.5 us); setup 45 ms, wall 2.0 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l0.wk: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0xb000; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,563 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,563 refreshes in the counters' 9.8 ms (one per 7.5 us); setup 45 ms, wall 6.5 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l0.wv: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x16000; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,552 clocks at 100 MHz) = 193.5 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,384 refreshes in the counters' 8.3 ms (one per 7.5 us); setup 44 ms, wall 5.1 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l0.wo: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x21000; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,556 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,160 refreshes in the counters' 6.6 ms (one per 7.5 us); setup 44 ms, wall 2.8 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l0.w1: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x2c000; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,561 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,573 refreshes in the counters' 9.8 ms (one per 7.5 us); setup 45 ms, wall 6.2 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l0.w2: 288 x 768 int8 (117,504 words = 0.22 MB) at word 0x48c00; T 1, SHIFT 8; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 1.207 ms on the board (120,718 clocks at 100 MHz) = 194.7 MB/s over 117,504 words; bus busy 97.8 %, units starved 83.7 %, stalled 0.0 %; 132 bursts; 1,618 refreshes in the counters' 10.2 ms (one per 7.5 us); setup 98 ms, wall 6.8 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l0.w3: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x65800; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,566 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,488 refreshes in the counters' 9.4 ms (one per 7.5 us); setup 45 ms, wall 5.7 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l1.wq: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x82400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,573 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,137 refreshes in the counters' 6.5 ms (one per 7.5 us); setup 44 ms, wall 3.0 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l1.wk: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x8d400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,553 clocks at 100 MHz) = 193.5 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,761 refreshes in the counters' 11.2 ms (one per 7.5 us); setup 45 ms, wall 6.3 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l1.wv: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x98400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,568 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,000 refreshes in the counters' 5.6 ms (one per 7.5 us); setup 45 ms, wall 1.9 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l1.wo: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0xa3400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,563 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 916 refreshes in the counters' 4.9 ms (one per 7.5 us); setup 45 ms, wall 1.4 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l1.w1: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0xae400; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,563 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,665 refreshes in the counters' 10.7 ms (one per 7.5 us); setup 46 ms, wall 6.5 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l1.w2: 288 x 768 int8 (117,504 words = 0.22 MB) at word 0xcb000; T 1, SHIFT 8; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 1.207 ms on the board (120,718 clocks at 100 MHz) = 194.7 MB/s over 117,504 words; bus busy 97.8 %, units starved 83.7 %, stalled 0.0 %; 132 bursts; 1,429 refreshes in the counters' 8.7 ms (one per 7.5 us); setup 97 ms, wall 5.5 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l1.w3: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0xe7c00; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,568 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,598 refreshes in the counters' 10.0 ms (one per 7.5 us); setup 44 ms, wall 6.2 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l2.wq: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x104800; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,560 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 990 refreshes in the counters' 5.5 ms (one per 7.5 us); setup 45 ms, wall 1.9 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l2.wk: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x10f800; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,557 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,219 refreshes in the counters' 7.1 ms (one per 7.5 us); setup 45 ms, wall 3.2 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l2.wv: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x11a800; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,556 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,052 refreshes in the counters' 5.7 ms (one per 7.5 us); setup 45 ms, wall 1.5 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l2.wo: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x125800; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,558 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 940 refreshes in the counters' 5.1 ms (one per 7.5 us); setup 45 ms, wall 1.7 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l2.w1: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x130800; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,564 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,854 refreshes in the counters' 11.6 ms (one per 7.5 us); setup 45 ms, wall 7.6 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l2.w2: 288 x 768 int8 (117,504 words = 0.22 MB) at word 0x14d400; T 1, SHIFT 8; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 1.207 ms on the board (120,707 clocks at 100 MHz) = 194.7 MB/s over 117,504 words; bus busy 97.8 %, units starved 83.7 %, stalled 0.0 %; 132 bursts; 1,664 refreshes in the counters' 10.5 ms (one per 7.5 us); setup 97 ms, wall 7.1 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l2.w3: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x16a000; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,561 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,480 refreshes in the counters' 9.1 ms (one per 7.5 us); setup 45 ms, wall 5.6 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l3.wq: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x186c00; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,556 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,250 refreshes in the counters' 7.4 ms (one per 7.5 us); setup 45 ms, wall 3.3 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l3.wk: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x191c00; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,556 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 928 refreshes in the counters' 4.9 ms (one per 7.5 us); setup 45 ms, wall 1.4 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l3.wv: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x19cc00; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,569 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,263 refreshes in the counters' 7.3 ms (one per 7.5 us); setup 45 ms, wall 3.6 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l3.wo: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x1a7c00; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,568 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,276 refreshes in the counters' 7.5 ms (one per 7.5 us); setup 45 ms, wall 2.9 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l3.w1: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x1b2c00; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,563 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,778 refreshes in the counters' 11.0 ms (one per 7.5 us); setup 45 ms, wall 7.4 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l3.w2: 288 x 768 int8 (117,504 words = 0.22 MB) at word 0x1cf800; T 1, SHIFT 8; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 1.207 ms on the board (120,707 clocks at 100 MHz) = 194.7 MB/s over 117,504 words; bus busy 97.8 %, units starved 83.7 %, stalled 0.0 %; 132 bursts; 1,682 refreshes in the counters' 10.5 ms (one per 7.5 us); setup 98 ms, wall 7.1 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l3.w3: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x1ec400; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,566 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,723 refreshes in the counters' 11.2 ms (one per 7.5 us); setup 45 ms, wall 6.7 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l4.wq: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x209000; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,551 clocks at 100 MHz) = 193.5 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,194 refreshes in the counters' 7.0 ms (one per 7.5 us); setup 45 ms, wall 2.9 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l4.wk: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x214000; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,572 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 936 refreshes in the counters' 5.0 ms (one per 7.5 us); setup 45 ms, wall 1.8 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l4.wv: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x21f000; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,558 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 952 refreshes in the counters' 5.3 ms (one per 7.5 us); setup 45 ms, wall 1.7 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l4.wo: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x22a000; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,569 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,224 refreshes in the counters' 7.2 ms (one per 7.5 us); setup 45 ms, wall 2.9 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l4.w1: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x235000; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,560 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,503 refreshes in the counters' 9.6 ms (one per 7.5 us); setup 45 ms, wall 5.9 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l4.w2: 288 x 768 int8 (117,504 words = 0.22 MB) at word 0x251c00; T 1, SHIFT 8; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 1.207 ms on the board (120,723 clocks at 100 MHz) = 194.7 MB/s over 117,504 words; bus busy 97.8 %, units starved 83.7 %, stalled 0.0 %; 132 bursts; 1,606 refreshes in the counters' 10.1 ms (one per 7.5 us); setup 98 ms, wall 6.4 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l4.w3: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x26e800; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,561 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,771 refreshes in the counters' 11.2 ms (one per 7.5 us); setup 45 ms, wall 7.3 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l5.wq: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x28b400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,553 clocks at 100 MHz) = 193.5 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 937 refreshes in the counters' 5.2 ms (one per 7.5 us); setup 45 ms, wall 1.5 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l5.wk: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x296400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,569 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,008 refreshes in the counters' 5.6 ms (one per 7.5 us); setup 47 ms, wall 2.2 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l5.wv: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x2a1400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,561 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 1,134 refreshes in the counters' 6.6 ms (one per 7.5 us); setup 46 ms, wall 3.2 ms
+  read back 288 results in 0.01 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l5.wo: 288 x 288 int8 (44,064 words = 0.08 MB) at word 0x2ac400; T 1, SHIFT 7; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 0.456 ms on the board (45,557 clocks at 100 MHz) = 193.4 MB/s over 44,064 words; bus busy 98.0 %, units starved 83.7 %, stalled 0.0 %; 60 bursts; 945 refreshes in the counters' 5.1 ms (one per 7.5 us); setup 45 ms, wall 1.4 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l5.w1: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x2b7400; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,568 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,704 refreshes in the counters' 10.7 ms (one per 7.5 us); setup 46 ms, wall 6.1 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l5.w2: 288 x 768 int8 (117,504 words = 0.22 MB) at word 0x2d4000; T 1, SHIFT 8; 6 units (48, 48, 48, 48, 48, 48 rows), BURST 1024, WBURST 64
+  run: 1.207 ms on the board (120,704 clocks at 100 MHz) = 194.7 MB/s over 117,504 words; bus busy 97.8 %, units starved 83.7 %, stalled 0.0 %; 132 bursts; 1,600 refreshes in the counters' 9.9 ms (one per 7.5 us); setup 99 ms, wall 5.6 ms
+  read back 288 results in 0.02 s  results: 288 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: l5.w3: 768 x 288 int8 (117,504 words = 0.22 MB) at word 0x2f0c00; T 1, SHIFT 7; 6 units (128, 128, 128, 128, 128, 128 rows), BURST 1024, WBURST 64
+  run: 1.216 ms on the board (121,565 clocks at 100 MHz) = 193.3 MB/s over 117,504 words; bus busy 97.9 %, units starved 83.8 %, stalled 0.0 %; 144 bursts; 1,665 refreshes in the counters' 10.5 ms (one per 7.5 us); setup 46 ms, wall 6.9 ms
+  read back 768 results in 0.02 s  results: 768 int32 bit-exact with the reference (tools/ref_matvec.py)
+job: cls: 32,000 x 288 int8 (4,896,000 words = 9.34 MB) at word 0x30d800; T 1, SHIFT 7; 6 units (5334, 5334, 5333, 5333, 5333, 5333 rows), BURST 1024, WBURST 64
+  run: 50.809 ms on the board (5,080,894 clocks at 100 MHz) = 192.7 MB/s over 4,896,000 words; bus busy 97.6 %, units starved 83.9 %, stalled 0.0 %; 5,784 bursts; 8,259 refreshes in the counters' 60.3 ms (one per 7.5 us); setup 46 ms, wall 56.5 ms
+  read back 32,000 results in 0.24 s  results: 32,000 int32 bit-exact with the reference (tools/ref_matvec.py)
+all 43 matrices: 8,068,608 words (15.39 MB) in 83.57 ms of board time = 193.1 MB/s; 17.8 s wall with the PC's checks; all bit-exact
