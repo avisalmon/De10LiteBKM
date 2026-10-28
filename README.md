@@ -3,7 +3,7 @@
 ### Design real hardware on an FPGA, with an AI beside you
 
 <!-- last-updated:start -->
-**Last updated 28 October 2026** · 6 new lessons · [See what's new](docs/lessons_log.md)
+**Last updated 29 October 2026** · 5 new lessons · [See what's new](docs/lessons_log.md)
 <!-- last-updated:end -->
 
 **Start page (Hebrew / English): https://avisalmon.github.io/De10LiteBKM/**
@@ -28,8 +28,9 @@ Open this repo in VS Code with **Claude Code** or **GitHub Copilot** (Agent mode
   [examples/](examples/index.html). Whole designs built from them, each with an overview, an architecture spec, a user
   guide and the Quartus archive: [projects/](projects/index.html): Pac-Man, RISC-V Tetris (a soft CPU with its own
   assembler, C compiler and simulator, Tetris in C on it), FFT Lab (our own FFT beside Altera's FFT IP, live on the
-  screen) and the Accelerometer Cube (the board's tilt as a shaded 3D cube, with the live acceleration as numbers,
-  bars and an arrow; no frame buffer, proven pixel by pixel against a bit-exact model).
+  screen), the Accelerometer Cube (the board's tilt as a shaded 3D cube, with the live acceleration as numbers,
+  bars and an arrow; no frame buffer, proven pixel by pixel against a bit-exact model) and Space Invaders (the 1978
+  arcade game in pure Verilog: no CPU, no frame buffer, the board's screen matched to the simulation pixel for pixel).
 - **A toolkit the AI uses every time:** tested Verilog in `lib/`, one-command scripts in `scripts/` (build, program,
   simulate, Signal Tap, read the screen back over USB).
 
@@ -58,11 +59,12 @@ docs/                  journey, gotchas, what's new, spec, backlog
 ## Honest status
 
 Verified on one DE10-Lite (10M50DAF484C7G) with the LCD / game-pad shield, Windows 11, Quartus Prime Lite 17.1 (October 2026):
-examples 01-08 and 10-13 and the Pac-Man, RISC-V Tetris, FFT Lab and Accelerometer Cube projects run on the board, each
-page says exactly what was checked; the Accelerometer Cube, written to the flash, came back by itself after a power
-cycle, and its tilt directions and A-button calibration were checked by hand. Not yet verified: example 09 (GPIO), the
-game-pad press map, the games' joystick feel and sound, FFT Lab's controls by hand, the cube's B / Select / Start and
-its LED bubble after the fix, a clean-computer install by a newcomer, macOS / Linux.
+examples 01-08 and 10-13 and the Pac-Man, RISC-V Tetris, FFT Lab, Accelerometer Cube and Space Invaders projects run on
+the board, each page says exactly what was checked; the Accelerometer Cube, written to the flash, came back by itself
+after a power cycle, and its tilt directions and A-button calibration were checked by hand; Space Invaders' ten test
+presets matched the simulation pixel for pixel on the board. Not yet verified: example 09 (GPIO), the game-pad press
+map, the games' joystick feel and sound (Space Invaders not yet played by hand), FFT Lab's controls by hand, the
+cube's B / Select / Start and its LED bubble after the fix, a clean-computer install by a newcomer, macOS / Linux.
 Lessons after lesson 0 are being written. Details: [docs/backlog.md](docs/backlog.md).
 
 ## License

@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Invaders on the DE10-Lite</title>
+<meta name="description" content="The 1978 arcade game Space Invaders in pure Verilog on the DE10-Lite with the LCD / game-pad shield: no CPU and no frame buffer, one game step per frame inside the vertical blanking, every pixel worked out as the screen scans it, the arcade's rules from its disassembly and MAME, our own pictures, verified pixel for pixel on the board against the simulation.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / Space Invaders</nav>
+<h1>Space Invaders</h1>
+<p class="lead">The 1978 arcade game, played on the LCD shield with its game pad, in pure Verilog: no CPU, no program and
+no frame buffer. Once per frame, inside the vertical blanking, one game step moves everything by the arcade's rules, in
+at most 1,351 of the blank's 28,000 clocks; then every pixel is worked out from the game's registers as the screen scans
+it. The screen and the game ask the same logic what is lit at a pixel, so the shot hits exactly what you see. The rules
+come from the commented disassembly of the arcade's program and from MAME; the pictures are our own, at the arcade's
+sizes. Ten test presets reach known moments of a game, and the board's screen, read back over USB, matches the
+simulation pixel for pixel.</p>
+<nav class="pages"><a class="here" href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+<div class="badges">
+  <span class="badge ok">Runs on the board</span>
+  <span class="badge">Quartus Prime Lite 17.1</span>
+  <span class="badge">LCD / game-pad shield needed (the screen and the controls)</span>
+  <span class="badge">7,170 logic elements (14 %)</span>
+  <span class="badge">Skill: build-arcade-game</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="invaders.qar" download>Download invaders.qar (full Quartus project)</a>
+  <a class="btn alt" href="guide.html#build">Build and load it</a>
+</div>
+<p class="note">No bitstream in the repo (a <code>.sof</code> is 3 MB per project): restore the <code>.qar</code> or use the sources here,
+one build makes it in a few minutes. The <a href="guide.html">user guide</a> has every command.</p>
+
+<h2 id="resources">Resources</h2>
+<p class="note">The last build: MAX 10 10M50DAF484C7G, Quartus Prime 17.1.0 Lite, 00:02:57 to build. Made by <code>python scripts/de10.py report projects/invaders --html</code>.</p>
+<div class="tablewrap"><table class="res">
+<tr><th>Resource</th><th>Used</th><th>Of the device</th><th>What uses it</th></tr>
+<tr><td>Logic elements (area)</td><td>7,170</td><td>49,760 (14 %)</td><td>game (inv_logic) 4,014; draw (inv_draw) 1,197; debug (debug_link) 508; pad (gamepad) 385; sound (inv_sound) 250</td></tr>
+<tr><td>Registers</td><td>1,964</td><td>-</td><td>game (inv_logic) 873; pad (gamepad) 324; deb (debounce) 168</td></tr>
+<tr><td>Memory bits</td><td>955,136</td><td>1,677,312 (57 %)</td><td>debug (debug_link) 921,600; screens (Screens_dispaly) 16,384; game (inv_logic) 12,288; uart (jtag_uart) 4,096</td></tr>
+<tr><td>M9K memory blocks (9 kbit each)</td><td>120</td><td>182 (66 %)</td><td>debug (debug_link) 114; game (inv_logic) 2; screens (Screens_dispaly) 2; pad (gamepad) 1</td></tr>
+<tr><td>Multipliers (9-bit elements)</td><td>0</td><td>288 (0 %)</td><td></td></tr>
+<tr><td>PLLs</td><td>2</td><td>4 (50 %)</td><td>pad/adc_pll clk[0] 10.0 MHz; pll clk[0] 25.0 MHz; pll clk[1] 50.0 MHz; pll clk[2] 100.0 MHz</td></tr>
+<tr><td>Pins</td><td>101</td><td>360 (28 %)</td><td></td></tr>
+<tr><td>ADC blocks</td><td>1</td><td>2 (50 %)</td><td></td></tr>
+<tr><td>JTAG hub (USB link)</td><td>1</td><td>1 (100 %)</td><td></td></tr>
+</table></div>
+<div class="tablewrap"><table class="res">
+<tr><th>Clock</th><th>Runs at</th><th>Fmax (slow model, 85 &deg;C)</th><th>Setup slack</th></tr>
+<tr><td>altera_reserved_tck</td><td>10.0 MHz</td><td>141.2 MHz</td><td>46.459 ns</td></tr>
+<tr><td>clk50</td><td>50.0 MHz</td><td>-</td><td>-</td></tr>
+<tr><td>pad/adc_pll clk[0]</td><td>10.0 MHz</td><td>-</td><td>-</td></tr>
+<tr><td>pll clk[0]</td><td>25.0 MHz</td><td>41.7 MHz</td><td>16.022 ns</td></tr>
+<tr><td>pll clk[1]</td><td>50.0 MHz</td><td>125.09 MHz</td><td>12.006 ns</td></tr>
+<tr><td>pll clk[2]</td><td>100.0 MHz</td><td>332.45 MHz</td><td>4.111 ns</td></tr>
+</table></div>
+<p class="note">Timing: met, worst slack +0.065 ns (all corners, setup, hold, recovery, removal).</p>
+<p>Three clocks come out of one PLL (the second PLL and the ADC block belong to the library's game-pad reader, which
+makes its own 10 MHz for the MAX 10 ADC). The 25 MHz pixel clock runs the whole game: the step sequencer
+(<code>inv_logic</code>), the picture (<code>inv_draw</code>), the buzzer (<code>inv_sound</code>), the 7-segment digits and
+the USB link. The 50 MHz clock runs the game pad (<code>gamepad</code> with its 5 ms <code>debounce</code>; the eight buttons
+cross into 25 MHz through two flops each). The 100 MHz clock belongs to the library's LCD writer inside
+<code>Screens_dispaly</code>. The biggest user is <code>inv_logic</code>, 4,014 logic elements and 873 registers: the
+sequencer and the whole game state (55 alive bits, the 224-bit ground line, the rack's two references, the shot, three
+bombs, the saucer, the scores), and a second copy of <code>inv_layers</code> (461 logic elements), the probe through which
+the game asks the screen's own logic what is lit at a pixel. <code>inv_draw</code> is next, 1,197 logic elements and no
+registers at all: one combinational path from the scan counters to the colour, with at least 16.0 ns to spare in the
+40 ns of a pixel (the slowest 25 MHz path runs through it into the screen-capture memory). No multipliers. Nearly all the memory, 921,600 bits in 114 M9K blocks, is the screen capture buffer of
+<code>debug_link</code> (every 2nd pixel and line, 320 &times; 240 &times; 12 bits): it exists only so a PC can read the
+picture back over USB for the tests. The game itself needs 6 blocks (33,536 bits): its text RAM and shield RAM (2), the LCD
+command list (2), the JTAG UART (1) and the ADC's sample store (1).</p>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#resources">Resources</a></li>
+  <li><a href="#see">What you will see</a></li>
+  <li><a href="#diagram">Block diagram</a></li>
+  <li><a href="#flow">How it flows</a></li>
+  <li><a href="#numbers">Numbers</a></li>
+  <li><a href="#tests">How it was tested</a></li>
+  <li><a href="#review">Review log</a></li>
+  <li><a href="#status">Status and what is next</a></li>
+  <li><a href="#files">Files</a></li>
+</ol>
+
+<h2 id="see">What you will see</h2>
+<div class="two">
+  <figure><img src="media/screen_attract.png" alt="The LCD read back over USB in the attract mode: SCORE&lt;1&gt; HI-SCORE SCORE&lt;2&gt; with 0000 under each, PLAY, SPACE INVADERS, the score advance table (the saucer = ? MYSTERY, the three invaders = 30, 20 and 10 POINTS, the last line green) and CREDIT 00 at the bottom right"><figcaption>The attract mode (preset 0): the score advance table, typed one letter at a time as on the arcade. Read back over USB (<code>de10.py screen</code>): 0 of 76,800 pixels different from the simulation.</figcaption></figure>
+  <figure><img src="media/screen_play.png" alt="Preset 4 read back over USB: score 0410, 29 invaders left in five rows with gaps, a red burst near the top right where the cannon's shot met the top of the screen, four worn green shields, the cannon at the right, a bomb falling at the left, 3 ships and CREDIT 00 on the bottom line"><figcaption>Preset 4, 3,000 steps into a game played by the demo player: worn shields, the shot bursting in the red band at the top. The same picture as the simulation's, 0 of 76,800 pixels different.</figcaption></figure>
+</div>
+<p>Plug the board in with the shield on and load the design. It starts in the attract mode, as the arcade does: the score
+line, PLAY and SPACE INVADERS typed one letter at a time, the score advance table, a short silent demo game in which the
+cannon plays itself, INSERT COIN, and round again. Select on the game pad is a coin and Start starts a one-player game
+(KEY1 and KEY0 do the same on a bare board; the shield covers them). 55 invaders in five rows march sideways, one invader
+per frame, the ripple of the arcade, and step down 8 lines at each edge; the fewer are left, the faster they march. The
+joystick moves the cannon and A or B fires, one shot at a time. Three kinds of bombs fall; the four shields wear away
+pixel by pixel where shots and bombs burst; the saucer crosses the red band at the top, worth 50 to 300 points by the
+arcade's shot-count table. The colours are the arcade's cellophane overlay, bands across a one-bit picture: red at the
+top, green over the shields and the cannon, white elsewhere. The arcade's monitor stood on its side; its 224 &times; 256
+picture stands upright in the middle of the LCD's 320 &times; 240 (2 &times; 2 pixels on a VGA monitor), with its
+always-empty first and last 8 lines left out. The buzzer plays the four-note march, the shot, the hits and the saucer's
+siren, and the shield's status LED is lit while the saucer is out. The 7-segment digits show the score and the credits,
+LEDR0..6 one LED per spare ship. SW1..SW0 (ships per game, 3 to 6) and SW2 (the extra ship at 1,000 points instead of
+1,500) are the arcade's DIP switches, read when a game starts. Letters typed over the USB cable
+(<code>de10.py send</code>) play the game too, pause it, make the cannon invincible, mute it, or call up one of ten test
+presets: known moments of a game that the simulation draws as well (the <a href="guide.html#presets">guide</a> lists
+them).</p>
+<h2 id="diagram">Block diagram</h2>
+<div class="diagram">
+<svg viewBox="0 0 960 480" role="img" aria-label="Block diagram: the shield's game pad is read through the MAX 10 ADC by the library's gamepad module and debounced at 50 MHz; its eight buttons, the board's two keys and three of its switches cross into the 25 MHz pixel clock through two flip-flops each. invaders_top makes the frame tick from the falling edge of VGA_VS and holds the letters typed over USB for a few frames. At each tick, inside the vertical blanking, inv_logic runs one game step and keeps the text RAM and the shield RAM; inv_draw then colours each pixel from its registers and RAMs, with no register of its own, as Screens_dispaly scans the LCD and the VGA output. inv_sound drives the shield's buzzer; the LEDs, the 7-segment digits and the status LED show the score, the credits, the ships and the saucer. debug_link and jtag_uart carry the letters, the status line and the screen capture over the USB-Blaster.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="color:var(--d-stroke)"/></marker></defs>
+  <text class="small" x="12" y="18">50 MHz (the game pad's side); the board's keys and switches</text>
+  <rect class="pin" x="10" y="30" width="140" height="56" rx="6"/><text x="22" y="54">game pad</text><text class="small" x="22" y="72">joystick, 4 buttons</text>
+  <rect class="ip" x="190" y="30" width="170" height="56" rx="8"/><text x="202" y="54">gamepad (lib)</text><text class="small" x="202" y="72">the ADC IP, a 10 MHz PLL</text>
+  <rect class="ip" x="400" y="30" width="150" height="56" rx="8"/><text x="412" y="54">debounce (lib)</text><text class="small" x="412" y="72">8 buttons, 5 ms steady</text>
+  <rect class="pin" x="590" y="30" width="180" height="56" rx="6"/><text x="602" y="54">KEY0 KEY1, SW2..SW0</text><text class="small" x="602" y="72">start, coin; DIP switches</text>
+  <rect class="ip" x="790" y="30" width="160" height="56" rx="8"/><text x="802" y="54">pll25 (lib)</text><text class="small" x="802" y="72">25, 50, 100 MHz; locked</text>
+  <path class="wire" d="M150,58 H190" marker-end="url(#a)"/><text class="small" x="153" y="52">analog</text>
+  <path class="wire" d="M360,58 H400" marker-end="url(#a)"/><text class="small" x="363" y="52">8 bits</text>
+
+  <text class="small" x="12" y="128">25 MHz (the pixel clock: the game, the picture, the sound, the USB link)</text>
+  <path class="wire" d="M475,86 V135" marker-end="url(#a)"/><text class="small" x="481" y="112">8 buttons, 2 FF</text>
+  <path class="wire" d="M605,86 V135" marker-end="url(#a)"/><text class="small" x="611" y="112">KEY, SW: 2 FF</text>
+
+  <rect class="pin" x="10" y="135" width="36" height="100" rx="6"/><text x="33" y="185" text-anchor="middle" transform="rotate(-90 33 185)">LCD / VGA</text>
+  <rect class="ip" x="60" y="135" width="190" height="100" rx="8"/><text x="72" y="156">Screens_dispaly (lib)</text>
+  <text class="small" x="72" y="174">vga_controller: pxl_x, pxl_y</text>
+  <text class="small" x="72" y="190">640 × 480 at 25 MHz, 59.5 Hz</text>
+  <text class="small" x="72" y="206">lcd_ctrl at 100 MHz → LCD</text>
+  <text class="small" x="72" y="222">VGA_VS: the frame's sync</text>
+  <path class="wire" d="M60,185 H46" marker-end="url(#a)"/>
+
+  <rect class="blk" x="270" y="135" width="350" height="100" rx="8"/><text x="282" y="156">invaders_top</text>
+  <text class="small" x="282" y="174">tick = VGA_VS falls: one game step a frame</text>
+  <text class="small" x="282" y="190">A or B fire; Select or KEY1 coin; Start or KEY0 start</text>
+  <text class="small" x="282" y="206">USB letters held for frames; p, i, m; presets 0..9</text>
+  <text class="small" x="282" y="222">LEDR, HEX (seven_segment); reset 2 FF after lock</text>
+  <path class="wire" d="M250,160 H270" marker-end="url(#a)"/><text class="small" x="253" y="152">VS</text>
+
+  <rect class="ip" x="750" y="135" width="200" height="100" rx="8"/><text x="762" y="156">debug_link, jtag_uart (lib)</text>
+  <text class="small" x="762" y="174">'?' status, 'F' screen capture</text>
+  <text class="small" x="762" y="190">the letters → invaders_top</text>
+  <text class="small" x="762" y="206">capture: 320 × 240 × 12 bits</text>
+  <text class="small" x="762" y="222">114 M9K, for the tests only</text>
+  <path class="wire" d="M750,165 H620" stroke-dasharray="4 3" marker-end="url(#a)"/><text class="small" x="655" y="159">letters</text>
+  <rect class="pin" x="750" y="250" width="200" height="30" rx="6"/><text x="762" y="270">USB-Blaster → your PC</text>
+  <path class="wire" d="M850,235 V250" marker-end="url(#a)"/>
+
+  <path class="wire" d="M445,235 V280" marker-end="url(#a)"/><text class="small" x="451" y="262">tick, controls, presets</text>
+  <rect class="blk" x="270" y="280" width="350" height="100" rx="8"/><text x="282" y="301">inv_logic</text>
+  <text class="small" x="282" y="319">a step: at most 1,351 of the blank's 28,000 clocks</text>
+  <text class="small" x="282" y="335">sequencer ms, 38 states: modes, rack, shot, bombs</text>
+  <text class="small" x="282" y="351">tram: 32 × 32 text; smem: 256 × 16 shields (M9K)</text>
+  <text class="small" x="282" y="367">probe: inv_layers, so the shot hits what you see</text>
+
+  <rect class="pin" x="750" y="300" width="200" height="56" rx="6"/><text x="762" y="324">LEDR, HEX5..0, status LED</text><text class="small" x="762" y="342">score, credits, ships; saucer</text>
+  <path class="wire" d="M620,328 H750" marker-end="url(#a)"/><text class="small" x="626" y="322">score, ships, saucer</text>
+
+  <rect class="blk" x="60" y="400" width="400" height="70" rx="8"/><text x="72" y="420">inv_draw</text>
+  <text class="small" x="72" y="438">no registers: each pixel from the game's state, as it scans</text>
+  <text class="small" x="72" y="454">inv_layers, font8x8, sprites; red / green / white bands</text>
+  <rect class="blk" x="490" y="400" width="210" height="70" rx="8"/><text x="502" y="420">inv_sound</text>
+  <text class="small" x="502" y="438">a square wave, set every frame</text>
+  <text class="small" x="502" y="454">7 sounds; noise from an LFSR</text>
+  <rect class="pin" x="750" y="400" width="200" height="70" rx="6"/><text x="762" y="420">buzzer</text>
+  <text class="small" x="762" y="438">the shield's, ARDUINO_IO[12]</text>
+  <text class="small" x="762" y="454">silent: m, a preset, a pause</text>
+  <path class="wire" d="M300,380 V400" marker-end="url(#a)"/><text class="small" x="306" y="394">registers, RAM data</text>
+  <path class="wire" d="M440,400 V380" marker-end="url(#a)"/><text class="small" x="446" y="394">addresses</text>
+  <path class="wire" d="M560,380 V400" marker-end="url(#a)"/><text class="small" x="566" y="394">sound triggers</text>
+  <path class="wire" d="M700,435 H750" marker-end="url(#a)"/>
+  <path class="wire" d="M170,400 V235" marker-end="url(#a)"/><text class="small" x="176" y="320">rgb</text>
+  <path class="wire" d="M100,235 V400" marker-end="url(#a)"/><text class="small" x="94" y="320" text-anchor="end">pxl_x, pxl_y</text>
+</svg>
+</div>
+<p>One clock runs the game. The game pad needs 50 MHz for the library's ADC reader; its debounced buttons are slow levels,
+so two flip-flops bring each one into the 25 MHz pixel clock, as they do for KEY and SW. The LCD's 100 MHz writer crosses
+inside the library's <code>Screens_dispaly</code>. There is no frame buffer: <code>inv_draw</code> reads the registers and
+the two RAMs of <code>inv_logic</code> directly, pixel by pixel. That is safe because they change only during a step, and a
+step ends long before the first visible line (at most 1,351 of the blank's 28,000 clocks). The one exception is a preset:
+its steps run back to back for well under a second, so the picture may tear until it pauses. The blocks are split by
+<em>when</em> they work: <code>invaders_top</code> at every clock, <code>inv_logic</code> once a frame, <code>inv_draw</code>
+at every pixel. Only the per-pixel part has to be parallel; the game itself is one sequential machine that visits each
+object in turn, which keeps the whole design at a seventh of the chip.</p>
+<h2 id="flow">How it flows</h2>
+<ol>
+  <li><strong>The tick and the controls.</strong> At the falling edge of VGA_VS the screen has drawn its last visible line;
+    35 blank lines (28,000 clocks, 1.12 ms) follow before the first visible pixel. <code>invaders_top</code> turns that edge
+    into the one-clock <code>tick</code>. The joystick moves the cannon, A or B fires, Select (or KEY1) puts in a coin, Start
+    (or KEY0) starts. A letter typed over USB is held for a few frames, so a step sees it as a press: <code>l</code> and
+    <code>r</code> for 16 frames (each cancels the other), <code>a</code> (fire) for 3, <code>c</code> (coin) and
+    <code>s</code> (start) for 2.</li>
+  <li><strong>One step.</strong> At the tick, <code>inv_logic</code>'s sequencer <code>ms</code> walks once through its
+    states, most of them one clock each. First the mode's work (the attract mode, the credit screen, the intro, play, game
+    over); then, in play: the rack's edge test (is anything lit in column 213 when it moves right, or column 9 when it moves
+    left, on lines 40..223? then the rack turns and steps down 8 lines at the end of this sweep); the cannon, 1 pixel; the
+    shot, 4 lines up, then a probe of the 4 rows it crossed, a hit decided in the order invader, saucer, bomb, shield; one
+    bomb slot in turn (rolling, plunger, squiggly; the squiggly's turn goes to the saucer while it flies or is due); the
+    saucer; the next live invader moves (the arcade's ripple, one invader a step) and the march plays its next note when
+    its timer runs out; the checks (an explosion's timer, the wave's end, the extra ship); the 27 characters of the score
+    line and the ships line. Every <q>what is lit here?</q> sets <code>p_x</code>, <code>p_y</code> on the second
+    <code>inv_layers</code>, the same logic that draws the screen. A burst on a shield clears its bits in the shield RAM
+    <code>smem</code>; text goes into the text RAM <code>tram</code>. The bound is 1,351 clocks; the longest the full
+    simulation saw was 1,064.</li>
+  <li><strong>Every pixel.</strong> As the visible lines scan, <code>inv_draw</code> halves the 640 &times; 480 counters to the
+    LCD's 320 &times; 240 (<code>lx</code>, <code>ly</code>) and turns them into the arcade's pixel: x = lx &minus; 48,
+    y = ly + 8; the 48 columns on each side stay black. The two RAMs answer one clock late, so they are asked with the next
+    pixel's address. <code>inv_layers</code> says, for that one pixel, whether the rack, an invader's explosion, the cannon,
+    the shot, a bomb, a burst, the saucer, a shield or the ground line is lit there; the text comes from the text RAM,
+    through <code>font8x8</code> for the letters and the sprite ROMs for the icons (the cannon, the invaders, the saucer).
+    The band the pixel is in colours it red, green or white. <code>rgb</code> leaves in the same clock, with no register in
+    the way, and <code>Screens_dispaly</code> sends it to the VGA pins and writes it to the LCD at 100 MHz.</li>
+  <li><strong>Sound and lights.</strong> <code>inv_logic</code> sends one-clock triggers (a shot, a hit, the cannon's
+    explosion, the saucer hit, the extra ship, the next march note) and holds <code>snd_ufo</code> high while the saucer
+    flies. Once a frame <code>inv_sound</code> takes the highest-priority sound still playing and sets the half-period of
+    one square wave: the march's G3, F3, E3, D3 (196, 175, 165, 147 Hz), the shot falling from 4.2 to 1.2 kHz, the
+    saucer's siren between 750 Hz and 1.4 kHz; the explosions are noise from a 16-bit LFSR. The buzzer is silent when
+    muted, during a preset and during a pause. The shield's status LED is lit while the saucer is on the screen; the
+    7-segment digits show the credits (HEX5, HEX4) and the score (HEX3..HEX0); LEDR0..6 light one LED per spare ship.</li>
+  <li><strong>Letters and presets.</strong> A letter typed on the PC comes through <code>jtag_uart</code> and
+    <code>debug_link</code>: <code>?</code> and <code>F</code> are answered there (the status line, the screen capture), and
+    every letter also reaches <code>invaders_top</code>. A digit resets the game and runs a known number of steps back to
+    back, 120 to 30,000, with LEDR7 lit meanwhile: preset 0 stays in the attract mode, 1 to 9 start a game that the
+    invincible demo player plays, with 3 ships and the extra ship at 1,500. Then it pauses (LEDR8). <code>p</code> plays
+    on from there, by hand: the demo player and the invincibility are gone. <code>m</code> mutes the buzzer;
+    <code>i</code> makes the cannon invincible (LEDR9).</li>
+</ol>
+
+<h2 id="numbers">Numbers</h2>
+<p>The figures that are not resources (those are at the <a href="#resources">top</a>).</p>
+<div class="tablewrap"><table class="kv">
+<tr><td>Frame rate</td><td>25 MHz / (800 &times; 525) = 59.52 frames a second (the arcade's: 59.54); one game step per frame</td></tr>
+<tr><td>Step budget</td><td>the blank: 35 lines, 28,000 clocks (1.12 ms). A step's bound: 1,351 clocks (4.8 %), every state's longest path added up; the longest in the full simulation: 1,064 (3.8 %) over 89,600 steps</td></tr>
+<tr><td>Picture</td><td>the arcade's 224 &times; 256 portrait, lines 8..247 shown, in the middle of the LCD's 320 &times; 240 (2 &times; 2 pixels on VGA); one bit a pixel, coloured by bands (red on lines 32..61, green on lines 184..239 and on columns 16..133 below them, white elsewhere); no frame buffer</td></tr>
+<tr><td>Pixel path</td><td>no register from the scan counters to the colour: 23.9 ns at worst, at least 16.0 ns to spare in the 40 ns of a pixel (the slowest such path runs on into the screen-capture memory)</td></tr>
+<tr><td>Game memory</td><td>the text RAM <code>tram</code>, 1,024 &times; 8 = 8,192 bits; the shield RAM <code>smem</code>, 256 &times; 16 = 4,096 bits, true dual port (the game and the screen): 2 M9K. 873 registers hold the rest of the state. The pictures are logic, not memory</td></tr>
+<tr><td>Sound</td><td>seven sounds by priority: the cannon's explosion (64 frames of falling noise), the saucer hit (40, a fast warble), the extra ship (48, three 1.5 kHz beeps), an invader hit (16, noise), the shot (12, 4.2 &rarr; 1.2 kHz), the march, the saucer's siren (as long as it flies); noise from a 16-bit LFSR (seed 0xACE1, taps 15, 13, 12, 10)</td></tr>
+<tr><td>Build</td><td>2 min 57 s. 84 warnings, none from this project's own files: 3 pins stuck at VCC or GND (the LCD's read line and two unused ARDUINO_IO pins), the library's known notes (<code>vga_controller</code>'s truncations, <code>lcd_ctrl</code>'s unread counter, the LCD command list's uninitialised tail, the JTAG UART's RAM and SDC), the ADC IP's own notes, and the two expected Critical Warnings 16248 (VGA_HS and VGA_VS sit next to the ADC pins)</td></tr>
+<tr><td>Simulation</td><td><code>tb_invaders</code> in Icarus: the full run, 89,600 game steps and 89 checks, about 26 minutes (preset 9 alone, 30,000 steps, about 8); the QUICK run (<code>-D QUICK</code>: presets 0..2 only), 10,093 steps and 82 checks, about 3 minutes</td></tr>
+</table></div>
+<h2 id="tests">How it was tested</h2>
+<h3>Without the board</h3>
+<p><code>sim/tb_invaders.sv</code> runs the game, the screen and the sound together (<code>inv_logic</code>,
+<code>inv_draw</code>, <code>inv_sound</code>; everything but the board's I/O) with its own clock, tick and pixel scan, and
+plays one long session in 17 sections: power-up; the attract mode, its typed text and the silent demo game (<q>the demo
+game lasted 2137 steps; its cannon fired 47 shots</q>); two coins; the start and the intro; the first wave in place; the
+cannon's moves, its edge and the pause; the march; a shot into a shield; the first bump; columns 4 and 5 shot away
+through the gap between two shields (<q>columns 4 and 5 took 547 steps</q>); the 300-point saucer, by counting the shots
+(<q>the 300-point saucer took 1225 steps (play step 2271)</q>); the rest of the wave, shot down by a bot (<q>45 of 45
+invaders hit as the bot predicted</q>, 990 points for the 55); the next wave, 24 lines lower; three deaths and game over,
+with one explosion sound per death; the hi-score and the credit screen; a second game with a low rack (below); the ten
+presets; the timing budget (<q>longest step 1064 clocks; 89600 game steps</q>). Result: <q>PASS (89600 game steps)</q>,
+89 checks, about 26 minutes in Icarus.</p>
+<p>A monitor checks the rules after every one of the 89,600 steps: no unknown (X) bit in the game's state; the count of
+live invaders equals the alive bits; the cannon stays between x 16 and 185; the score never goes down; a saucer is worth
+the table's entry for the shots fired, shows it and adds it; the extra ship comes only at the bonus score and adds one
+ship; an empty wave is cleared. Rule A: every live invader is on the screen, its coordinates taken modulo 256 like the
+arcade's. Rule B: a lit pixel of the next live invader, from the testbench's own model of the rack, is put on a second
+copy of the rack's pixel logic, which must answer <q>lit, by that invader</q>; the same logic draws the screen and
+decides the shots.</p>
+<p>Clearing a wave before it lands takes a good player. Before every step the bot plays the rack forward exactly as
+<code>inv_logic</code> will move it (one live invader a step, the bump, the drop, the freeze while an invader explodes,
+the shot still in flight). For the lowest invader of each column it finds where a shot fired d steps from now would meet
+it, through a gap in the shields and past the falling bombs, walks to the cheapest such place (edge columns first: a
+narrower rack drops less often) and fires when d is 0. A first, nearest-first bot let the rack land (review log).</p>
+<p>In the second game the rack's two top rows are past line 255: the arcade's coordinates are 8 bits and wrap. The test
+checks that the rack is drawn (<q>935 lit pixels, 0 of them black</q>), shot (<q>the shot at x 120 hit invader 38 after
+98 steps</q>), turned at the edge and landed. It came from a bug that preset 7 showed (review log). With the old rack
+logic put back, the test fails 1,631 checks (<q>935 lit pixels, 755 of them black</q> and rule B's <q>a live invader is
+not drawn where it is</q>): the test does catch that bug.</p>
+<p>The test writes its frames the way the board's capture reads the screen (every second pixel and line,
+320 &times; 240): <code>attract</code>, <code>demo</code>, <code>credit</code>, <code>intro</code>, <code>play</code>,
+<code>columns</code>, <code>wave2</code>, <code>gameover</code>, <code>rack_low</code> and <code>preset_0</code> to
+<code>preset_9</code>, as <code>.ppm</code> files next to the testbench.
+<code>python scripts/sim.py projects/invaders/sim/tb_invaders.sv</code> runs it all; with <code>-D QUICK</code> it runs
+presets 0..2 only (10,093 steps, 82 checks, about 3 minutes).</p>
+<h3>On the board</h3>
+<p>The board was programmed and each preset called up over USB, the screen read back and compared with the simulation's
+frame: <code>de10.py send 5</code>, <code>de10.py screen logs/board_5.png</code>,
+<code>screen_check.py logs/board_5.png sim/preset_5.ppm</code>. All ten presets: <strong>0 of 76,800 pixels
+differ</strong>. A first try, on an earlier build, differed in presets 1 to 9, and only in the ships row: a preset took its
+ships from the switches, and the board's were up. Now the switches are read when a game starts, and a preset sets its
+3 ships itself.</p>
+<h3>Checked by hand</h3>
+<p>Not yet. Playing with the game pad, listening to the buzzer, a wave played by hand, KEY0 and KEY1 on a bare board, and
+the switch settings other than all down (the only one simulated) need a person at the board; the status table below
+lists them. The webcam capture (<code>de10.py cam</code>) failed on the build PC, so there is no photo of the board
+yet.</p>
+
+<h2 id="review">Review log</h2>
+<p>Every source was read once, whole, before the pages were written; what it found, and what the tests and the board
+found, with the fix.</p>
+<div class="tablewrap"><table>
+<tr><th>Found</th><th>Cause</th><th>Fix</th></tr>
+<tr><td>Review: <code>invaders_top</code> gave the six digits 32 bits</td><td><code>{credits, 8'h00, score}</code>: a spare zero byte; the 24-bit port kept the low 24 bits, so the credits never showed</td><td><code>{credits, score}</code>: HEX5..4 the credits, HEX3..0 the score</td></tr>
+<tr><td>Review: a width warning in <code>inv_layers</code></td><td>a loop index (a 32-bit <code>genvar</code>) passed as a bomb's 2-bit kind</td><td>a sized constant for each loop step, <code>localparam [1:0] KIND</code></td></tr>
+<tr><td>Review: a width warning in <code>inv_draw</code></td><td>the next pixel's column (the RAMs are asked one pixel early) was a mixed-width expression</td><td>a sized wire, <code>wire [8:0] npx = nx[9:1] - 9'd48</code></td></tr>
+<tr><td>Review against the arcade's code: the squiggly bomb's columns</td><td>its pointer into the column table wrapped from 20 to 0, not to 6, and neither bomb's pointer restarted with a new rack (the arcade restores both at every rack)</td><td>the wrap goes to 6; <code>start_wave</code> sets the plunger's pointer to 0 and the squiggly's to 6</td></tr>
+<tr><td>Review: the slide switches went into the game straight from the pins</td><td>an oversight; the keys had two flip-flops</td><td>two flip-flops (<code>sw_m</code>, <code>sw_s</code>) in <code>invaders_top</code></td></tr>
+<tr><td>Board, an earlier build: presets 1 to 9 differed from the simulation, only in the ships row</td><td>a preset took its ships from the switches; the board's were up, the simulation's down</td><td>the switches are read when a game starts; a preset sets 3 ships and the bonus at 1,500 itself; then 0 pixels differed</td></tr>
+<tr><td>Simulation: section 12, the rest of the wave, failed: the rack landed</td><td>a nearest-first bot left the rack wide, so it reached the edges often: about 8 drops</td><td>the predictive, edge-first bot (above), which knows the 16-step freeze; and a <code>#1</code> at the end of the testbench's <code>step()</code>: the monitor counts a step on the same clock edge, so the test now waits for it before reading the counts</td></tr>
+<tr><td>Checking against MAME: the red band was 2 lines too tall</td><td>lines 32..63 had been assumed</td><td>lines 32..61, from MAME's overlay file <code>invaders.lay</code></td></tr>
+<tr><td>Checking against the arcade's code: the attract mode's demo player cycled 12 moves</td><td>the commented listing suggests 12; the code itself ($1652..$1667) wraps its pointer from $7E back to $74, so only 10 are used</td><td>a 10-entry table, <code>dm_ptr</code> wraps at 9 (read the code, not the commentary)</td></tr>
+<tr><td>The guide called a red splat at the top <q>the saucer exploding</q></td><td>a guess from small captures: it is the shot bursting at the top of the screen, coloured by the red band</td><td>the guide's preset table rewritten from zoomed captures</td></tr>
+<tr><td>Preset 7: invaders vanished from the second rack</td><td>the rack's reference line had passed 255 and wrapped (8 bits, as in the arcade), and <code>inv_rack_pixel</code> compared lines as plain numbers</td><td>the comparison done modulo 256 (<code>u = ry + 8'd7 - py</code>); section 15 tests it; the old logic fails 1,631 checks</td></tr>
+<tr><td>A build failed</td><td>its console output had been redirected into <code>logs\build.log</code>, the file <code>de10.py build</code> writes itself</td><td>the console goes to its own file, never to <code>build.log</code></td></tr>
+</table></div>
+
+<h2 id="status">Status and what is next</h2>
+<div class="tablewrap"><table>
+<tr><th>Item</th><th>Status</th></tr>
+<tr><td>The ten test presets, pixel for pixel</td><td><span class="status done">verified: simulation and board (0 of 76,800 pixels differ, all ten)</span></td></tr>
+<tr><td>The rules: the rack, the shots and hits, the bombs, the shields, the saucer's table, the extra ship, waves, deaths, game over</td><td><span class="status done">verified: simulation (17 sections, 89 checks, the monitor after each of 89,600 steps)</span></td></tr>
+<tr><td>The attract mode, coins, the credit screen, the intro</td><td><span class="status done">verified: simulation; the attract screen also on the board (preset 0)</span></td></tr>
+<tr><td>The step budget: every step ends in the blank</td><td><span class="status done">verified: simulation (the longest, 1,064 of 28,000 clocks)</span></td></tr>
+<tr><td>The sounds: triggers, priorities, the buzzer toggling</td><td><span class="status done">verified: simulation (the march, the shot, one explosion per death)</span> <span class="status todo">listen to them</span></td></tr>
+<tr><td>Playing with the game pad (joystick, A, B, Select, Start); the status LED, the LEDs and the digits</td><td><span class="status todo">to do by a person</span></td></tr>
+<tr><td>KEY0 and KEY1 on a bare board; the switches (ships, bonus) other than all down</td><td><span class="status todo">to do by a person (only all down is simulated)</span></td></tr>
+<tr><td>A wave played by hand</td><td><span class="status todo">to do by a person</span></td></tr>
+<tr><td>In the flash: starts by itself at power-up (<code>de10.py flash</code>)</td><td><span class="status todo">not yet: the flash holds the Accelerometer Cube</span></td></tr>
+<tr><td>A photo of the board</td><td><span class="status todo">to do by a person (the webcam failed)</span></td></tr>
+<tr><td>Two players, the cocktail cabinet, the tilt switch, the arcade's analog sounds</td><td>left out on purpose (<a href="spec.html#arcade">the arcade's numbers: taken, assumed, chosen, left out</a>)</td></tr>
+<tr><td>Possible next steps</td><td>two players taking turns; the hi-score kept in the MAX 10's user flash</td></tr>
+</table></div>
+
+<h2 id="files">Files</h2>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>What it is</th></tr>
+<tr><td><code>index.html</code>, <code>spec.html</code>, <code>guide.html</code></td><td>this overview, the <a href="spec.html">architecture spec</a>, the <a href="guide.html">user guide</a></td></tr>
+<tr><td><code>invaders.qar</code></td><td>the whole Quartus project (<code>de10.py pack</code>)</td></tr>
+<tr><td><code>invaders.qpf</code>, <code>.qsf</code>, <code>.sdc</code></td><td>the Quartus project, pins and timing constraints (<code>scripts/new_project.py</code>)</td></tr>
+<tr><td><code>src/invaders_top.sv</code></td><td>the pins, the PLL, the game pad, the clock crossings, the tick, the letters and presets, the LEDs and digits, the display chain, the USB link</td></tr>
+<tr><td><code>src/inv_logic.sv</code></td><td>the game: the step sequencer, the game state, the text RAM and the shield RAM, the probe</td></tr>
+<tr><td><code>src/inv_layers.sv</code></td><td>which object is lit at one pixel; used twice, to draw and to probe</td></tr>
+<tr><td><code>src/inv_rack.sv</code></td><td><code>inv_rack_pixel</code>: the 55 invaders at one pixel, modulo 256</td></tr>
+<tr><td><code>src/inv_draw.sv</code></td><td>the screen: the field, the text, the colour bands</td></tr>
+<tr><td><code>src/inv_sound.sv</code></td><td>the buzzer: seven sounds by priority, one square wave</td></tr>
+<tr><td><code>src/inv_sprites.sv</code></td><td>the pictures as logic (invaders, cannon, saucer, bombs, bursts, shield), written by <code>assets/make_sprites.py</code></td></tr>
+<tr><td><code>src/extra.qsf</code></td><td>makes <code>de10.py pack</code> carry the sprite generator in the archive</td></tr>
+<tr><td><code>assets/make_sprites.py</code>, <code>assets/sprites_preview.png</code></td><td>the sprite generator (our own pixel art, at the arcade's sizes) and its preview</td></tr>
+<tr><td><code>sim/tb_invaders.sv</code></td><td>the testbench: 17 sections, the monitor, the bot, the frames</td></tr>
+<tr><td><code>media/screen_*.png</code></td><td>screens read back from the board</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Built with the <code>build-arcade-game</code> skill (and
+<code>read-screen</code> for the captures); the standard project layout is the <code>make-project</code> skill.</footer>
+</main>
+</body>
+</html>

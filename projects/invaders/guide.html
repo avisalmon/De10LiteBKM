@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Space Invaders: user guide</title>
+<meta name="description" content="How to build, load, play and test Space Invaders on the DE10-Lite with the shield: controls, the arcade's DIP switches, the USB letters and the ten test presets, keeping it in the flash, changing it, what to do when something looks wrong.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">Space Invaders</a> / User guide</nav>
+<h1>Space Invaders: user guide</h1>
+<p class="lead">From the repo to the game on your board, and everything you can do with it afterwards. Every command runs from the
+repo's root folder in the <code>env</code> virtualenv; the chat does them for you if you ask.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a class="here" href="guide.html">User guide</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#need">What you need</a></li>
+  <li><a href="#build">Build and load it</a></li>
+  <li><a href="#play">Play</a></li>
+  <li><a href="#usb">Play and test over USB</a></li>
+  <li><a href="#presets">The ten test presets</a></li>
+  <li><a href="#flash">Keep it after power-off</a></li>
+  <li><a href="#sim">Run the simulation</a></li>
+  <li><a href="#change">Change it</a></li>
+  <li><a href="#trouble">When something looks wrong</a></li>
+</ol>
+
+<h2 id="need">What you need</h2>
+<ul>
+  <li>A DE10-Lite with the LCD / game-pad shield on its Arduino header (the game needs the screen and the game pad).
+  A VGA monitor on the board's VGA port shows the same picture.</li>
+  <li>Quartus Prime Lite 17.1 installed as in stage 1 of the BKM (<code>python scripts/doctor.py</code> shows no FAIL).</li>
+  <li>The repo cloned, <code>env</code> created (<code>setup-my-computer</code> does this), the board on the USB cable.</li>
+</ul>
+
+<h2 id="build">Build and load it</h2>
+<p>The sources are in the repo; one build makes the bitstream (the repo keeps none, they are 3 MB each):</p>
+<pre><code>python scripts/de10.py build   projects/invaders    # about 3 minutes; prints resources and timing
+python scripts/de10.py program projects/invaders    # over the USB-Blaster; lasts until power-off</code></pre>
+<p>From the archive instead (for example in the Quartus GUI): <i>Project &rarr; Restore Archived Project</i> &rarr;
+<code>invaders.qar</code>, then <i>Processing &rarr; Start Compilation</i>, then <i>Tools &rarr; Programmer</i> with
+<code>output_files/invaders.sof</code>. The archive holds the sources, the settings and the sprite generator.</p>
+<p>What you should see right after loading: the attract mode, as on the arcade. The score line at the top, then
+PLAY and SPACE INVADERS typed one letter at a time, the score advance table, a short demo game in which the cannon plays
+itself, then INSERT COIN, and round again. The 7-segment digits show 0000 (the score) and 00 (the credits).</p>
+
+<h2 id="play">Play</h2>
+<div class="tablewrap"><table>
+<tr><th>Control</th><th>Does</th></tr>
+<tr><td>Select (shield) or KEY1</td><td>a coin: CREDIT counts up, up to 99. The first coin stops the attract mode.</td></tr>
+<tr><td>Start (shield) or KEY0</td><td>starts a game when there is a credit (one credit a game, one player)</td></tr>
+<tr><td>Joystick left / right</td><td>moves the cannon, one pixel a frame</td></tr>
+<tr><td>A or B</td><td>fires. One shot at a time, and you let go of the button between shots, like the arcade.</td></tr>
+<tr><td>SW1, SW0</td><td>the arcade's DIP switches: ships per game = 3 + the 2-bit number (3 to 6)</td></tr>
+<tr><td>SW2</td><td>up: the extra ship comes at 1,000 points instead of 1,500</td></tr>
+<tr><td>7-segment</td><td>HEX3..HEX0 your score, HEX5..HEX4 the credits</td></tr>
+<tr><td>LEDR0..6</td><td>one LED per spare ship</td></tr>
+<tr><td>LEDR7, 8, 9</td><td>fast-forward (a preset is running), paused, invincible (test modes, set over USB)</td></tr>
+<tr><td>Shield status LED</td><td>lit while the flying saucer is on the screen</td></tr>
+<tr><td>Buzzer</td><td>the march (four low notes, faster as the invaders thin out), the shot, a hit, the saucer's warble
+and its explosion, the extra ship, your cannon's explosion</td></tr>
+</table></div>
+<p>The switches are read when a game starts, so set them before you press Start.</p>
+<p>Rules, briefly: 55 invaders in five rows march sideways and step down at each edge. The bottom two rows are worth 10, the
+middle two 20, the top row 30. The fewer are left, the faster they march; the last one is very fast. They drop three kinds
+of bombs; the four shields stop bombs and shots, and wear away where they are hit. The flying saucer crosses the top from
+time to time, worth 50 to 300 points by the arcade's table, chosen by how many shots you have fired. Clear the rack and the
+next one starts lower. The game ends when you lose your last ship or the invaders reach the ground. The high score stays
+until the board loses power.</p>
+
+<h2 id="usb">Play and test over USB</h2>
+<p>The game listens on the JTAG UART, the same link the BKM uses for logs. Each letter is one command:</p>
+<pre><code>python scripts/de10.py send c        # a coin; then s to start
+python scripts/de10.py send l        # left for 16 frames; r = right
+python scripts/de10.py send a        # fire
+python scripts/de10.py send p        # pause / resume
+python scripts/de10.py send i        # invincible on / off
+python scripts/de10.py send m        # mute / unmute
+python scripts/de10.py send 5        # test preset 5 (next section)
+python scripts/de10.py send "?"      # the status line (buttons, switches, frame counter)
+python scripts/de10.py screen x.png  # the screen as the board shows it, saved at 640 x 480</code></pre>
+<p>Invincible means bombs pass through the cannon, and a rack that lands starts a new rack instead of ending the game.
+This is how the AI tested the game without hands, and how you can script a test of your own: send letters, capture,
+look.</p>
+
+<h2 id="presets">The ten test presets</h2>
+<p>A preset is a known moment of a game. Sending a digit resets the game as at power-up (the credits and the high
+score go back to zero), runs that many game steps as fast as the logic can, then pauses. Preset 0 stays in the attract
+mode. Presets 1 to 9 start a game at once, played by the machine's own player (the attract mode's demo moves), with
+3 ships and the extra ship at 1,500 whatever the switches say, and invincible, so a rack that lands starts the next
+one. While a preset runs, LEDR7 is lit, the controls count as released and the buzzer is quiet; at the end LEDR8 lights
+(paused). The simulation runs the same steps, so the board and <code>sim/preset_N.ppm</code> show the same picture,
+pixel for pixel.</p>
+<div class="tablewrap"><table>
+<tr><th>Send</th><th>Steps</th><th>What you see</th><th>Score</th></tr>
+<tr><td><code>0</code></td><td>600</td><td>the attract mode: the score advance table</td><td>0000</td></tr>
+<tr><td><code>1</code></td><td>120</td><td>a new game: the full rack of 55, whole shields, 3 ships</td><td>0000</td></tr>
+<tr><td><code>2</code></td><td>600</td><td>48 invaders left, the first dents in the shields</td><td>0090</td></tr>
+<tr><td><code>3</code></td><td>1,500</td><td>41 left, the shields worn</td><td>0170</td></tr>
+<tr><td><code>4</code></td><td>3,000</td><td>29 left; the shot bursting in the red band, top right</td><td>0410</td></tr>
+<tr><td><code>5</code></td><td>5,000</td><td>20 left, the shields eaten away; the shot bursting at the top again</td><td>0590</td></tr>
+<tr><td><code>6</code></td><td>8,000</td><td>5 left, the shields almost gone</td><td>0870</td></tr>
+<tr><td><code>7</code></td><td>12,000</td><td>the second rack (the first landed: an invincible cannon gets the next rack), 36 left, an invader exploding</td><td>1200</td></tr>
+<tr><td><code>8</code></td><td>20,000</td><td>the third rack, 52 left; the shot bursting at the top; 4 ships (the extra ship came at 1,500)</td><td>1930</td></tr>
+<tr><td><code>9</code></td><td>30,000</td><td>the fourth rack, 19 left, down at the shields; the saucer flying (red, top); 4 ships; one saucer shot down earlier</td><td>3420</td></tr>
+</table></div>
+<p>On the board a preset takes well under a second: the steps run back to back, a few hundred clocks each on average.
+In the simulation preset 9 alone takes about 8 minutes. Press <code>p</code> to play on from the paused moment; you
+play it yourself, and the cannon is no longer invincible.</p>
+
+<h2 id="flash">Keep it after power-off</h2>
+<p>Loading with <code>program</code> lasts until the power goes; to make Space Invaders the design the board starts with:</p>
+<pre><code>python scripts/de10.py flash projects/invaders      # writes and verifies output_files/invaders.pof</code></pre>
+<p>It replaces whatever was in the flash before (the chat asks first). Loading other designs with <code>program</code>
+afterwards does not touch it; the game returns at the next power-up. The library's <code>flash-design</code> skill and
+example 13 explain the <code>.pof</code>.</p>
+
+<h2 id="sim">Run the simulation</h2>
+<pre><code>python scripts/sim.py projects/invaders/sim/tb_invaders.sv -D QUICK   # about 3 minutes; PASS
+python scripts/sim.py projects/invaders/sim/tb_invaders.sv            # all ten presets; 26 minutes</code></pre>
+<p>It plays scripted games through the game, the screen and the sound modules together (<code>inv_logic</code>,
+<code>inv_draw</code>, <code>inv_sound</code>; everything but the board's I/O). Each game step starts with a tick, as in the
+vertical blank; a frame is drawn by walking the screen's pixel counter across all 640 × 480 positions, one per clock.
+It writes the frames next to the testbench: <code>attract.ppm</code>, <code>demo.ppm</code>, <code>credit.ppm</code>,
+<code>intro.ppm</code>, <code>play.ppm</code>, <code>columns.ppm</code>, <code>wave2.ppm</code>, <code>gameover.ppm</code>,
+<code>rack_low.ppm</code> and <code>preset_0.ppm</code> to <code>preset_9.ppm</code> (the QUICK run stops at <code>preset_2.ppm</code>). Open them with any image viewer,
+or convert with Pillow (<code>Image.open("x.ppm").save("x.png")</code>). There is no waveform file: a game is hundreds of
+millions of clocks, so the testbench checks the rules and draws pictures instead. The checks it makes are listed on the
+<a href="index.html#tests">overview</a>.</p>
+<p>To compare the board with the simulation, run the same preset on both and let the script count the differences:</p>
+<pre><code>python scripts/de10.py send 5
+python scripts/de10.py screen x.png
+python scripts/screen_check.py x.png projects/invaders/sim/preset_5.ppm --diff d.png</code></pre>
+<p>It prints <code>0 of 76800 pixels differ</code> and <code>OK: the screen matches</code>; any pixel that differs is
+drawn in red in <code>d.png</code>.</p>
+
+<h2 id="change">Change it</h2>
+<div class="tablewrap"><table>
+<tr><th>You want</th><th>Where</th></tr>
+<tr><td>other pictures</td><td>every picture is text art in <code>assets/make_sprites.py</code> (<code>#</code> lit, <code>.</code> dark).
+Edit it, run <code>python projects/invaders/assets/make_sprites.py</code>, check <code>assets/sprites_preview.png</code>,
+rebuild. Keep the sizes, or adjust the boxes in <code>inv_layers.sv</code>.</td></tr>
+<tr><td>other colours</td><td>the overlay bands are parameters of <code>inv_draw.sv</code> (<code>RED_Y0</code>, <code>RED_Y1</code>,
+<code>GREEN_Y0</code>, <code>GREEN_Y1</code>, <code>SHIPS_X0</code>, <code>SHIPS_X1</code>); the colours are the
+<code>12'hF22</code>, <code>12'h2F2</code> and <code>12'hFFF</code> next to them</td></tr>
+<tr><td>faster or slower invaders</td><td>the rack moves one invader per game step, like the arcade, so the fewer are left
+the faster they go. The step size is <code>dx</code> in <code>inv_logic.sv</code> (2 pixels; 3 for the last invader going right).
+<code>march_delay()</code> sets only the tempo of the march sound.</td></tr>
+<tr><td>more or fewer bombs</td><td><code>reload_rate()</code> in <code>inv_logic.sv</code>, by score</td></tr>
+<tr><td>the saucer</td><td><code>SC_TIME</code> (steps between saucers) and <code>sc_table()</code> (its values) in
+<code>inv_logic.sv</code></td></tr>
+<tr><td>the extra ship</td><td><code>BONUS_HI</code>, <code>BONUS_LO</code> in <code>inv_logic.sv</code> (BCD, so
+<code>16'h1500</code> is 1,500)</td></tr>
+<tr><td>other sounds</td><td><code>inv_sound.sv</code>: one square wave whose half period changes once a frame;
+<code>half = 25,000,000 / (2 &times; Hz)</code></td></tr>
+<tr><td>two players</td><td>not built: the arcade keeps a rack and four shields per player. The chat can add it.</td></tr>
+</table></div>
+<p>After any change: simulation (<code>PASS</code>), build (timing OK), program, play. The testbench renders the frames, so most
+mistakes show up as a picture before the board is involved.</p>
+
+<h2 id="trouble">When something looks wrong</h2>
+<div class="tablewrap"><table>
+<tr><th>You see</th><th>Likely</th><th>Do</th></tr>
+<tr><td>White bars at the left and right of the LCD</td><td>normal: the panel is 800 wide, the picture 640</td><td>nothing</td></tr>
+<tr><td>Black bands at the sides of the picture</td><td>normal: the arcade's screen stands on its side, 224 pixels wide;
+it is shown in the middle of the 320-wide picture</td><td>nothing</td></tr>
+<tr><td>Nothing on the screen, LEDs dark</td><td>the board is not programmed, or the PLL did not lock</td><td><code>python scripts/de10.py jtag</code> to see the board, then <code>program</code> again</td></tr>
+<tr><td>Start does nothing</td><td>no credit</td><td>press Select (or KEY1) for a coin first</td></tr>
+<tr><td>Everything stands still, LEDR8 lit</td><td>paused: a preset ends paused, and <code>p</code> pauses</td><td><code>python scripts/de10.py send p</code></td></tr>
+<tr><td>Holding A fires only once</td><td>normal: let go between shots, like the arcade</td><td>tap A</td></tr>
+<tr><td>The joystick does nothing but USB letters work</td><td>the shield is not seated, or the ADC pins are not the shield's</td><td>power off, reseat the shield; run example 04 to see the raw readings</td></tr>
+<tr><td>No sound</td><td>muted over USB (<code>m</code>), or paused</td><td>send <code>m</code> or <code>p</code>; check <code>ARDUINO_IO[12]</code> in <code>invaders_top.sv</code> against your shield</td></tr>
+<tr><td>More or fewer ships than you expected</td><td>SW1 and SW0 add up to three ships; they are read when the game starts</td><td>set them, then start a new game</td></tr>
+<tr><td><code>screen_check.py</code> finds differences</td><td>another design or an older build on the board</td><td><code>program</code> again, send the preset, capture again</td></tr>
+<tr><td>Build fails</td><td>a changed source</td><td>run the simulation first: Icarus points at the line; then <code>logs/build.log</code></td></tr>
+<tr><td>Timing not met after a change</td><td>a long path in the draw or in the collision probe</td><td><code>python scripts/de10.py report projects/invaders</code>; register the new signal once per pixel</td></tr>
+</table></div>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>, <a href="spec.html">architecture spec</a>.</footer>
+</main>
+</body>
+</html>

@@ -168,3 +168,62 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     design takes its buttons from the game pad (`read-gamepad`) and keeps the keys as the bare-board fallback. The same
     hand check found the LED bubble sliding the wrong way: the LEDs are outside the model and the testbenches, so a
     person must watch them once (`read-accelerometer`).
+49. **Three kinds of syntax error from one name: `dist`.** `dist` is a SystemVerilog keyword (weighted random
+    distributions), like `inside` (17). Icarus said "syntax error ... I give up on this function definition" at the
+    function that declared it, "Malformed conditional expression" at each use, then a cascade of "Invalid module
+    instantiation"; none of it named the word. Hit twice in one session (renamed `dd`), and `cell` (21) once more.
+    When sane code turns into a pile of syntax errors, suspect a name first (`build-arcade-game`).
+50. **The test read the monitor's counts one step late.** The testbench's monitor (`always @(negedge clk)`) counts a
+    game step when `busy` falls, on the same clock edge where the test's `step()` task returns, and Icarus ran the
+    test first: "wave: cleared once" failed on a wave that had been cleared, and every count the monitor keeps (waves,
+    saucers, points, the longest step) was one step stale. Two processes woken by one edge run in no defined order.
+    End `step()` with `#1;` so the monitor has run before the test reads (`build-arcade-game`).
+51. **A bot that shoots the nearest invader lets the rack land.** The first wave-clearing bot hit 38 of the 45
+    invaders left, with 62 shots in 3,332 steps, but the rack stayed wide, kept reaching the edges and dropping,
+    faster as it thinned, and landed with 7 alive. The bot that clears the wave predicts: before every step it plays
+    the rack forward exactly as `inv_logic` will (one invader moved per step, the bump, the drop, the 16-step freeze
+    while an invader explodes, the shot in flight), finds where a shot fired d steps from now meets the lowest invader
+    of each column (through a shield gap, past the bombs), takes the edge columns first (a narrower rack drops less
+    often) and fires when d is 0: 45 of 45 hits as predicted, with 45 shots and 1 drop in 1,766 steps
+    (`build-arcade-game`).
+52. **The red band was 2 lines too tall.** The overlay's red band was guessed (lines 32..63) instead of read from
+    MAME's layout file `invaders.lay`: red 32..61, green 184..239, and green under the spare ships (columns 16..133,
+    line 240 down). Its numbers are the arcade's own lines: MAME's portrait frame is 224 x 260 because its driver
+    (`screen_update_mw8080bw`) shifts each line out 4 pixels late, which leaves the arcade's lines at 0..255 and 4
+    blank ones after. Only the cannon's shot crosses lines 62..63, so no screen capture showed the error. Read the
+    emulator's layout file and driver source, map them through its frame, and name them on the page
+    (`build-arcade-game`).
+53. **Invaders vanished when the rack's reference passed line 255.** The arcade's coordinates are bytes and wrap. The
+    rack's reference is its bottom row's line even when that row is gone, so with the bottom three rows shot away a
+    low rack's reference passes line 255 (wrapping to 0) while rows 3 and 4 are still on the screen. `inv_rack_pixel`
+    wrapped x but compared y as signed 10-bit numbers, so rows 3 and 4 vanished from the picture, from the shot's hit
+    test and from the edge test, and the rack walked sideways for ever. Fix: y modulo 256 too (`u = ry + 8'd7 - py`),
+    and the same in the testbench's models (`lit_at`, `play_rack`, `shot_masks`), or they hide the bug. Preset 7 on
+    the board showed it; section 15 of the testbench now plays that case, and with the old comparison 1,631 of its
+    checks fail (`build-arcade-game`).
+54. **A clock's slack was 3 ns smaller than its Fmax promised.** Invaders' 100 MHz clock (`lcd_ctrl`) has an Fmax of
+    332.45 MHz, 7.0 ns to spare in its 10 ns period, yet a setup slack of 4.111 ns. Fmax counts only paths that start
+    and end on that clock; slack also counts paths from the PLL's other clocks, which get only the time to the nearest
+    edge (25 -> 100 MHz: 10 ns). The worst was in the library: `vga_controller`'s `column` (25 MHz) into `lcd_ctrl`'s
+    state (100 MHz), 5.651 ns of data delay. And the slowest 25 MHz paths ended in `debug_link`'s capture RAM, not in
+    the game. Before writing about margins, name the worst paths of each clock:
+    `report_timing -setup -npaths 8 -detail summary -to_clock [get_clocks {...}]` in a `quartus_sta -t` script
+    (`make-project`).
+55. **The demo player used 10 of its 12 moves.** The commented disassembly suggests a 12-entry demo table, and the RTL
+    first cycled all 12. The code itself (`$1652..$1667`, PlrFireOrDemo) increments the pointer before reading and
+    resets it from `$7E` to `$74`, so only the 10 bytes `$1F74..$1F7D` are ever used. Fix: a 10-entry `demo_dir`, the
+    pointer wrapping after 9. Read the code, not the comments (`build-arcade-game`).
+56. **Four small traps between a program and its log.** (1) A shell redirect opens its file before the program starts:
+    `de10.py build ... > logs\build.log` failed at once with a PermissionError, because `de10.py` writes that file
+    itself; give the console its own file (`logs\build_console.log`). (2) A redirect also empties its file: a log
+    copied aside after the next run had started was saved empty. Copy first, then rerun. (3) A message passed to a
+    testbench task as `input [8*72-1:0] what` keeps only its last 72 characters (a string is a number; a narrower port
+    keeps the low bytes): two messages lost their start. (4) Counting passed checks with a case-insensitive `ok:` also
+    counted `sim.py`'s "OK: testbench passed": count `^ok:` case-sensitively (`make-project`).
+57. **A restored `.qar` would not compile: exit code 3 in 2 seconds.** `quartus_sh --restore x.qar -output out` keeps
+    the repo's layout (`out\projects\<name>\...`, `out\lib\rtl\...`), so there is no project in `out\` itself. Run
+    `quartus_sh --flow compile <name>` in `out\projects\<name>` (`make-project`).
+58. **An edit script found no CRLF in a CRLF file.** With `* text=auto` and `core.autocrlf=true`, the working tree's
+    text files end their lines with CRLF, but Python's `Path.read_text()` and text-mode `open()` turn them into LF, so
+    a script's assert on `"\r\n"` failed. Open with `newline=""` to see and keep the real line ends, and write back
+    the same way.

@@ -4,7 +4,8 @@ description: >
   Build a playable arcade game in Verilog on the DE10-Lite with the LCD / game-pad shield (Pac-Man, Snake, Breakout,
   Space Invaders, Tetris, a maze game...): screen layout, a per-frame game-logic state machine, tile movement,
   enemy AI, sprites drawn from math and bitmaps, score text, buzzer sound, joystick input, and testing it without
-  hands (a self-playing testbench that renders frames; USB letters to play the real board). Proven with Pac-Man.
+  hands (a self-playing testbench that renders frames; USB letters to play the real board). Proven with Pac-Man and
+  Space Invaders.
   TRIGGER: "make a game", "build a game", "arcade game", "pacman", "pac-man", "snake", "breakout", "tetris",
   "space invaders", "pong", "maze game", "ghosts", "game on the screen", "play on the board".
 ---
@@ -16,6 +17,12 @@ arcade's targeting, scatter/chase, frightened mode, eyes going home, levels, liv
 9,504 LEs (19 %), 8 multipliers, timing met at 25 MHz; built from scratch in one session, tested in simulation and on
 the board without a human. The project, its three pages and its review log: `projects/pacman/` (the `make-project`
 standard); a private try-out can live in `my_designs/<game>/` (git-ignored).
+
+Proven again (2026-10-29): **Space Invaders**, remade from the arcade's own program: 55 invaders marching one per
+frame, shields bitten pixel by pixel, three kinds of bomb, the saucer, the attract mode with its demo game, the DIP
+switches. 7,170 LEs (14 %), no multipliers, no frame buffer; 89 checks over 89,600 game steps in simulation, and ten
+board presets pixel-exact against the simulation (0 of 76,800 pixels differ). `projects/invaders/`; how to remake an
+arcade original is below.
 
 ## The plan (same for every game)
 
@@ -128,6 +135,35 @@ D#5 E5 F5 F5 F#5 G5 G5 G#5 A5 B5, 8 frames per 16th, 256 frames in all.
 * **USB letters** for testing (read `rx_valid` / `rx_data` in the top; debug_link already uses ? F f B b):
   u l d r steer, s start (hold the request until the next tick), p pause, i invincible, m mute.
 
+## Remaking an arcade original (Space Invaders)
+
+* **Sources, in this order**: the program itself (a commented disassembly: Computer Archeology's for Space
+  Invaders), then the emulator's driver and layout files (MAME's `mw8080bw.cpp` and `invaders.lay`). Read the code,
+  not the comments: they suggest a 12-entry demo table, and the code uses 10 (gotcha 55). Map the emulator's frame
+  to yours before taking a number from it: MAME's is 224 x 260 (gotcha 52). The spec lists every number as taken,
+  assumed, chosen or left out, with its source.
+* **Keep the arcade's coordinates and its arithmetic.** Space Invaders' are bytes and wrap: a rack with its left
+  columns gone has its reference below 0, and one with its bottom rows gone passes line 255. Take every comparison
+  with a reference modulo 256, in the RTL and in the testbench's models (gotcha 53).
+* **A portrait picture on a landscape screen**: the arcade's 224 x 256 stands at lx 48..271 of the 320 x 240 grid,
+  showing its lines 8..247 (0..7 and 248..255 never hold anything). One bit per pixel; the colour comes from the
+  overlay's bands, as from the arcade's cellophane.
+* **One answer for the screen and the game.** `inv_layers` says which objects are lit at a pixel. `inv_draw` asks it
+  at the beam; `inv_logic` asks a second copy (461 LEs) at a probe point, a few pixels per step. The shot hits
+  exactly what the screen shows, and no pair of objects is ever compared: probe the pixels in front of the shot.
+* **A step budget.** One game step per frame, by a micro-sequencer, inside the blank. Add up every state's longest
+  path (1,351 clocks) against the blank's 28,000; the testbench measures the longest real step (1,064) and checks
+  that `busy` falls before the picture starts.
+* **Many objects, few registers.** The arcade moves one invader per frame. Two rack references and a cursor do the
+  same: invaders before the cursor are drawn at the new reference, the rest at the old one.
+* **Pictures that get bitten**: the shields live in a true dual-port M9K, one 16-bit word per column. Port A is the
+  sequencer's (read, clear the bits under a burst, write back), port B the screen's (it asks with the next pixel's
+  column, because the RAM answers a clock later).
+* **Presets over USB** (`de10.py send 0` .. `9`): reset as at power-up, run N game steps at full speed with the
+  invincible demo player, then pause (LEDs: fast-forward, paused, invincible). The testbench renders the same
+  presets, so `de10.py screen` must equal the simulation's picture pixel for pixel: the whole game checked on the
+  board with no hands.
+
 ## Testing without hands
 
 * **Testbench** (`sim/tb_<game>.sv`): instantiate logic + draw, drive `tick` every ~600 clocks, render the screen
@@ -137,9 +173,20 @@ D#5 E5 F5 F5 F#5 G5 G5 G#5 A5 B5, 8 frames per 16th, 256 frames in all.
   while playing, the score grew, a life is lost when not invincible. Look at the PPMs (Pillow -> PNG).
 * **Board**: `de10.py send s`, `send u`, ... then `de10.py screen x.png`; count pixels of a colour to check a
   message (yellow READY!, life icons). `de10.py cam` for the real LCD and the 7-segment.
+* **A monitor** (an `always @(negedge clk)` block in the testbench) checks the rules after every game step: no X in
+  the state, the counts agree, every live invader is on the screen (rule A), and a lit pixel picked from the
+  testbench's own model of the rack is lit, by that invader, in the RTL's pixel logic (rule B). The test reads the
+  monitor's counts after a `#1` (gotcha 50).
+* **A bot that plays well.** Shooting the nearest invader lets Space Invaders' rack land. The bot that clears the
+  wave plays the rack forward step by step, aims each shot where its invader will be, takes the edge columns first,
+  and the test checks that every hit was the one it predicted, in the step it predicted (gotcha 51).
+* **A mutation test** after every bug fix: put the old logic back once and run the new test; it must fail (the
+  low-rack section: 1,631 of its checks fail). A test that passes on the bug proves nothing.
+* **Two lengths**: `-D QUICK` (82 checks, about 3 minutes) for `pytest` and CI; the full run (89 checks, 89,600
+  steps, all ten presets) takes about 26 minutes.
 * Then ask the user to play: joystick feel, sound, fun. Those only a human can judge.
 
-## Traps met building Pac-Man
+## Traps met building Pac-Man and Space Invaders
 
 * `inside` is a SystemVerilog keyword (set membership): a signal named `inside` is a syntax error.
 * A comparison is as wide as its widest operand: `(a * b) > (c * d)` with 6-bit operands overflows. Assign the
@@ -149,3 +196,6 @@ D#5 E5 F5 F5 F#5 G5 G5 G#5 A5 B5, 8 frames per 16th, 256 frames in all.
   go to MOVE" followed by "else try the next way" overwrote the choice; give every path exactly one assignment.
 * Frightened ghosts move every other frame: a "did it move this frame" test reports them stuck; test over 8 frames.
 * Quartus warns 16248 "VGA_HS/VGA_VS too close to ADC pins": the board's fixed layout; harmless here.
+* `dist` (weighted random) is a SystemVerilog keyword too: three kinds of syntax error, none naming it (gotcha 49).
+* An overlay band guessed instead of read from the emulator's layout file was 2 lines too tall (gotcha 52).
+* 8-bit coordinates must wrap in y as well as x, or a low rack vanishes (gotcha 53).

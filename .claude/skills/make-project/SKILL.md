@@ -19,8 +19,10 @@ scratch work stays in `my_designs/`; a project is meant to be read, rebuilt and 
 
 Proven: `projects/pacman` (build, review, three pages, portal card, skill, test) in one session,
 `projects/fft_lab` (Resources first, standing on its own, evaluation IP, 17 board settings checked pixel by pixel, and
-the tutorial: 10 experiments on 15 pictures from the board) and
-`projects/accel_cube` (a bit-exact Python model written before the RTL, 3D math, 8 board settings 0 pixels different).
+the tutorial: 10 experiments on 15 pictures from the board),
+`projects/accel_cube` (a bit-exact Python model written before the RTL, 3D math, 8 board settings 0 pixels different)
+and `projects/invaders` (an arcade original remade from its own program, a testbench that plays a whole game with
+a predictive bot, a mutation test, 10 board presets 0 pixels different).
 
 ## The standard folder
 
@@ -93,8 +95,9 @@ and a fix in an example never silently changes a published project. The test che
    last build read, so `pack` refuses when that includes files from outside the project and `lib/` (`build` warns):
    after moving sources, delete `db/` and `incremental_db/` in the build folder (the local copy, for a OneDrive
    project) and build again (gotcha 29). Prove the archive once: copy it to a path without spaces,
-   `quartus_sh --restore <name>.qar -output out`, compile there (`quartus_sh --flow compile <name>`) and compare the
-   Checksum in `output_files/<name>.asm.rpt` with your build's.
+   `quartus_sh --restore <name>.qar -output out`, compile in `out\projects\<name>` with
+   `quartus_sh --flow compile <name>` (the archive keeps the repo's layout, gotcha 57) and compare the Checksum in
+   `output_files/<name>.asm.rpt` with your build's.
 7. **Learning back into the repo**: every trap met becomes a gotcha; every reusable technique goes into the skill that
    owns it (or a new skill); `docs/lessons_log.md` gets a line. `python scripts/sync_skills.py`, then `pytest`.
 8. **Commit and push** when the user says so (rule 5). Then hand over the human checks, one at a time.
@@ -170,6 +173,14 @@ to try, what you will see and why. The model is `projects/fft_lab/tutorial.html`
 * Data files come from Python, never from PowerShell `>` (UTF-16 with a BOM; gotcha 35).
 * Proving the archive (step 6) takes about 2 minutes: restore, `--flow compile`, compare the Checksum. Do it;
   a `.qar` that misses a `.mif` or a `lib/` file restores fine and only fails at compile.
+* Before writing about timing margins, name the worst paths of each clock with `report_timing -to_clock` in a
+  `quartus_sta -t` script (the whole command is in gotcha 54). A clock's slack can be set by a path from another
+  clock of the same PLL (Fmax ignores those), and the slowest path can be the debug capture's, not the design's.
+* Logs: never redirect a command's console into a file the command writes itself (`de10.py build` writes
+  `logs/build.log`); copy a log aside before the next run empties it; a testbench task's message port keeps only
+  as many characters as it is wide; count passed checks with `^ok:`, case-sensitive (gotcha 56).
+* With `core.autocrlf=true` (Windows) the checkout's text files end their lines with CRLF. An edit script opens
+  them with `newline=""` and writes back the same way; text mode shows it only LF (gotcha 58).
 * `de10.py cam` can fail on a PC ("Error opening input files"): say so in the status table and ask the user for a
   phone photo of the board instead of leaving `media/board.jpg` out silently.
 * Checking the 100-character page rule without reading every page: a few lines of Python that pull each `<pre>`
