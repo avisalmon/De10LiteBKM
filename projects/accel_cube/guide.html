@@ -49,18 +49,21 @@ then X, Y and Z near <code>+0.000</code>, <code>+0.000</code>, <code>+1.000 G</c
 1.0, PITCH and ROLL near 0.0, the word <code>LIVE</code> in green, and at the bottom the three axes with a white arrow pointing
 up: the acceleration the board feels, which at rest is 1 g upwards. The 7-segment digits show <code>L 1.000</code>, one LED
 in the middle of the row is lit. Tilt the board: the cube tilts with it, the arrow follows, the numbers and the bars move,
-the lit LED slides along the row like the bubble of a spirit level.</p>
+the lit LED slides along the row toward the edge you lift, like the bubble of a spirit level.</p>
 
 <h2 id="use">Use it</h2>
 <div class="tablewrap"><table>
 <tr><th>Control</th><th>Does</th></tr>
-<tr><td>Tilt the board</td><td>the cube turns with it, as if it were glued to the board: pitch (nose up and down) and roll (one side up). Turning the board flat on the table changes nothing: an accelerometer cannot see a turn about gravity, so there is no yaw.</td></tr>
+<tr><td>Tilt the board</td><td>the cube turns with it, as if it were glued to the board: lift the right edge and the cube's right side rises (PITCH, about &minus;22&deg; for 22&deg;), lift the near edge and its near side rises (ROLL). Turning the board flat on the table changes nothing: an accelerometer cannot see a turn about gravity, so there is no yaw.</td></tr>
 <tr><td>Shake or tap it</td><td>the arrow, the bars and the X Y Z numbers jump (they show the latest sample); the cube hardly moves (it follows the filtered gravity). MAG is the size of the live acceleration, PEAK the largest since the last restart.</td></tr>
-<tr><td>KEY1</td><td>calibrate: take the current reading as "flat", with the board lying still and level. The numbers go to 0, 0, +1.000, the cube stands straight; the mode row says <code>LIVE CAL</code> and the digits <code>C</code>. The offsets are kept until power-off or <code>u</code> over USB.</td></tr>
-<tr><td>KEY0</td><td>restart the peak (PEAK starts again from the current MAG) and clear the status LED on the shield</td></tr>
+<tr><td><strong>A</strong> (game pad)</td><td>calibrate: take the current reading as "flat", with the board lying still and level. The numbers go to 0, 0, +1.000, the cube stands straight; the mode row says <code>LIVE CAL</code> and the digits <code>C</code>. The offsets are kept until power-off, Select or <code>u</code> over USB.</td></tr>
+<tr><td><strong>B</strong> (game pad)</td><td>restart the peak (PEAK starts again from the current MAG) and clear the status LED on the shield</td></tr>
+<tr><td><strong>Select</strong> (game pad)</td><td>forget the calibration: back to the sensor's own zero, the mode row says <code>LIVE</code></td></tr>
+<tr><td><strong>Start</strong> (game pad)</td><td>turn the slow spin of the view on and off (0.5&deg; a frame, 36 s a turn)</td></tr>
+<tr><td>KEY1, KEY0</td><td>the same as A and B, for a board without the shield (the shield covers both keys)</td></tr>
 <tr><td>7-segment</td><td>the mode letter on the left (<code>L</code> live, <code>C</code> calibrated, a digit in a test preset), then |a| in g as <code>d.ddd</code></td></tr>
-<tr><td>LEDR0..9</td><td>a bubble level along the board's x axis: the lit LED slides with the tilt. Every second LED lit (<code>1010101010</code>, LEDR9, 7, 5, 3, 1) means the sensor did not answer with its ID: see the trouble table.</td></tr>
-<tr><td>Status LED (shield)</td><td>lit when the per-frame math once missed its deadline. It never did in the simulation (the engine needs under 4 % of the time it has); if it lights, KEY0 clears it and the chat wants to know.</td></tr>
+<tr><td>LEDR0..9</td><td>a bubble level along the board's x axis: the lit LED slides toward the edge you lift (LEDR5 when flat). Every second LED lit (<code>1010101010</code>, LEDR9, 7, 5, 3, 1) means the sensor did not answer with its ID: see the trouble table.</td></tr>
+<tr><td>Status LED (shield)</td><td>lit when the per-frame math once missed its deadline. It never did in the simulation (the engine needs under 4 % of the time it has); if it lights, B clears it and the chat wants to know.</td></tr>
 </table></div>
 <p>Colours: the faces are +X red, &minus;X cyan, +Y green, &minus;Y magenta, +Z blue (the top when the board is flat),
 &minus;Z yellow. The arrow is drawn over three axes: x red, y green, z blue, 80 px each; 1 g is 64 px of arrow, with a grey
@@ -70,9 +73,9 @@ shadow on the x-y plane and a dashed drop line so its height is readable. The ba
 <p>The design listens on the JTAG UART, the same link the BKM uses for logs. Each letter is one command (upper case works too):</p>
 <pre><code>python scripts/de10.py send 3 1          # test preset 3 (upside down); 0..7 are the eight presets
 python scripts/de10.py send l 1          # back to the live sensor
-python scripts/de10.py send c 1          # calibrate (as KEY1);  u forgets it
+python scripts/de10.py send c 1          # calibrate (as A);  u forgets it (as Select)
 python scripts/de10.py send s 1          # spin the view slowly on / off (0.5 degree a frame)
-python scripts/de10.py send k 1          # restart the peak (as KEY0)
+python scripts/de10.py send k 1          # restart the peak (as B)
 python scripts/de10.py send r 2          # the report line: the numbers of the panel in one line
 python scripts/de10.py send "?" 1        # the debug link's status line (keys, switches, frames)
 python scripts/de10.py screen logs/x.png # the screen as the board shows it, 320 x 240 (about 6 s)</code></pre>
@@ -98,7 +101,7 @@ the board apart.</p>
 <pre><code>python scripts/de10.py flash projects/accel_cube     # writes and verifies the .pof, about 15 s</code></pre>
 <p>It replaces whatever was in the flash before (the chat asks first). Loading other designs with <code>program</code> afterwards
 does not touch it; the cube returns at the next power-up. The library's <code>flash-design</code> skill and example 13 explain
-the <code>.pof</code>. The calibration offsets are not kept: press KEY1 again after a power-up.</p>
+the <code>.pof</code>. The calibration offsets are not kept: press A again after a power-up.</p>
 
 <h2 id="sim">Run the simulation</h2>
 <p>Two testbenches, one fast and one complete. Run the fast one after every change to the math:</p>
@@ -111,7 +114,7 @@ points) with <code>sim/math_expected.txt</code>, which <code>model.py dump</code
 number. It also writes <code>sim/math_dump.txt</code>;
 <code>python projects/accel_cube/assets/model.py dumpcmp projects/accel_cube/sim/math_dump.txt</code> shows the two side by side.</p>
 <p><code>tb_accel_cube</code> drives the whole core with the real VGA timing, steps through the presets over the "USB"
-letters, then feeds 120 sensor samples through the filter, calibrates with KEY1, reads the report line, forgets the
+letters, then feeds 120 sensor samples through the filter, calibrates with the key input (KEY1 / A), reads the report line, forgets the
 calibration and spins the view. Every frame is captured the way the board's screen capture is (every 2nd pixel and line),
 written next to the testbench as <code>frame_0.ppm</code> .. <code>frame_7.ppm</code>, <code>frame_live.ppm</code>,
 <code>frame_cal.ppm</code>, <code>frame_calb.ppm</code>, <code>frame_u.ppm</code>, <code>frame_spin.ppm</code>, hashed and
@@ -145,11 +148,11 @@ board. The long testbench is for the end of the day.</p>
 <tr><td>White bars at the left and right of the LCD</td><td>normal: the panel is 800 wide, the picture 640</td><td>nothing</td></tr>
 <tr><td>Nothing on the screen, LEDs dark</td><td>the board is not programmed, or the PLL did not lock</td><td><code>python scripts/de10.py jtag</code> to see the board, then <code>program</code> again</td></tr>
 <tr><td>Five LEDs lit in a checker pattern, <code>ID 00</code> or another value on the panel</td><td>the sensor did not answer: the SPI pins are not the DE10-Lite's, or the chip is held in reset</td><td>power off and on; check the <code>GSENSOR_*</code> pins in <code>accel_cube.qsf</code> against <code>lib/board/de10_lite_pins.csv</code>; run example 07, which prints the raw readings</td></tr>
-<tr><td>The cube does not move when you tilt the board; a digit on the 7-segment</td><td>a test preset is selected (the mode row says <code>TEST n</code>)</td><td><code>python scripts/de10.py send l 1</code>, or press KEY1</td></tr>
+<tr><td>The cube does not move when you tilt the board; a digit on the 7-segment</td><td>a test preset is selected (the mode row says <code>TEST n</code>)</td><td><code>python scripts/de10.py send l 1</code>, or press A</td></tr>
 <tr><td>The cube tilts the wrong way</td><td>the board's x axis points another way on your desk than the <code>HEADING</code> assumes</td><td>change <code>HEADING</code> (table above) and rebuild</td></tr>
-<tr><td>Flat on the table, the numbers are not 0, 0, 1 and the cube leans</td><td>the sensor's offset (a few hundredths of a g is normal) or the table is not level</td><td>press KEY1 with the board still; the offsets are kept until power-off</td></tr>
-<tr><td>PEAK far above MAG and never coming back</td><td>the peak is the largest sample since the last restart; a tap or the plugging of the cable did it</td><td>KEY0 or <code>send k 1</code></td></tr>
-<tr><td>The status LED on the shield is lit</td><td>the per-frame math once took longer than the blanking</td><td>KEY0 clears it. It never happened in the tests; if you see it, tell the chat what you were doing.</td></tr>
+<tr><td>Flat on the table, the numbers are not 0, 0, 1 and the cube leans</td><td>the sensor's offset (a few hundredths of a g is normal) or the table is not level</td><td>press A with the board still; the offsets are kept until power-off or Select</td></tr>
+<tr><td>PEAK far above MAG and never coming back</td><td>the peak is the largest sample since the last restart; a tap or the plugging of the cable did it</td><td>B or <code>send k 1</code></td></tr>
+<tr><td>The status LED on the shield is lit</td><td>the per-frame math once took longer than the blanking</td><td>B clears it. It never happened in the tests; if you see it, tell the chat what you were doing.</td></tr>
 <tr><td><code>compare</code> stops with an error about the file</td><td>it was given the <code>.png</code></td><td>give it the <code>.txt</code> that <code>screen</code> wrote next to it</td></tr>
 <tr><td><code>compare</code> says many pixels differ, the picture looks right</td><td>the wrong case: a preset after others is <code>seq:n</code>; after power-up it is <code>n</code>; the live screen cannot be compared (the vector is not known)</td><td>step through the presets in order from 0 and compare with <code>seq:n</code></td></tr>
 <tr><td><code>tb_cube_math</code> says <code>math_expected.txt not found</code> or fails on line 1</td><td>the file is missing or was written by PowerShell's <code>&gt;</code> (UTF-16)</td><td>let the chat regenerate it, or run the <code>dump</code> command from <code>cmd</code></td></tr>

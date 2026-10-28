@@ -3,7 +3,7 @@
 ### Design real hardware on an FPGA, with an AI beside you
 
 <!-- last-updated:start -->
-**Last updated 28 October 2026** · 3 new lessons · [See what's new](docs/lessons_log.md)
+**Last updated 28 October 2026** · 6 new lessons · [See what's new](docs/lessons_log.md)
 <!-- last-updated:end -->
 
 **Start page (Hebrew / English): https://avisalmon.github.io/De10LiteBKM/**
@@ -60,8 +60,9 @@ docs/                  journey, gotchas, what's new, spec, backlog
 Verified on one DE10-Lite (10M50DAF484C7G) with the LCD / game-pad shield, Windows 11, Quartus Prime Lite 17.1 (October 2026):
 examples 01-08 and 10-13 and the Pac-Man, RISC-V Tetris, FFT Lab and Accelerometer Cube projects run on the board, each
 page says exactly what was checked; the Accelerometer Cube, written to the flash, came back by itself after a power
-cycle. Not yet verified: example 09 (GPIO), the game-pad press map, the games' joystick feel and sound, FFT Lab's
-controls by hand, the cube's tilt directions by hand, a clean-computer install by a newcomer, macOS / Linux.
+cycle, and its tilt directions and A-button calibration were checked by hand. Not yet verified: example 09 (GPIO), the
+game-pad press map, the games' joystick feel and sound, FFT Lab's controls by hand, the cube's B / Select / Start and
+its LED bubble after the fix, a clean-computer install by a newcomer, macOS / Linux.
 Lessons after lesson 0 are being written. Details: [docs/backlog.md](docs/backlog.md).
 
 ## License

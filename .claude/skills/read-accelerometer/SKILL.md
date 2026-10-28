@@ -52,12 +52,20 @@ against a bit-exact Python model. The parts worth reusing:
   then moves the arrow and the bars, not the cube.
 * **The filter.** An EMA with 8 fraction bits, `f += ((raw << 8) - f) >>> 3` in 24 bits, settles in about 90
   samples (0.9 s at 100 Hz). Round the output (`(f + 8) >>> 4`): the shift alone stops 7 LSB short (gotcha 39).
-* **Calibration = offsets in the sensor frame.** On KEY1, store `ox, oy, oz <- fx, fy, fz - 1 g` (the filtered
+* **Calibration = offsets in the sensor frame.** On the A button (KEY1 on a bare board), store `ox, oy, oz <- fx, fy, fz - 1 g` (the filtered
   values, after the filter and before any axis remap) and subtract them from both vectors from then on; a second
   letter clears them. Offsets taken after a remap would turn with the board's heading.
 * **Which way is X on the board.** The sensor's axes are fixed on the PCB; a `HEADING` parameter (0, 90, 180, 270)
   remaps `(x, y)` once, on the live data only, so presets and tests never depend on it. Decide it by tilting the
-  board while a `de10.py send r` loop prints the vector.
+  board while a `de10.py send r` loop prints the vector. Checked by hand with the LCD readable (the shield's screen
+  towards you): **x runs left to right, y near to far; lifting the right edge gives +x, lifting the near edge gives
+  −y**, and HEADING 0 makes the cube rise on the same side as the board. The bubble LED: +x is the LEDR0 end, so a
+  bubble that slides toward the lifted edge needs an index that runs *against* x (`(4096 − gx) * 5 >> 12`); the
+  LEDs are outside the model, so only a person catches a reversed one.
+* **The shield hides KEY0 and KEY1.** With the LCD shield on, the two push keys cannot be pressed: take the controls
+  from the shield's game pad (`read-gamepad`: `gamepad` at 50 MHz, `debounce` 5 ms, two flops into the pixel clock)
+  and keep the keys only as the bare-board fallback (`key = {Start, Select, KEY1 | A, KEY0 | B}`). The pad costs about
+  600 LEs, a second PLL and the ADC block; VGA_HS / VGA_VS next to the ADC pins give the expected Critical Warning 16248.
 * **Angles from g, no yaw.** Pitch and roll come from `atan2` of the gravity components (one CORDIC, Q14 trig,
   16-bit binary angles); hold the last angles when |g| < 0.25 g or the roll's divisor is small (free fall, a shake).
   An accelerometer cannot give the heading: do not put a YAW row on the screen.
@@ -65,4 +73,5 @@ against a bit-exact Python model. The parts worth reusing:
   three values after it (they are held until the next sample, 10 ms later).
 * **Testing without hands.** The testbench feeds samples straight into the filter (120 of them), presses the keys,
   reads the report line; the board check sends test vectors over USB (`0`..`7`) so the picture does not depend on
-  how the board lies. Only the directions (does the cube tilt like the board) need a person.
+  how the board lies. Only the directions (does the cube tilt like the board, does the bubble slide the right way)
+  and the buttons under a finger need a person: with the shield on, that person has the game pad, not the keys.

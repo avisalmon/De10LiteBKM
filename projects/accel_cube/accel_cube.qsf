@@ -26,6 +26,10 @@ set_global_assignment -name SYSTEMVERILOG_FILE ../../lib/rtl/seg7_char.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../lib/rtl/bin2bcd_seq.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../lib/rtl/tx_mux.sv
 set_global_assignment -name SYSTEMVERILOG_FILE ../../lib/rtl/line_printer.sv
+set_global_assignment -name QIP_FILE ../../lib/rtl/adc/synthesis/adc.qip
+set_global_assignment -name SYSTEMVERILOG_FILE ../../lib/rtl/analog_input.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../lib/rtl/gamepad.sv
+set_global_assignment -name SYSTEMVERILOG_FILE ../../lib/rtl/debounce.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/accel_cube_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/cube_core.sv
 set_global_assignment -name SYSTEMVERILOG_FILE src/cube_draw.sv

@@ -7,8 +7,10 @@
 // Controls: USB '0'..'7' show test preset n (the pictures assets/model.py renders), 'l' back to the live
 // sensor, 'c' calibrates (take the current filtered reading as flat: the board must lie still and level),
 // 'u' forgets the calibration, 's' toggles the slow spin of the view, 'k' restarts the peak, 'r' sends the
-// report line; KEY0 restarts the peak (and clears the "late" LED), KEY1 calibrates. Calibrating also
-// leaves test mode and restarts the peak. The offsets live in registers only: a power cycle forgets them.
+// report line; KEY0 restarts the peak (and clears the "late" LED), KEY1 calibrates; the shield's game pad
+// (brought in by the top as key[3:0]): A calibrates, B restarts the peak, Select forgets the calibration,
+// Start toggles the spin. Calibrating also leaves test mode and restarts the peak. The offsets live in
+// registers only: a power cycle forgets them.
 // ***********************************************
 `default_nettype none
 
@@ -25,7 +27,8 @@ module cube_core #(
 	input		wire	signed	[15:0]	acc_z,
 	input		wire						acc_valid,		// one clock per sample (100 Hz)
 	input		wire	[7:0]				devid,
-	input		wire	[1:0]				key,				// synchronised, 1 = pressed: 0 peak restart, 1 calibrate
+	input		wire	[3:0]				key,				// synchronised, 1 = pressed: 0 peak restart (KEY0 / B), 1 calibrate
+																// (KEY1 / A), 2 forget the calibration (Select), 3 spin on/off (Start)
 	input		wire	[7:0]				rx_data,			// letters from the PC
 	input		wire						rx_valid,
 	output	wire	[7:0]				p_data,			// the report line, to tx_mux
@@ -102,15 +105,15 @@ endfunction
 // ---- controls
 logic				test, cal, spin_on, peak_clr, want_report, late;
 logic	[2:0]		test_n;
-logic	[1:0]		key_d;
+logic	[3:0]		key_d;
 logic	signed	[15:0]	spin;
 wire				busy, done_nc;
-wire	[1:0]		key_rise = key & ~key_d;
+wire	[3:0]		key_rise = key & ~key_d;
 wire				is_digit = rx_valid && (rx_data >= "0") && (rx_data <= "7");
 wire				is_live = rx_valid && (rx_data == "l" || rx_data == "L");
 wire				is_cal = rx_valid && (rx_data == "c" || rx_data == "C");
-wire				is_uncal = rx_valid && (rx_data == "u" || rx_data == "U");
-wire				is_spin = rx_valid && (rx_data == "s" || rx_data == "S");
+wire				is_uncal = (rx_valid && (rx_data == "u" || rx_data == "U")) || key_rise[2];
+wire				is_spin = (rx_valid && (rx_data == "s" || rx_data == "S")) || key_rise[3];
 wire				is_peak = rx_valid && (rx_data == "k" || rx_data == "K");
 wire				is_report = rx_valid && (rx_data == "r" || rx_data == "R");
 wire				do_cal = is_cal || key_rise[1];
@@ -209,10 +212,11 @@ line_printer #(.MAXLEN(128)) printer (
 	.clk(clk), .text({report, {14{8'h20}}}), .len(7'd114), .send(rep_send), .busy(p_busy),
 	.tx_data(p_data), .tx_valid(p_valid), .tx_ready(p_ready));
 
-// ---- LEDs: a bubble level along x from the steady vector (the lit LED slides with the tilt); a checker
+// ---- LEDs: a bubble level along x from the steady vector: the lit LED slides toward the lifted edge, like
+// the bubble of a spirit level (on the board +x is the LEDR0 end, so the index runs against gx); a checker
 // pattern when no sensor
 wire	signed	[15:0]	bx = (gx > 16'sd4095) ? 16'sd4095 : (gx < -16'sd4095) ? -16'sd4095 : gx;
-wire	[12:0]	bpos = bx[12:0] + 13'd4096;						// 1..8191
+wire	[12:0]	bpos = 13'd4096 - bx[12:0];						// 1..8191, LEDR0 end first
 wire	[15:0]	bmul = bpos * 16'd5;									// x 10 / 8192 = x 5 / 4096
 wire	[3:0]		bidx = bmul[15:12];									// 0..9
 always_comb leds = (devid == ADXL_ID) ? (10'd1 << bidx) : 10'b10_1010_1010;

@@ -160,3 +160,9 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     caught one clock earlier. The compiled phase goes to the centre of the `rd_delay` 4 window (6875 ps): +-16 steps
     = +-3.3 ns of margin on both sides. The JEDEC-exact model says `rd_delay` 3 for the bare chip; the board says 4:
     the pin, trace and I/O register path adds about a clock's worth at 100 MHz (`use-sdram`).
+
+48. **The LCD shield covers KEY0 and KEY1.** A design that takes its controls from the push keys cannot be operated
+    with the shield on; the first Accelerometer Cube image needed KEY1 to calibrate and nobody could press it. A shield
+    design takes its buttons from the game pad (`read-gamepad`) and keeps the keys as the bare-board fallback. The same
+    hand check found the LED bubble sliding the wrong way: the LEDs are outside the model and the testbenches, so a
+    person must watch them once (`read-accelerometer`).

@@ -5,6 +5,15 @@ They come from real sessions; most of them came from something going wrong.
 
 ## 2026-10-28
 
+- **The shield covers KEY0 and KEY1: a shield design takes its buttons from the game pad.** The cube's KEY1
+  calibration could not be pressed; now A calibrates, B restarts the peak, Select forgets, Start spins (+725 LEs, a
+  second PLL, the ADC block). [gotcha 48](gotchas.md), [read-accelerometer](../.claude/skills/read-accelerometer/SKILL.md)
+- **What only a hand finds: the tilt directions and the LED bubble.** Right edge up is +x and PITCH, near edge up is
+  −y and ROLL, HEADING 0 is right; the bubble slid like a ball because +x is the LEDR0 end, and no test covers the
+  LEDs. [read-accelerometer](../.claude/skills/read-accelerometer/SKILL.md)
+- **Two chats, one board: a lock file is not enough.** The other chat judged a 12-hour-old lock stale and loaded its
+  design while the user pressed A for mine; a second time it programmed in the gap between its "board free" and my
+  lock. Reprogram and re-read before trusting any hand check, and say which design the FPGA holds in every hand-off.
 - **The SDRAM streamed at its own speed into six compute units at once.** A 100 MHz burst controller (98 % of the
   bus, 196 MB/s over 64 MB with 0 errors), a fabric of N credit-based read channels and N write-back lanes behind a
   round-robin burst arbiter, int8 matrix-vector units with T-vector weight reuse, a generic register file over JTAG
@@ -25,7 +34,7 @@ They come from real sessions; most of them came from something going wrong.
 
 - **Accelerometer Cube: the board's tilt as a shaded 3D cube, the live acceleration as numbers, bars and an arrow.**
   Pure Verilog, no frame buffer: a sequential math engine in the vertical blank (under 950 clocks) and a pixel
-  pipeline that draws from its numbers; 12,513 LEs; proven pixel by pixel on the board (8 settings, 0 pixels
+  pipeline that draws from its numbers; 13,238 LEs; proven pixel by pixel on the board (8 settings, 0 pixels
   different) against a bit-exact Python model written before the RTL. [projects/accel_cube](../projects/accel_cube/index.html)
 - **Math-heavy graphics: write the bit-exact model first, then prove it three ways** (engine numbers against the
   model's dump in a one-second testbench, frame hashes in a slow one, board captures compared pixel by pixel).
