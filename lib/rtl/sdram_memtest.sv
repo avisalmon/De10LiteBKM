@@ -45,7 +45,7 @@ module sdram_memtest #(
 	input		wire				reg_we,
 	output	reg	[31:0]	reg_rdata = 0,
 	// burst controller
-	output	reg	[2:0]		rd_delay = 3'd3,
+	output	reg	[2:0]		rd_delay = 3'd4,	// the value the board sweep found right at 100 MHz
 	output	reg				cmd_valid = 0,
 	input		wire				cmd_ready,
 	output	reg				cmd_we = 0,

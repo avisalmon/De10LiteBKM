@@ -176,17 +176,30 @@ def cmd_phase(b, a):
           + (" (no phasedone low seen)" if p["no_ack"] else ""))
 
 
-def windows(cells, positions):
-    """cells: {pos: failing-pattern count}; the longest run of 0s -> (start, end) positions, or None."""
+def windows(cells, positions, period=None):
+    """cells: {pos: failing-pattern count}; the longest run of passing positions -> (start, end), or None.
+    When the sweep covers a whole DRAM_CLK period (`period` steps) the phase is a circle: a run may wrap from
+    the top of the range back to the bottom. Then `end` is start + width - 1, which can lie beyond the swept
+    maximum (the swept position is end - period)."""
+    circular = bool(period) and len(positions) >= period
+    if circular:
+        seen = {}
+        for p in positions:
+            seen.setdefault(p % period, p)          # p and p + period are the same phase: keep the first
+        base = sorted(seen.values())
+        seq = [(p, cells.get(p, 1) == 0) for p in base] + [(p + period, cells.get(p, 1) == 0) for p in base]
+    else:
+        seq = [(p, cells.get(p, 1) == 0) for p in positions]
     best, start = None, None
-    for i, pos in enumerate(positions + [None]):
-        ok = pos is not None and cells.get(pos, 1) == 0
+    for i, (pos, ok) in enumerate(seq + [(None, False)]):
         if ok and start is None:
-            start = pos
+            start = i
         if not ok and start is not None:
-            end = positions[i - 1]
-            if best is None or end - start > best[1] - best[0]:
-                best = (start, end)
+            s, e = seq[start][0], seq[i - 1][0]
+            if circular:
+                e = min(e, s + period - 1)          # every phase passes: one full circle, not two
+            if best is None or e - s > best[1] - best[0]:
+                best = (s, e)
             start = None
     return best
 
@@ -232,22 +245,27 @@ def cmd_sweep(b, a):
           "taken, the handshake is only invisible)" if ph["no_ack"] else ""))
 
     # ---- the windows ----
-    print("\nwindows (the longest run of passing phases, all patterns):")
+    circular = len(positions) >= steps
+    print("\nwindows (the longest run of passing phases, all patterns" +
+          ("; the sweep covers a whole period, so a window may wrap around):" if circular else "):"))
     best = None
     for d in rds:
-        w = windows(result[d], positions)
+        w = windows(result[d], positions, steps)
         if w is None:
             print(f"  rd_delay {d}: none")
             continue
         width = (w[1] - w[0] + 1) * b.step_ps
         centre = (w[0] + w[1]) / 2
-        print(f"  rd_delay {d}: {w[0]:+d}..{w[1]:+d} steps = {w[0] * b.step_ps:+d}..{w[1] * b.step_ps:+d} ps, "
-              f"width {width} ps, centre {centre:+.1f} steps = {centre * b.step_ps:+.0f} ps")
-        if best is None or width > best[2]:
-            best = (d, centre, width)
-    if best:
-        d, centre, width = best
         pos = int(round(centre))
+        while pos > hi:                     # a wrapped window: name its centre by a swept position
+            pos -= steps
+        wrap = f" (wraps: +{w[1]:d} is {w[1] - steps:+d})" if w[1] > hi else ""
+        print(f"  rd_delay {d}: {w[0]:+d}..{w[1]:+d} steps = {w[0] * b.step_ps:+d}..{w[1] * b.step_ps:+d} ps{wrap}, "
+              f"width {width} ps, centre {pos:+d} steps = {pos * b.step_ps:+d} ps")
+        if best is None or width > best[2]:
+            best = (d, pos, width)
+    if best:
+        d, pos, width = best
         abs_ps = (b.phase_ps + pos * b.step_ps) % b.period_ps
         print(f"\nbest: rd_delay {d} at {pos:+d} steps ({pos * b.step_ps:+d} ps): margin +-{width / 2:.0f} ps "
               f"-> compile with C1_PHASE \"{abs_ps}\" (ps) and rd_delay {d}")
@@ -262,7 +280,7 @@ def cmd_sweep(b, a):
                            seconds=seconds), f, indent=1)
         print(f"written {a.out}")
     if best and a.stay:
-        b.goto(int(round(best[1])))
+        b.goto(best[1])
         print(f"DRAM_CLK left at {b.phase()['pos']:+d} steps")
     else:
         b.pll_reset()

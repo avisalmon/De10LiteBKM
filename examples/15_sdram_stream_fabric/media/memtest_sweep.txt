@@ -1,0 +1,134 @@
+SDRAM read-window sweep, memtest_top at 100 MHz on the DE10-Lite (IS42S16320), 2026-10-28
+python scripts/sdram_memtest.py sweep --out logs/memtest_sweep*.json   (65,536 words per pass, bursts of 1024,
+patterns 0 address, 2 random, 3 toggle; DRAM_CLK stepped by the PLL's dynamic phase port, 208 ps a step, 48 steps a period)
+. = all patterns pass, digit = failing patterns, X = all fail
+
+--- build A: compiled C1_PHASE 0 ps (the first build) ---
+ pos     ps  rd3 rd4 rd5
+ -24  -4992    X   .   X
+ -23  -4784    X   .   X
+ -22  -4576    X   .   X
+ -21  -4368    X   .   X
+ -20  -4160    X   .   X
+ -19  -3952    X   .   X
+ -18  -3744    X   .   X
+ -17  -3536    X   .   X
+ -16  -3328    X   .   X
+ -15  -3120    X   .   X
+ -14  -2912    X   .   X
+ -13  -2704    X   .   X
+ -12  -2496    X   .   X
+ -11  -2288    X   .   X
+ -10  -2080    X   .   X
+  -9  -1872    X   .   X
+  -8  -1664    X   .   X
+  -7  -1456    X   .   X
+  -6  -1248    X   .   X
+  -5  -1040    X   .   X
+  -4   -832    X   .   X
+  -3   -624    X   .   X
+  -2   -416    X   .   X
+  -1   -208    X   .   X
+  +0     +0    X   .   X
+  +1   +208    X   .   X
+  +2   +416    X   X   X
+  +3   +624    X   X   X
+  +4   +832    .   X   X
+  +5  +1040    .   X   X
+  +6  +1248    .   X   X
+  +7  +1456    .   X   X
+  +8  +1664    .   X   X
+  +9  +1872    .   X   X
+ +10  +2080    .   X   X
+ +11  +2288    .   X   X
+ +12  +2496    1   X   X
+ +13  +2704    X   X   X
+ +14  +2912    X   X   X
+ +15  +3120    X   X   X
+ +16  +3328    X   2   X
+ +17  +3536    X   .   X
+ +18  +3744    X   .   X
+ +19  +3952    X   .   X
+ +20  +4160    X   .   X
+ +21  +4368    X   .   X
+ +22  +4576    X   .   X
+ +23  +4784    X   .   X
+ +24  +4992    X   .   X
+windows (longest run of passing phases, all patterns; the sweep covers a whole period, so a window may wrap):
+  rd_delay 3: +4..+11 steps = +832..+2288 ps, width 1664 ps (17 % of the period), centre +7.5 steps
+  rd_delay 4: +17..+49 steps = +3536..+10192 ps (wraps: +49 is +1), width 6864 ps (69 % of the period), centre +33.0 steps
+  rd_delay 5: none
+sweep time 20 s
+
+--- build B: compiled C1_PHASE 6875 ps (the default now) ---
+ pos     ps  rd3 rd4 rd5
+ -24  -4992    .   X   X
+ -23  -4784    .   X   X
+ -22  -4576    .   X   X
+ -21  -4368    .   X   X
+ -20  -4160    X   X   X
+ -19  -3952    X   X   X
+ -18  -3744    X   X   X
+ -17  -3536    X   2   X
+ -16  -3328    X   .   X
+ -15  -3120    X   .   X
+ -14  -2912    X   .   X
+ -13  -2704    X   .   X
+ -12  -2496    X   .   X
+ -11  -2288    X   .   X
+ -10  -2080    X   .   X
+  -9  -1872    X   .   X
+  -8  -1664    X   .   X
+  -7  -1456    X   .   X
+  -6  -1248    X   .   X
+  -5  -1040    X   .   X
+  -4   -832    X   .   X
+  -3   -624    X   .   X
+  -2   -416    X   .   X
+  -1   -208    X   .   X
+  +0     +0    X   .   X
+  +1   +208    X   .   X
+  +2   +416    X   .   X
+  +3   +624    X   .   X
+  +4   +832    X   .   X
+  +5  +1040    X   .   X
+  +6  +1248    X   .   X
+  +7  +1456    X   .   X
+  +8  +1664    X   .   X
+  +9  +1872    X   .   X
+ +10  +2080    X   .   X
+ +11  +2288    X   .   X
+ +12  +2496    X   .   X
+ +13  +2704    X   .   X
+ +14  +2912    X   .   X
+ +15  +3120    X   .   X
+ +16  +3328    X   .   X
+ +17  +3536    X   X   X
+ +18  +3744    X   X   X
+ +19  +3952    .   X   X
+ +20  +4160    .   X   X
+ +21  +4368    .   X   X
+ +22  +4576    .   X   X
+ +23  +4784    .   X   X
+ +24  +4992    .   X   X
+windows (longest run of passing phases, all patterns; the sweep covers a whole period, so a window may wrap):
+  rd_delay 3: +19..+27 steps = +3952..+5616 ps (wraps: +27 is -21), width 1872 ps (19 % of the period), centre +23.0 steps
+  rd_delay 4: -16..+16 steps = -3328..+3328 ps, width 6864 ps (69 % of the period), centre +0.0 steps
+  rd_delay 5: none
+sweep time 20 s
+
+--- reading the two maps together ---
+Each rd_delay has one passing window per period. Build A's rd_delay-4 window was +17..+1 across the wrap (-7..+1 and
++17..+24), i.e. the compiled phase sat 1 step (~300 ps) from the window's edge, where the chip's command-sampling edge
+moves to the next clock. Moving the compiled phase by 6875 ps (= 33 steps, the window centre) puts rd_delay 4 in the
+middle of its window: -16..+16 steps = +-3.3 ns margin at 100 MHz. rd_delay 3 works one command clock earlier (window
++19..+27 in build B), rd_delay 5 never: the read data of this chip arrives 4 clocks after the READ at 100 MHz.
+
+--- the full memory at the default (build B, rd_delay 4, python scripts/sdram_memtest.py run) ---
+window: rd_delay 4 passes -16..+16 steps of 208 ps (6864 ps = 69 % of the period); rd_delay 3 passes +19..+27 (one command clock earlier); 5 never
+full 64 MB (33,554,432 words, bursts of 1024): patterns address/constant/random/toggle all PASS 0 errors
+  write 342.5 ms = 195.9 MB/s, read 342.3 ms = 196.1 MB/s, bus use 98.0 %, 90,708 refreshes
+burst size (random pattern, 4M words): write / read MB/s, bus use
+  8: 121.3 / 130.9, 63.0 %   16: 150.5 / 157.6, 77.0 %   32: 170.3 / 175.3, 86.4 %   64: 182.6 / 185.3, 92.0 %
+  128: 189.5 / 190.9, 95.1 %   256: 193.1 / 193.8, 96.7 %   512: 195.0 / 195.3, 97.6 %   1024: 195.9 / 196.1, 98.0 %
+phase 0 (first build): only rd_delay 4 passed; its window was +17..+1 (wrapping), the compiled phase sat ~300 ps from the command-sampling edge

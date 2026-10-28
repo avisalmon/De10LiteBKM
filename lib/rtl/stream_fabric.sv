@@ -41,7 +41,8 @@ module stream_fabric #(
 	parameter DEPTH = 1024,						// channel FIFO, words: a power of two, 8..1024
 	parameter LANE_DEPTH = 64,					// lane FIFO, 32-bit entries: a power of two, 4..512
 	parameter MAX_BURST = 1024,				// words per burst at most (the controller's limit is 1024)
-	parameter [2:0] RD_DELAY_DEFAULT = 3'd3
+	parameter [2:0] RD_DELAY_DEFAULT = 3'd4	// measured on the board (examples/15 memtest sweep): CAS latency 3
+														// plus the input register; 3 and 5 return the neighbouring words
 )(
 	input							clk,
 	input							rst_n,				// synchronous
@@ -441,7 +442,11 @@ generate for (g = 0; g < N; g = g + 1) begin : ln
 	reg	[10:0]	wburst = 11'd64;
 	reg	[23:0]	words = 0;
 	reg				flush_pend = 0, busy = 0, half = 0, underrun = 0;
-	reg				fl_tog = 0, fl_s1 = 0, fl_s2 = 0, fl_s3 = 0, fl_s4 = 0;
+	reg				fl_tog = 0;
+	// the toggle's synchronizer chain must stay flip-flops: Quartus would otherwise fold the N lanes' chains into
+	// one M9K shift register (altshift_taps), which keeps the delay but is no synchronizer
+	(* altera_attribute = "-name AUTO_SHIFT_REGISTER_RECOGNITION OFF" *)
+	reg				fl_s1 = 0, fl_s2 = 0, fl_s3 = 0, fl_s4 = 0;
 	wire	[LAW:0]	rlevel;
 	wire	[31:0]	frd;
 	wire				full, empty;

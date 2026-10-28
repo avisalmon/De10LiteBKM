@@ -35,8 +35,9 @@ module fabric_top #(
 	parameter MAX_BURST = 1024,
 	parameter CLK_MHZ = 100,
 	parameter MUL = 2, DIV = 1,									// CLK_MHZ = 50 * MUL / DIV
-	parameter C1_PHASE = "0",										// DRAM_CLK phase in ps, as the PLL wants it
-	parameter [15:0] PHASE_PS = 0,								// the same number, for INFO
+	parameter C1_PHASE = "6875",										// DRAM_CLK phase in ps, as the PLL wants it: the centre of
+																			// the window the memtest sweep measured (33 steps of 208 ps)
+	parameter [15:0] PHASE_PS = 6875,								// the same number, for INFO
 	parameter [15:0] STEP_PS = 208								// one phase step = VCO period / 8 (600 MHz VCO)
 )(
 	input						MAX10_CLK1_50,

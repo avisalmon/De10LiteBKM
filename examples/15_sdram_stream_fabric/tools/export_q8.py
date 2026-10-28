@@ -28,7 +28,9 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import ref_matvec as rm  # noqa: E402
 
-HF = "https://huggingface.co/karpathy/tinyllamas/resolve/main/{name}/{name}.bin"
+HF = "https://huggingface.co/karpathy/tinyllamas/resolve/main/{path}"
+# the repo keeps the tiny model in a sub-folder and the others at the root
+HF_PATHS = {"stories260K": "stories260K/stories260K.bin"}
 MODELS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logs", "models")
 KINDS = ("wq", "wk", "wv", "wo", "w1", "w2", "w3")
 
@@ -39,7 +41,7 @@ def download(name, dest_dir=MODELS_DIR):
     path = os.path.join(dest_dir, name + ".bin")
     if os.path.exists(path) and os.path.getsize(path) > 1000:
         return path
-    url = HF.format(name=name)
+    url = HF.format(path=HF_PATHS.get(name, name + ".bin"))
     print(f"downloading {url}", flush=True)
     t0 = time.perf_counter()
 

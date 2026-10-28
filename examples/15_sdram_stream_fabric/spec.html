@@ -38,14 +38,14 @@ run yet. Section <a href="#review">17</a> lists the open questions in one place.
   <li><a href="#unit">The compute: <code>matvec_unit</code></a></li>
   <li><a href="#clocks">Clock domains and crossings</a></li>
   <li><a href="#mem">Memories and budgets</a></li>
-  <li><a href="#numbers">Expected numbers</a></li>
+  <li><a href="#numbers">Measured numbers</a></li>
   <li><a href="#verify">Verification plan</a></li>
   <li><a href="#board">Board I/O</a></li>
   <li><a href="#decisions">Design decisions</a></li>
   <li><a href="#scope">Out of scope, later versions</a></li>
-  <li><a href="#risks">Risks and fallbacks</a></li>
-  <li><a href="#plan">Build order</a></li>
-  <li><a href="#review">Open questions for the review</a></li>
+  <li><a href="#risks">Risks and how they ended</a></li>
+  <li><a href="#plan">Build order (as it happened)</a></li>
+  <li><a href="#review">The review's questions, answered</a></li>
 </ol>
 </div>
 
@@ -56,7 +56,7 @@ run yet. Section <a href="#review">17</a> lists the open questions in one place.
 <tr><td>R2</td><td>Burst length is a <b>runtime register per channel</b> (1..MAX_BURST words); the controller handles row boundaries and refresh inside a burst by itself.</td><td>Simulation: random bursts across row boundaries with forced refreshes, scoreboard. Board: memory test at several burst lengths.</td></tr>
 <tr><td>R3</td><td><b>N</b> (channels and units) and the FIFO depth are <b>compile-time parameters</b>; the demo builds N = 6.</td><td>Build N = 1, 2, 6 in simulation; N = 6 on the board.</td></tr>
 <tr><td>R4</td><td>Results go back to the SDRAM through <b>one write-back channel</b> (N lanes, one arbiter slot each) and are read with example 14.</td><td>Board: y read back with <code>sdram_load.py</code>, compared with numpy bit by bit.</td></tr>
-<tr><td>R5</td><td>The example 14 loader keeps working <b>unchanged</b> beside the fabric; the PC controls the fabric over the same USB-Blaster.</td><td><code>sdram_load.py bench</code> on the fabric build gives the same 583 KB/s; <code>fabric_ctl.py</code> runs over the direct and the Quartus routes.</td></tr>
+<tr><td>R5</td><td>The example 14 loader keeps working <b>unchanged</b> beside the fabric; the PC controls the fabric over the same USB-Blaster.</td><td><code>sdram_load.py</code> on the fabric build: the random-job uploads ran at 556–561 KB/s (example 14 alone: 583); <code>fabric_ctl.py</code> holds <b>one</b> open cable and drives both JTAG nodes through it (the direct route; the Quartus route stays example 14's fallback for loading alone).</td></tr>
 <tr><td>R6</td><td>Every module has a self-checking testbench that runs on Icarus; the matrix-vector result is <b>bit-exact</b> with a Python model.</td><td><code>pytest tests/test_stream_fabric.py</code>.</td></tr>
 <tr><td>R7</td><td>One 100 MHz clock for the fabric, the controller and the units; the FIFOs are dual-clock so a unit can later run on its own clock.</td><td>Timing closed at 100 MHz; <code>tb_async_fifo</code> with unrelated clocks.</td></tr>
 <tr><td>R8</td><td>Documented as a BKM: page, skill, gotchas, portal card; the lib modules reusable on their own (<code>lib/rtl</code>).</td><td><code>python -m pytest tests/</code> (hygiene, sync, example tests).</td></tr>
@@ -366,7 +366,7 @@ tools/export_q8.py stories15M.bin -o model.q8.bin --map model.json
 <h3>SDRAM memory map (word addresses, 32M words = 64 MB)</h3>
 <div class="tablewrap"><table>
 <tr><th>Region</th><th>Words</th><th>Size</th><th>Contents</th></tr>
-<tr><td>WEIGHTS</td><td><code>0x000_0000 – 0x0FF_FFFF</code></td><td>32 MB</td><td><code>model.q8.bin</code> as loaded by example 14 at address 0 (stories15M uses 16.1 MB of it)</td></tr>
+<tr><td>WEIGHTS</td><td><code>0x000_0000 – 0x0FF_FFFF</code></td><td>32 MB</td><td><code>model.q8.bin</code> as loaded by example 14 at address 0 (stories15M uses 16.2 MB of it)</td></tr>
 <tr><td>KV</td><td><code>0x100_0000 – 0x17F_FFFF</code></td><td>16 MB</td><td>reserved for the KV cache of a later project (stories15M at full context: 884 KB)</td></tr>
 <tr><td>X</td><td><code>0x180_0000 – 0x1BF_FFFF</code></td><td>8 MB</td><td>activation vectors staged in memory (v2: the units fetch x from here instead of the host writing it)</td></tr>
 <tr><td>Y</td><td><code>0x1C0_0000 – 0x1FF_FFFF</code></td><td>8 MB</td><td>results: lane u writes at <code>0x1C0_0000 + u × 0x08_0000</code> (1 MB each, 6 of 8 used)</td></tr>
@@ -438,7 +438,7 @@ host in v1.</p>
 <div class="tablewrap"><table>
 <tr><th>Clock</th><th>Source</th><th>Frequency</th><th>Drives</th></tr>
 <tr><td><code>clk</code></td><td>PLL c0 (50 MHz × 2)</td><td>100 MHz</td><td>controller, fabric, units, jtag_regs' and the loader's clk side, LEDs/7-segment</td></tr>
-<tr><td><code>DRAM_CLK</code></td><td>PLL c1</td><td>100 MHz, phase P</td><td>the SDRAM chip only. P is a build parameter swept on the board (example 06 needed 180° at 50 MHz; at 100 MHz the window is narrower and is the risk item, see <a href="#risks">15</a>)</td></tr>
+<tr><td><code>DRAM_CLK</code></td><td>PLL c1</td><td>100 MHz, phase 6875 ps</td><td>the SDRAM chip only. <code>C1_PHASE "6875"</code> (c1 relative to c0) with <code>rd_delay</code> 4: measured on the board, the pair works from −16 to +16 steps of 208 ps around it (±3.3 ns); <code>rd_delay</code> 3 works from +19 to +27 (<code>media/memtest_sweep.txt</code>). Example 06 needed 180° at 50 MHz</td></tr>
 <tr><td><code>TCK</code></td><td>USB-Blaster</td><td>≈ 6 MHz, asynchronous</td><td>the two virtual JTAG nodes; crossings: the loader's existing toggle/handshake synchronizers; jtag_regs copies them</td></tr>
 <tr><td><code>unit clk</code></td><td>= <code>clk</code> in this example</td><td>100 MHz</td><td>the read side of the channel FIFOs and the units; the FIFOs are dual-clock so a later design can change this without touching the fabric</td></tr>
 </table></div>
@@ -458,9 +458,13 @@ model (<code>tb_sdram_burst_ctrl -D P_NS=… -D RD_DELAY=… -D DQ_DELAY=…</co
 <tr><td>1.25 ns (45°)</td><td>5 ns</td><td>31.7 – 39.0</td><td>none</td><td></td></tr>
 </table></div>
 <p>So the phase and the delay are chosen together and only the board can say which pair it is: the memory test (section
-11) sweeps P over builds and <code>rd_delay</code> 2..6 over a register, and the pair with the most margin becomes the
-default. (The old <code>sdram_model</code> had the data one clock late, which is why example 06's simulation "needed"
-rd_delay 4 like the board: the new model is JEDEC-exact and the testbenches use 3 for the bare chip.)</p>
+11) sweeps P over one period with the PLL's dynamic phase stepping (48 steps of 208 ps, no rebuild) and <code>rd_delay</code>
+3..5 over a register. <b>Measured:</b> <code>rd_delay</code> 4 passes over 33 consecutive steps (69 % of the period) and
+<code>rd_delay</code> 3 over the 8 steps next to them; 5 never. The window wraps around the period's end, so the sweep is read
+circularly, and the compiled phase was moved to the centre of the <code>rd_delay</code> 4 window: 6875 ps, which leaves
+±16 steps = ±3.3 ns on either side. The bare-chip model wants 3 and the board 4: the pin, trace and input-pad path adds
+about a clock's worth at 100 MHz. (The old <code>sdram_model</code> had the data one clock late, which is why example 06's
+simulation "needed" rd_delay 4 like the board: the new model is JEDEC-exact and the testbenches use 3 for the bare chip.)</p>
 <p>Reset: PLL <code>locked</code> through a 2-FF synchronizer → <code>rst_n</code>; the SDRAM init waits its 100 µs after
 that. KEY0 forces a reset for the memory test. Timing constraints: <code>create_clock</code> 50 MHz on MAX10_CLK1_50,
 <code>derive_pll_clocks</code>, <code>derive_clock_uncertainty</code>, the SDRAM pins constrained as in example 06
@@ -477,26 +481,32 @@ example 14.</p>
 <tr><td colspan="3"><b>Total</b></td><td><b>≈ 66 of 182</b> (36 %)</td></tr>
 </table></div>
 <div class="tablewrap"><table>
-<tr><th>Resource</th><th>Expected</th><th>Measured (build of the demo top)</th><th>Of</th><th>Notes</th></tr>
-<tr><td>Logic elements</td><td>≈ 10,500</td><td><b>29,128</b></td><td>49,760 (59 %)</td><td>fabric 5,767 (the two credit arbiters, 6 channels, 6 lanes, 12 FIFOs' logic), each unit ≈ 3,370 (8 vectors × (2 products + 21-bit sum + 48-bit accumulator with saturation) and the x-buffer write path), loader 1,574, controller 327, jtag_regs 199. The estimate missed the per-vector width: 8 × 48-bit accumulators and the saturation alone are ≈ 1,200 LEs a unit</td></tr>
+<tr><th>Resource</th><th>Expected</th><th>Measured (final build of the demo top)</th><th>Of</th><th>Notes</th></tr>
+<tr><td>Logic elements</td><td>≈ 10,500</td><td><b>29,168</b></td><td>49,760 (59 %)</td><td>fabric 5,795 (the two credit arbiters, 6 channels, 6 lanes, 12 FIFOs' logic), each unit ≈ 3,370 (8 vectors × (2 products + 21-bit sum + 48-bit accumulator with saturation) and the x-buffer write path), loader 1,580, controller 326, jtag_regs 197. The estimate missed the per-vector width: 8 × 48-bit accumulators and the saturation alone are ≈ 1,200 LEs a unit</td></tr>
 <tr><td>9 × 9 multipliers</td><td>108 (54 × 18 × 18)</td><td><b>120</b></td><td>288 (42 %)</td><td>per unit 16 for the pair products (2 per vector) and 4 for the 21 × 16 scale MAC</td></tr>
-<tr><td>M9K</td><td>≈ 66</td><td><b>67</b> (66 after the fix)</td><td>182 (37 %)</td><td>table above + 1 that Quartus spent on the top's 3-bit PLL-lock synchronizer, turned into an <code>altshift_taps</code> by auto shift-register replacement; the top now carries <code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> on that register</td></tr>
-<tr><td>Registers</td><td></td><td>16,105</td><td></td><td>1,820 a unit, 3,197 in the fabric</td></tr>
+<tr><td>M9K</td><td>≈ 66</td><td><b>66</b></td><td>182 (37 %)</td><td>exactly the table above. Two earlier builds had 67: Quartus' auto shift-register replacement had folded the top's PLL-lock synchronizer, then the six lanes' flush synchronizers, then the six units' 12-bit × 3 flag pipeline into <code>altshift_taps</code> M9Ks (gotcha 38); <code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> is now in every <code>.qsf</code> that <code>new_project.py</code> writes</td></tr>
+<tr><td>Registers</td><td></td><td>16,158</td><td></td><td>1,826 a unit, 3,215 in the fabric</td></tr>
 <tr><td>PLL</td><td>1</td><td>1</td><td>4</td><td>c0 100 MHz logic, c1 100 MHz to the SDRAM pin, phase stepped</td></tr>
-<tr><td>Fmax</td><td>≥ 100 MHz on <code>clk</code></td><td><b>102.83 MHz</b> (slow 85 °C), setup slack +0.275 ns at 100 MHz, hold +0.100 ns</td><td></td><td>after the pipeline work of section 7 and gotcha 37; the first build had −8.4 ns, the second −1.8 ns</td></tr>
+<tr><td>Fmax</td><td>≥ 100 MHz on <code>clk</code></td><td><b>104.16 MHz</b> (slow 85 °C), setup slack +0.399 ns at 100 MHz, worst slack of any kind +0.141 ns</td><td></td><td>after the pipeline work of section 7 and gotcha 37; the first build had −8.4 ns, the second −1.8 ns</td></tr>
 </table></div>
 
-<h2 id="numbers">10 · Expected numbers</h2>
+<h2 id="numbers">10 · Measured numbers</h2>
+<p>The spec first predicted these; the board (2026-10-28, <code>media/bench.txt</code>, <code>media/memtest_sweep.txt</code>)
+then measured them. Where the two differ, the measured value is here and the prediction is in the How column.</p>
 <div class="tablewrap"><table>
-<tr><th>What</th><th>Expected</th><th>How</th></tr>
-<tr><td>Load stories15M into the SDRAM</td><td>28 s + 2.4 s CRC</td><td>16.1 MB at example 14's 583 KB/s</td></tr>
-<tr><td>Aggregate stream rate, 6 channels, BURST 256</td><td>≈ 190 MB/s (R1 asks ≥ 170)</td><td>section 3's table; measured by <code>fabric_ctl.py bench</code></td></tr>
-<tr><td>One stories15M token, all weights (decode, T = 1)</td><td>≈ 90 ms → ≈ 11 tokens/s</td><td>16.1 MB at 180 MB/s; memory-bound</td></tr>
-<tr><td>The classifier alone (32000 × 288)</td><td>9.8 MB → ≈ 54 ms</td><td>the throughput measurement of the example: one job, 6 units × 5,334 rows (the last takes the remainder)</td></tr>
-<tr><td>Prefill of a 32-token prompt, T = 8</td><td>4 passes ≈ 0.36 s (versus 2.9 s one token at a time)</td><td>weight reuse: the point of T</td></tr>
-<tr><td>stories260K, layer-0 wq (64 × 64), 2 units</td><td>a few µs; the bit-exact test</td><td>simulation and board</td></tr>
-<tr><td>MAC capacity at T = 8</td><td>96 MAC/clock = 9.6 GMAC/s</td><td>6 units × 2 weights × 8 vectors</td></tr>
-<tr><td>MACs the memory can feed at T = 8</td><td>16 MAC/clock = 1.6 GMAC/s</td><td>one word per clock, shared by all units</td></tr>
+<tr><th>What</th><th>Measured</th><th>How</th></tr>
+<tr><td>The memory itself, all 64 MB, bursts of 1024</td><td><b>195.9 MB/s write, 196.1 MB/s read</b>, 98.0 % of the bus, 0 errors</td><td><code>sdram_memtest.py run</code>; 90,708 refreshes in 342 ms; the burst-size table is in section 3</td></tr>
+<tr><td>Aggregate stream rate, 6 channels, BURST 256</td><td><b>193.0 MB/s</b> (96.9 % of the bus); 195.3 MB/s at BURST 1024; 184.6 at BURST 64</td><td><code>fabric_ctl.py bench</code>; R1 asks ≥ 170 MB/s: met from BURST 64 up, and at 2 units already</td></tr>
+<tr><td>One channel, one unit, T = 1</td><td>192.7 MB/s at BURST 1024, the unit starved 3.6 %</td><td>a single consumer at one word a clock is the limit, not the bus</td></tr>
+<tr><td>One job 512 × 1024, T = 8, 6 units</td><td><b>2.94 ms</b> = 293,988 clocks, 189.5 MB/s, 97.5 % of the bus, bit-exact; the same with SHIFT 9 and SHIFT 0</td><td>4,194,304 MACs → <b>1.43 GMAC/s</b>; the predicted 1.6 less the scale word (17 words per 32 weights: 15.1 MAC per word at T 8) and the 2.5 % the bus idles</td></tr>
+<tr><td>Ten random jobs, 3 × 32 to 512 × 1024, T 1–8, 2–6 units</td><td>all <b>bit-exact</b> against <code>tools/ref_matvec.py</code>; 180–190 MB/s from 10,000 words up</td><td><code>fabric_ctl.py job --random</code>; the 100 × 172 job on 2 units stalled 2.5 %: a row of 172 is short, so the push of the previous row's results (one value per 3 clocks) was not finished when the next row's last scale word arrived</td></tr>
+<tr><td>A 64 × 64 job (the size of stories260K's layer-0 wq), T = 2, 2 units</td><td>2,327 clocks = <b>23 µs</b>, bit-exact</td><td>the JTAG transaction that starts it takes ≈ 2 ms: tiny jobs are PC-bound, not board-bound</td></tr>
+<tr><td>Load stories15M into the SDRAM</td><td>8,097,792 words = 16.2 MB (15.45 MiB) at the loader's measured 556–561 KB/s → ≈ 28 s + CRC</td><td>example 14's path (JTAG UART → <code>sdram_loader</code>); 43 matrices, the classifier shared with the embedding, so one copy</td></tr>
+<tr><td>One stories15M token, all weights (decode, T = 1)</td><td>≈ 85 ms → ≈ 12 tokens/s, memory-bound</td><td>16.2 MB at the measured 189.5 MB/s; the model's matrices on the board are the next check (status table)</td></tr>
+<tr><td>The classifier alone (32000 × 288)</td><td>4,896,000 words = 9.8 MB → ≈ 52 ms per pass</td><td>one job, 6 units × 5,334 rows (the last takes the remainder); 153 words per row</td></tr>
+<tr><td>Prefill of a 32-token prompt, T = 8</td><td>4 passes ≈ 0.34 s (versus ≈ 2.7 s one token at a time)</td><td>weight reuse: the point of T</td></tr>
+<tr><td>MAC capacity at T = 8</td><td>96 MAC/clock = 9.6 GMAC/s</td><td>6 units × 2 weights × 8 vectors; 120 of the 288 9-bit multipliers</td></tr>
+<tr><td>MACs the memory can feed at T = 8</td><td>15.1 MAC/clock = 1.51 GMAC/s at 100 % of the bus; <b>1.43 measured</b></td><td>one word per clock, shared by all units; at T = 1 it is 0.19 GMAC/s, which is why the starved share is 84 % with 6 units</td></tr>
 </table></div>
 <div class="panel"><b>What the last two lines say.</b> With one 16-bit SDRAM the units share 200 MB/s; N does not add
 bandwidth, it adds <i>independence</i> (each unit starves or stalls on its own, the arbiter keeps the bus full from
@@ -508,33 +518,41 @@ prefill demo shows. <code>CYCLES_BUSY</code> / <code>CYCLES_STARVED</code> per u
 <h3>Simulation (Icarus, <code>scripts/sim.py</code>; <code>tests/test_stream_fabric.py</code>)</h3>
 <div class="tablewrap"><table>
 <tr><th>Testbench</th><th>Checks</th></tr>
-<tr><td><code>tb_sdram_burst_ctrl</code></td><td><code>lib/sim/sdram_model.sv</code> extended to full command semantics (ACT/READ/WRITE/PRE/REFRESH/MRS, a 4-bank row state, auto-precharge, tRCD/tRP/tRC/tRAS/tWR/tRFC/refresh-interval checks that <code>$error</code> on violation, data driven only in the CL window). Random read/write bursts, lengths 1..1024, addresses crossing rows and banks, refresh forced to land inside bursts, scoreboard against a Python-generated expected stream; efficiency reported per length and compared with section 3's table ± 2 %.</td></tr>
-<tr><td><code>tb_async_fifo</code></td><td>unrelated clocks (e.g. 100 and 37 MHz, then swapped), random push/pop, never loses or duplicates a word, level never over-reports room.</td></tr>
+<tr><td><code>tb_sdram_burst_ctrl</code></td><td><b>Passes.</b> <code>lib/sim/sdram_model.sv</code> extended to full command semantics (ACT/READ/WRITE/PRE/REFRESH/MRS, a 4-bank row state, auto-precharge, tRCD/tRP/tRC/tRAS/tWR/tRFC/refresh-interval checks that <code>$error</code> on violation, data driven only in the CL window). Random read/write bursts, lengths 1..1024, addresses crossing rows and banks, refresh forced to land inside bursts, scoreboard against the expected stream; efficiency reported per length and compared with section 3's table.</td></tr>
+<tr><td><code>tb_async_fifo</code></td><td><b>Passes.</b> Unrelated clocks (100 and 37 MHz, then swapped), random push/pop, never loses or duplicates a word, level never over-reports room.</td></tr>
 <tr><td><code>tb_stream_fabric</code></td><td><b>Passes</b> for N = 1, 2, 6, 14, with a refresh every 97 clocks (stress) and with the unit clock equal to <code>clk</code> or at 13 ns. Four phases: one channel; everything at once (N channels over random regions with BURST from {1, 7, 64, 100, 256, 1024} and random-rate consumers, N lanes with random-rate producers flushed by the unit or the host, the legacy port writing and reading single words throughout, its wait measured); throughput at BURST 256 with greedy consumers; loop mode, abort, soft reset and a channel re-reading a lane's region. Scoreboards per channel and per lane against a reference memory; the SDRAM model's timing checks on. Measured: <b>96.6 % of the bus</b> at N ≥ 2 (85 % at N = 1, where the one consumer at 13 ns is the limit), all channels finishing within one burst of each other, legacy worst wait 1063 clocks (bound 1087), BURSTS = Σ ⌈LEN / BURST⌉, no overflow, underrun or fault.</td></tr>
 <tr><td><code>tb_matvec_unit</code></td><td><b>Passes.</b> Self-contained: the testbench builds W (int8), x (int8, T vectors), the stream and the expected y in 64-bit integers (saturation counted) for ten cases: K = 32..1024, T = 1..8, SHIFT 0..20, extreme values (−128 and 127 everywhere: 7 of 12 results saturate), random FIFO gaps (30–50 %), a lane ready 70 % of the time and a lane blocked for 400 clocks, abort of a running job then restart, broadcast writes read back, ROWS = 0. Bit-exact results, exactly one flush per job, the stream consumed to the last word, STAT, ROWS_DONE, WORDS, CYCLES_BUSY (± 8 of the wall clock) and CYCLES_STARVED / STALLED zero or not as the case demands. Full rate: 3 rows of K = 64 at T = 1 in 115 clocks for 102 words.</td></tr>
-<tr><td><code>tb_fabric_top</code></td><td>the real top with the SDRAM model preloaded from <code>model.q8.bin</code> of stories260K; the job of layer-0 wq split over 2 units through the jtag_regs bus model; y compared with <code>ref_matvec.py</code>.</td></tr>
 </table></div>
-<h3>Board</h3>
+<p class="note">A testbench of the whole top (<code>tb_fabric_top</code>) was planned and not written: the top adds only the
+register file, the PLL and the pins, and the board tests below cover it end to end with the real chip, which the plan
+needed anyway.</p>
+<h3>Board (done; the numbers are on the <a href="index.html">example page</a>)</h3>
 <ol>
-  <li><b>Memory test at 100 MHz</b>: <code>fabric_ctl.py memtest</code> fills the 64 MB with a pattern through one channel's
-  write lane and reads it back through a channel (both directions through the fabric), at BURST 1, 8, 64, 256, 512, 1024,
-  over the phase P builds (e.g. 0°, 90°, 180°, 270°, then finer) and <code>rd_delay</code> 2..6: a table of pass/fail,
-  the window's centre becomes the default. Also example 14's <code>bench</code> on the same build (R5).</li>
-  <li><b>Throughput</b>: loop mode on 6 channels over the stories15M blob for 10 s: MB/s from the counters and a stopwatch;
-  the R1 number.</li>
-  <li><b>Correctness</b>: load stories260K's blob with example 14, run the wq job on 2 units, read y back, compare: 0 differences.</li>
-  <li><b>The real thing</b>: load stories15M's blob, run the classifier job on 6 units (T = 1) and time it; then T = 8 with 8
-  vectors (prefill), time it; both compared bit-exact with numpy.</li>
+  <li><b>Memory test at 100 MHz</b>: the <code>memtest/</code> sub-project (the burst controller alone with a pattern
+  generator and checker, <code>lib/rtl/sdram_memtest.sv</code>) and <code>scripts/sdram_memtest.py</code>: <code>sweep</code>
+  steps the PLL's c1 phase over the whole period (48 steps, no rebuild) at <code>rd_delay</code> 3, 4 and 5 and prints the
+  pass/fail map; <code>full</code> fills and checks all 64 MB at bursts 1 to 1024. Result: <code>rd_delay</code> 4 with the
+  phase at 6875 ps, 0 errors over 64 MB, 196 MB/s at bursts of 1024 (<code>media/memtest_sweep.txt</code>).</li>
+  <li><b>Throughput</b>: <code>fabric_ctl.py bench</code> runs the six channels in loop mode over 16 MB for a fixed window and
+  reads the counters: 192.7 MB/s with one unit, 195.3 MB/s with six (the R1 number; <code>media/bench.txt</code>).</li>
+  <li><b>Correctness</b>: <code>fabric_ctl.py job --random ROWSxK</code> builds a random int8 W and x on the PC, loads them
+  through the loader, splits the rows over the units, runs the job and compares y with <code>ref_matvec.py</code>: ten jobs
+  from 3 × 32 to 512 × 1024, T 1..8, 2 to 6 units, extreme values, five repeats, all bit-exact.</li>
+  <li><b>The real thing</b>: <code>fabric_ctl.py job --model stories260K</code> and <code>--model stories15M</code> load the
+  exported q8 blob, run every matrix of the model as a job and compare each with numpy; then the classifier
+  (32000 × 288) alone at T = 1 and T = 8 for the timing.</li>
 </ol>
 <h3>Tools and scripts</h3>
 <ul>
-  <li><code>scripts/fabric_ctl.py</code> (direct and Quartus routes), <code>scripts/jtag_regs.tcl</code> (the Quartus route's
-  answer file, like <code>sdram_load.tcl</code>).</li>
+  <li><code>scripts/fabric_ctl.py</code> (info, clock, phase, delay, reset, stats, load, bench, job) on top of
+  <code>scripts/jtag_regs.py</code> (the register file's virtual JTAG node, batched scans) and example 14's
+  <code>usb_blaster.py</code> / <code>sdram_load.py</code> for the data. Direct cable route only: the Quartus route of
+  example 14 was not needed (a register transaction is one scan, ≈ 2 ms either way).</li>
   <li><code>examples/15_sdram_stream_fabric/tools/export_q8.py</code> (llama2.c fp32 <code>.bin</code> → <code>model.q8.bin</code>
-  + JSON map), <code>tools/ref_matvec.py</code> (expected y, compare), <code>tools/stream_file.py</code> (stream files for
-  the testbenches).</li>
-  <li>Tests: <code>tests/test_stream_fabric.py</code> (unit testbenches + the exporter/reference round trip), on the model
-  of <code>tests/test_sdram_loader.py</code>.</li>
+  + JSON map + the fp32 vectors that are not matrices), <code>tools/ref_matvec.py</code> (expected y, compare).</li>
+  <li>Tests: <code>tests/test_stream_fabric.py</code> (the seven testbenches of the parts above and of
+  <code>jtag_regs</code>, <code>pll_phase_step</code> and <code>sdram_memtest</code>, the exporter/reference round trip,
+  the tools' pure functions, the packaging), on the model of <code>tests/test_sdram_loader.py</code>.</li>
 </ul>
 
 <h2 id="board">12 · Board I/O</h2>
@@ -566,6 +584,8 @@ prefill demo shows. <code>CYCLES_BUSY</code> / <code>CYCLES_STARVED</code> per u
 <tr><td>y[i][t] contiguous per unit</td><td>a single interleaved y region</td><td>each lane writes its own region with a plain incrementing address; the host reassembles</td></tr>
 <tr><td>N write lanes in one write-back channel</td><td>one shared lane with a mux</td><td>a unit never waits for another's results; each lane is one arbiter requester, one M9K</td></tr>
 <tr><td>Generic <code>jtag_regs</code> in <code>lib</code></td><td>loader-style special-purpose VIRs</td><td>every future design wants PC-visible registers; one Python helper serves them all</td></tr>
+<tr><td>The PLL's phase stepped at run time (<code>pll_phase_step</code>)</td><td>one build per phase</td><td>a 48-point sweep of the capture window in seconds instead of eight hours of builds; the compiled phase is then set once to the window's centre</td></tr>
+<tr><td>Auto shift-register replacement off in every <code>.qsf</code></td><td>an attribute on each affected register</td><td>Quartus folded synchronizers and flag pipelines into M9Ks three times in this example alone (gotcha 38); a 3-flop chain in logic costs nothing, an M9K spent on one is a block a FIFO cannot have</td></tr>
 </table></div>
 
 <h2 id="scope">14 · Out of scope, later versions</h2>
@@ -579,46 +599,51 @@ prefill demo shows. <code>CYCLES_BUSY</code> / <code>CYCLES_STARVED</code> per u
   <li>KV cache in M9K or in the KV region; unit-to-unit links (the systolic neighbours); several units per channel.</li>
 </ul>
 
-<h2 id="risks">15 · Risks and fallbacks</h2>
+<h2 id="risks">15 · Risks and how they ended</h2>
 <div class="tablewrap"><table>
-<tr><th>Risk</th><th>Likelihood</th><th>Mitigation / fallback</th></tr>
-<tr><td>Read capture window at 100 MHz (board traces, the chip's tAC 5.4 ns at CL 3, the FPGA input setup)</td><td>the main one</td><td>phase P as a build parameter and <code>rd_delay</code> as a register: a sweep finds the window and its width is reported on the page. Fallback: 83.3 MHz (50 × 5/3) or 66.7 MHz (50 × 4/3) with the same RTL; R1 then scales to 140 / 115 MB/s and the page says so.</td></tr>
-<tr><td>The loader does not close 100 MHz</td><td>low (96 MHz measured with a loose 50 MHz constraint)</td><td>keep the loader at 50 MHz on PLL c2 and bridge the legacy port with a req/ack handshake CDC</td></tr>
-<tr><td>M9K count with T_MAX = 8</td><td>low (66 of 182)</td><td>T_MAX = 4 halves the x-buffers</td></tr>
-<tr><td>Refresh inside bursts has corner cases (a refresh due during the ACT, during a row split…)</td><td>medium</td><td>the extended SDRAM model asserts every timing parameter; the testbench forces refresh at every state</td></tr>
-<tr><td>Build path on OneDrive</td><td>known</td><td><code>de10.py</code> already mirrors the project to <code>%LOCALAPPDATA%</code></td></tr>
+<tr><th>Risk</th><th>Was</th><th>Ended</th></tr>
+<tr><td>Read capture window at 100 MHz (board traces, the chip's tAC 5.4 ns at CL 3, the FPGA input setup)</td><td>the main one</td><td><b>Retired by measurement.</b> The window is wide: 33 of 48 phase steps at <code>rd_delay</code> 4 (69 % of the period, ±3.3 ns around the compiled 6875 ps) plus 8 steps at <code>rd_delay</code> 3; 0 errors over 64 MB at every burst size. The 83.3 / 66.7 MHz fallbacks were not needed.</td></tr>
+<tr><td>The loader does not close 100 MHz</td><td>low</td><td>It did: the whole design is on one 100 MHz clock, Fmax 104.16 MHz. The 50 MHz PLL output and the handshake bridge were not needed.</td></tr>
+<tr><td>M9K count with T_MAX = 8</td><td>low (66 of 182)</td><td>66 M9K as planned, after finding Quartus had added one for a shift register, three times (gotcha 38).</td></tr>
+<tr><td>Refresh inside bursts has corner cases</td><td>medium</td><td>The model asserts every timing parameter and the testbenches force a refresh every 97 clocks, in every state; no violation in simulation, 0 errors on the board; the refresh counter on the board matches the 7.5 µs interval.</td></tr>
+<tr><td>Timing closure at 100 MHz</td><td>appeared in the first build (−8.4 ns)</td><td>Closed in three builds by fixing six repeated path shapes rather than paths (gotchas 35 and 37): the arbiters' credit and select logic registered a clock early, M9K outputs registered, DSP multiplies and dynamic array selects split by a register, the register-bus clears registered once, one-hot selects, a head register on the show-ahead FIFOs. +0.399 ns setup at 100 MHz.</td></tr>
+<tr><td>Build path on OneDrive</td><td>known</td><td><code>de10.py</code> mirrors the project to <code>%LOCALAPPDATA%</code>; no trouble.</td></tr>
 </table></div>
 
-<h2 id="plan">16 · Build order</h2>
+<h2 id="plan">16 · Build order (as it happened)</h2>
 <ol>
-  <li>This spec: your review and corrections.</li>
-  <li><code>sdram_burst_ctrl</code> + the extended SDRAM model + <code>tb_sdram_burst_ctrl</code>; a memory-test top at 100 MHz
-  on the board with the phase / <code>rd_delay</code> sweep. <b>The risk retires here.</b></li>
+  <li>This spec, reviewed and agreed. ✓</li>
+  <li><code>sdram_burst_ctrl</code> + the JEDEC-timed SDRAM model + <code>tb_sdram_burst_ctrl</code>; the <code>memtest/</code>
+  sub-project at 100 MHz on the board with the phase sweep over <code>pll_phase_step</code> and <code>rd_delay</code>.
+  <b>The risk retired here</b>: 196 MB/s, 0 errors over 64 MB. ✓</li>
   <li><code>async_fifo</code>, <code>stream_fabric</code> (channels, lanes, legacy bridge), <code>tb_stream_fabric</code>;
-  <code>jtag_regs</code> + <code>fabric_ctl.py</code>; the fabric on the board with example 14 riding along; the R1 measurement.</li>
-  <li><code>matvec_unit</code> + <code>export_q8.py</code> + <code>ref_matvec.py</code> + <code>tb_matvec_unit</code>; stories260K
-  bit-exact on the board; stories15M classifier and prefill timings.</li>
-  <li>Package: <code>index.html</code> with the measured numbers, skill <code>stream-from-sdram</code>, gotchas, portal card 15,
-  tests, <code>.qar</code>; a PR.</li>
+  <code>jtag_regs</code> + <code>fabric_ctl.py</code>; the fabric on the board with example 14's loader riding along; the R1
+  measurement by <code>bench</code>: 195 MB/s. ✓</li>
+  <li><code>matvec_unit</code> + <code>export_q8.py</code> + <code>ref_matvec.py</code> + <code>tb_matvec_unit</code>; random jobs
+  bit-exact on the board ✓; stories260K and stories15M exported ✓, their jobs on the board and the classifier timings:
+  <b>pending</b> (the status table on the overview says what ran).</li>
+  <li>Package: <code>index.html</code> with the measured numbers, skill <code>stream-from-sdram</code>, gotchas 35–40, portal
+  card 15, tests, <code>.qar</code> (restored and recompiled in a clean folder) ✓; the PR when the maintainer says so.</li>
 </ol>
 
-<h2 id="review">17 · Open questions for the review</h2>
+<h2 id="review">17 · The review's questions, answered</h2>
 <ol>
-  <li>N = 6 and T_MAX = 8 as the demo's size (one unit per stories15M head; 66 M9K, 54 multipliers)?</li>
-  <li>R1 = 170 MB/s at 100 MHz; accept the 83 MHz fallback if the capture window is too narrow?</li>
-  <li>The weight format: G = 32, int16 scale as the 17th word, exponent per matrix in the JSON map. Any reason to prefer
-  per-row scales or a separate scale table?</li>
-  <li>The unit's output: int32 after a job-level SHIFT, host applies the scales. Or should the unit output the 48-bit
-  accumulator and let the host do everything?</li>
-  <li>x written by the host in v1 (fast enough for the demos; v2 fetches it from the X region): fine for now?</li>
-  <li>Names: <code>sdram_burst_ctrl</code>, <code>stream_fabric</code>, <code>stream_rd_channel</code>, <code>wb_lane</code>,
-  <code>async_fifo</code>, <code>matvec_unit</code>, <code>jtag_regs</code>; the example <code>15_sdram_stream_fabric</code>; the
-  skill <code>stream-from-sdram</code>.</li>
-  <li>Anything in <a href="#scope">14</a> that should move into this example?</li>
+  <li>N = 6 and T_MAX = 8 as the demo's size: <b>kept</b> (one unit per stories15M head; 66 M9K, 120 nine-bit multipliers, 59 %
+  of the logic). N = 14 was simulated; on this device 6 units with their x-buffers are the practical size.</li>
+  <li>R1 = 170 MB/s at 100 MHz: <b>exceeded</b> (195 MB/s); no fallback clock.</li>
+  <li>The weight format (G = 32, int16 scale as the 17th word, exponent per matrix in the JSON map): <b>kept</b>; every stories15M
+  matrix has a row length that 32 divides, and the quantization error stayed within half a step in the exporter's check.</li>
+  <li>The unit's output: int32 after a job-level SHIFT, host applies the scales: <b>kept</b>; the saturation flag and the
+  reference's safe-shift rule make the 48-to-32 step explicit instead of silent.</li>
+  <li>x written by the host in v1: <b>kept</b>; even for the 32000-row classifier x is 288 × 8 bytes, a few scans.</li>
+  <li>Names: as proposed. The example is <code>15_sdram_stream_fabric</code>, the skill <code>stream-from-sdram</code>.</li>
+  <li>From <a href="#scope">14</a>, nothing moved in. Two things were added instead because the board asked for them: the PLL's
+  run-time phase stepping and the memtest sub-project.</li>
 </ol>
 
-<footer>Example 15 of the DE10-Lite BKM. Specification for review; the overview page with the measured results comes after
-the build. See <a href="../14_usb_sdram_loader/index.html">example 14</a> for the loader and
+<footer>Example 15 of the DE10-Lite BKM: the architecture spec, written before the build and corrected to what was measured.
+The <a href="index.html">overview page</a> has the results, the pictures and how to run it. See
+<a href="../14_usb_sdram_loader/index.html">example 14</a> for the loader and
 <a href="../06_sdram/index.html">example 06</a> for the single-word SDRAM controller this one replaces.</footer>
 </main>
 </body>

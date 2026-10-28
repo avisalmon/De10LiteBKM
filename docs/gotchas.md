@@ -113,3 +113,25 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     bubble, because the FIFO shows the next entry the clock after a pop. Each fix cost a pipeline clock, the
     testbenches re-proved the hazards, and the count of path families went 6 -> 0 in three builds (`stream_fabric`,
     `matvec_unit`).
+38. **Six synchronizers became one M9K.** Quartus' Auto Shift Register Replacement (on by default) turns any chain of
+    three or more equal flip-flops with no taps (a CDC synchronizer, a pipeline's flag delay line) into an
+    `altshift_taps` in an M9K, and merges chains of the same shape across module instances into one block: the six
+    lanes' flush synchronizers became one M9K, and the six units' 12-bit x 3 flag pipelines another (36 bits in a
+    9,216-bit block). The sign in `de10.py report`: a module with "54 bits (1 M9K)" and no memory, or one instance of
+    six with 9 M9K where its siblings have 8; the proof is `altshift_taps:<reg>_rtl_0` in the fit report's RAM
+    Summary. A synchronizer in a RAM is wrong twice: a block wasted and the M9K's clock-to-output added to a CDC
+    path. `scripts/new_project.py` now writes `AUTO_SHIFT_REGISTER_RECOGNITION OFF` into every `.qsf`; for one
+    register: `(* altera_attribute = "-name AUTO_SHIFT_REGISTER_RECOGNITION OFF" *)` (`stream_fabric`, `matvec_unit`).
+39. **The counter window is not the job.** BUSY / TOTAL / REFRESHES count from CLEAR until the PC reads them, and
+    one JTAG register transaction is about 2 ms: reading 23 registers before the counters made a 10 ms job show 62 ms
+    of refreshes. Read the counters first, right after the "idle" poll, and compute rates from the units' own busy
+    counters, which start and stop with the work. On a job of a few thousand clocks the bus is busy longer than the
+    units (the FIFO fill before, the write-back tail after): ratios mean something from a millisecond up
+    (`fabric_ctl.py`).
+40. **The read window has two edges and wraps around.** Sweeping DRAM_CLK's phase over one period (48 steps of 208 ps
+    at 100 MHz) gives a pass window for `rd_delay` 4 that wrapped past the period's end (+17..+49 = -31..+1 for a
+    compiled phase of 0), so "first fail .. last fail" read linearly put the centre on the wrong side. Treat the sweep
+    as circular (`sdram_memtest.py windows()`), and expect the `rd_delay` 3 window right next to it: the same word
+    caught one clock earlier. The compiled phase goes to the centre of the `rd_delay` 4 window (6875 ps): +-16 steps
+    = +-3.3 ns of margin on both sides. The JEDEC-exact model says `rd_delay` 3 for the bare chip; the board says 4:
+    the pin, trace and I/O register path adds about a clock's worth at 100 MHz (`use-sdram`).

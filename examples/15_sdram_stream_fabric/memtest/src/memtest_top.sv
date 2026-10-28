@@ -22,8 +22,11 @@
 module memtest_top #(
 	parameter CLK_MHZ = 100,
 	parameter MUL = 2, DIV = 1,								// CLK_MHZ = 50 * MUL / DIV
-	parameter C1_PHASE = "0",									// DRAM_CLK phase in ps, as the PLL wants it
-	parameter [15:0] PHASE_PS = 0,								// the same number, for the INFO register
+	parameter C1_PHASE = "6875",									// DRAM_CLK phase in ps, as the PLL wants it: 33 steps
+																		// of 208.3 ps = the centre of the measured window (sweep
+																		// of 2026-10-28: rd_delay 4 passes from -31 to +1 steps
+																		// around phase 0, so the centre is -15 = +33 steps)
+	parameter [15:0] PHASE_PS = 6875,							// the same number, for the INFO register
 	parameter [15:0] STEP_PS = 208								// one phase step = VCO period / 8: the fitter picked a
 																		// 600 MHz VCO for 100 MHz (fit.rpt "PLL Summary"), 48 per period
 )(

@@ -9,7 +9,8 @@ The node: a 4-bit virtual IR, 1 ADDR (16 bits in), 2 WRITE (32 in, then ADDR + 1
 4 ID (32 out). Direct route only (scripts/usb_blaster.py: Windows with the USB-Blaster driver); --instance picks
 the node when a design has several (jtag_regs defaults to instance 1, the loader of example 14 is 0). Close
 nios2-terminal / de10.py log first: one program at a time owns the cable.
-Library use: with JtagRegs() as r: r.poke(1, 1); print(r.peek(0)); words = r.peek(8, 4).
+Library use: with JtagRegs() as r: r.poke(1, 1); print(r.peek(0)); words = r.peek(8, 4);
+r.batch([(9, w) for w in words]) sends many writes in one cable transfer (a data port, or a block of settings).
 """
 import argparse
 import os
@@ -76,6 +77,36 @@ class JtagRegs:
         self._select(IR_WRITE)
         for v in values:
             self.node.dr(v & 0xFFFFFFFF, 32)
+
+    def batch(self, ops, block=48 * 1024):
+        """Many writes in a few cable transactions: ops is a sequence of (addr, value).
+
+        Every scan is prebuilt and sent in blocks of about `block` bytes, so a thousand writes cost a few USB
+        transfers instead of four each. Consecutive addresses ride the node's auto-increment; a repeated address
+        (a data port, such as a unit's XDATA in example 15) is re-selected before every value.
+        """
+        import usb_blaster as ub
+        va, na = self.node.vir_value(IR_ADDR)
+        vw, nw = self.node.vir_value(IR_WRITE)
+        sel_a = ub.ir_scan(ub.USER1) + ub.dr_scan(va, na) + ub.ir_scan(ub.USER0)
+        sel_w = ub.ir_scan(ub.USER1) + ub.dr_scan(vw, nw) + ub.ir_scan(ub.USER0)
+        parts, size, cur, n = [], 0, None, 0
+        for a, v in ops:
+            if a != cur:
+                parts.append(sel_a + ub.dr_scan(a & 0xFFFF, 16) + sel_w)
+                size += len(parts[-1])
+            parts.append(ub.dr_scan(v & 0xFFFFFFFF, 32))
+            size += len(parts[-1])
+            cur = (a + 1) & 0xFFFF
+            n += 1
+            if size >= block:
+                self.jtag.run(b"".join(parts))
+                parts, size = [], 0
+        if parts:
+            self.jtag.run(b"".join(parts))
+        if n:
+            self._ir = IR_WRITE
+        return n
 
     def wait(self, a, mask, value=None, timeout=5.0, every=0.002):
         """Poll register a until (reg & mask) == value (default: == mask); returns the register."""

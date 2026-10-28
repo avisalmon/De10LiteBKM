@@ -3,6 +3,23 @@
 The short version of every lesson added to this guide, newest first. Each line points to where the full rule lives.
 They come from real sessions; most of them came from something going wrong.
 
+## 2026-10-28
+
+- **The SDRAM streamed at its own speed into six compute units at once.** A 100 MHz burst controller (98 % of the
+  bus, 196 MB/s over 64 MB with 0 errors), a fabric of N credit-based read channels and N write-back lanes behind a
+  round-robin burst arbiter, int8 matrix-vector units with T-vector weight reuse, a generic register file over JTAG
+  and a PC tool: 195 MB/s into six units, ten random jobs up to 512 × 1024 bit-exact against numpy, and a
+  llama2.c model exported to the int8 stream format ready to run matrix by matrix. The data-flow layer for an LLM
+  on the board.
+  [examples/15_sdram_stream_fabric](../examples/15_sdram_stream_fabric/index.html),
+  [stream-from-sdram](../.claude/skills/stream-from-sdram/SKILL.md)
+- **An arbiter 8 ns late, `always @(*)` that never ran, the six path shapes of 100 MHz on the MAX 10, synchronizers
+  that became M9Ks, counters that measure the window not the job, a read window that wraps around the period.**
+  [gotchas 35-40](gotchas.md)
+- **The SDRAM model is JEDEC-exact now**: it checks every timing parameter and drives data only in the CAS window;
+  the bare chip wants `rd_delay` 3, the board 4, and the testbenches say so instead of the old "fails with 3 or 5".
+  [use-sdram](../.claude/skills/use-sdram/SKILL.md)
+
 ## 2026-10-27
 
 - **A file into the 64 MB SDRAM over the USB-Blaster at the cable's limit.** A virtual JTAG loader with a board-side

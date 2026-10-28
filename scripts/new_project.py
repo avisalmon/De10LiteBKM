@@ -140,6 +140,10 @@ def main():
         "# flip-flops: fft_lab used 19,381 LEs instead of about 8,100. A design that really needs too many M9Ks",
         "# now stops in the fitter with a clear error.",
         "set_global_assignment -name SYNTH_RESOURCE_AWARE_INFERENCE_FOR_BLOCK_RAM OFF",
+        "# a chain of 3 or more registers (a pipeline's flags, a synchronizer) is otherwise folded into an M9K as an",
+        "# altshift_taps, merged across modules: example 15's six CDC synchronizers and six units' pipeline flags",
+        "# each became one M9K. Memories are written as memories here; a shift register stays flip-flops.",
+        "set_global_assignment -name AUTO_SHIFT_REGISTER_RECOGNITION OFF",
         f"set_global_assignment -name SDC_FILE {rev}.sdc",
     ]
     lines += [f"set_global_assignment -name {KIND[os.path.splitext(f)[1]]} {f}" for f in files]

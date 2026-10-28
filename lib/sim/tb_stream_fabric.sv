@@ -369,7 +369,8 @@ initial begin : main
 	wait (init_done);
 	$display("%0t init done (N = %0d, uclk %0.1f ns)", $time, N, UCLK_NS);
 	reg_read(A_RDDEL, d);
-	check(d == 3, "RD_DELAY default");
+	check(d == uut.RD_DELAY_DEFAULT, "RD_DELAY default");
+	// the board needs 4 (the pad and input register add a clock); the model with DRAM_CLK 1.25 ns behind needs 3
 	reg_write(A_RDDEL, 3);
 
 	// ---------------- phase A: one channel ----------------
