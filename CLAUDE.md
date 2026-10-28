@@ -35,8 +35,8 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).
 * A spectrum, an FFT -> `compute-fft` (11). Multiply, MAC, filters, Fmax -> `use-dsp-multipliers` (12).
 * Keep the design after power-off, write the flash -> `flash-design` (13).
-* A whole design to publish: a new project, its pages (overview, spec, guide), its review, the portal -> `make-project`
-  (`projects/`, standard folder; Pac-Man is the model).
+* A whole design to publish: a new project, its pages (overview, spec, guide, a tutorial), its review, the portal ->
+  `make-project` (`projects/`, standard folder; Pac-Man is the model).
 * A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (`projects/pacman`).
 * A CPU, a processor, RISC-V, running C or assembly on the FPGA, a text screen, memory-mapped I/O, an assembler or
   compiler -> `build-soft-cpu` (`projects/riscv_tetris`).

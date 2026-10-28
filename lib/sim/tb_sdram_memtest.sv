@@ -1,7 +1,7 @@
 // Testbench for sdram_memtest (lib/rtl/sdram_memtest.sv): the engine on the burst controller and the SDRAM model,
 // driven through its register bus the way the PC drives it through jtag_regs (one write pulse, reads a clock late).
 // Checks, at 100 MHz with DRAM_CLK 45 degrees behind clk and rd_delay 3 (the default out of reset is 4, the value
-// the board needs: the testbench checks it, then sets 3 for the bare-chip model, see gotcha 40):
+// the board needs: the testbench checks it, then sets 3 for the bare-chip model, see gotcha 47):
 //   * a write + read run of every pattern: pass, 0 errors, the word counts, the clocks against the ideal
 //     L + 5 / L + 4 per burst (refresh pauses allowed for), the bus-use counter; and the model's memory against
 //     the pattern computed here (the write pass must put the right word at the right address, not just agree
@@ -169,7 +169,7 @@ initial begin
 	if (s[0]) fail("init_done early", s, 0);
 	if (s[31:16] !== 16'h00A5) fail("VERSION", s[31:16], 16'h00A5);
 	if (s[10:8] !== 3'd4) fail("rd_delay default (the board's value)", s[10:8], 4);
-	wr(R_RD_DELAY, 3);												// the bare-chip model wants 3 (gotcha 40)
+	wr(R_RD_DELAY, 3);												// the bare-chip model wants 3 (gotcha 47)
 	rd(R_STATUS, s);
 	if (s[10:8] !== 3'd3) fail("rd_delay set to 3", s[10:8], 3);
 	wr(R_CTRL, 1);

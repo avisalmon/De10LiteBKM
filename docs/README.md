@@ -11,7 +11,8 @@
 | [lessons_log.md](lessons_log.md) | What's new in this guide, by date |
 * [../examples/index.html](../examples/index.html): every board capability as a verified example (page, project).
 * [../projects/index.html](../projects/index.html): whole designs, each with an overview, an architecture spec, a user guide
-  and the Quartus archive; the standard is the `make-project` skill and `projects/_template/`.
+  (a tutorial when there is something to try) and the Quartus archive; the standard is the `make-project` skill and
+  `projects/_template/`.
 * [stage2_lessons.md](stage2_lessons.md): the course outline (nand2tetris on the DE10-Lite).
 * `../lib/board/de10_lite_pins.csv`: every pin of the board; `../lib/rtl/`: the shared Verilog.
 

@@ -91,7 +91,7 @@ mouths). The rate is the whole stream's words over the longest unit's busy time.
 <tr><td>6</td><td>256</td><td>3,342,336</td><td>3,462,929</td><td>193.0</td><td>96.9 %</td><td>83.9 %</td></tr>
 <tr><td><b>6</b></td><td><b>1024</b></td><td>3,342,336</td><td>3,422,748</td><td><b>195.3</b></td><td><b>98.0 %</b></td><td>83.7 %</td></tr>
 </table></div>
-<p>(The build on this page; the build before gotcha 38's setting gave the same rows within 40 clocks:
+<p>(The build on this page; the build before gotcha 45's setting gave the same rows within 40 clocks:
 <a href="media/bench.txt">media/bench.txt</a> has both.)</p>
 <p>The fabric reaches the memory test's 98 % with two units or more; with one unit the 1,024-word FIFO cannot hold a
 burst ahead of a consumer that drains as fast as it fills, so 3.6 % is lost to the gap between bursts (the credit rule:
@@ -107,7 +107,7 @@ the same bits.</p>
 <div class="tablewrap"><table>
 <tr><th>Rows × K</th><th>T</th><th>Shift</th><th>Words</th><th>Clocks</th><th>MB/s</th><th>Bus use</th><th>Units starved</th><th>Result</th></tr>
 <tr><td>3 × 32</td><td>1</td><td>4</td><td>51</td><td>83</td><td>122.9</td><td>68.7 %</td><td>56.5 %</td><td>exact</td></tr>
-<tr><td>64 × 64</td><td>2</td><td>5</td><td>2,176</td><td>2,327</td><td>187.0</td><td>&gt; 100 % (window, gotcha 39)</td><td>51.2 %</td><td>exact</td></tr>
+<tr><td>64 × 64</td><td>2</td><td>5</td><td>2,176</td><td>2,327</td><td>187.0</td><td>&gt; 100 % (window, gotcha 46)</td><td>51.2 %</td><td>exact</td></tr>
 <tr><td>100 × 172</td><td>3</td><td>6</td><td>10,200</td><td>11,330</td><td>180.1</td><td>95.3 %</td><td>49.1 %</td><td>exact (2 units, 2.5 % stalled: short rows)</td></tr>
 <tr><td>256 × 512</td><td>4</td><td>8</td><td>69,632</td><td>73,432</td><td>189.7</td><td>97.6 %</td><td>84.0 %</td><td>exact, five times</td></tr>
 <tr><td>512 × 1024</td><td>8</td><td>9</td><td>278,528</td><td>293,988</td><td>189.5</td><td>97.5 %</td><td>84.2 %</td><td>exact</td></tr>
@@ -116,7 +116,7 @@ the same bits.</p>
 <p>A job is slower than the bench by the per-row work (a group's scale word, the T results drained at the end of each row)
 and by its write-back traffic (two words per result, through the lanes, on the same bus). 512 × 1024 × 8 vectors is
 4.2 million multiply-accumulates in 2.94 ms: 1.4 GMAC/s from one 16-bit memory. (These ten ran on the build before
-gotcha 38's setting; on the build on this page 64 × 64 took 2,396 clocks and 512 × 1024 took 293,997, both exact.)
+gotcha 45's setting; on the build on this page 64 × 64 took 2,396 clocks and 512 × 1024 took 293,997, both exact.)
 The units' own capacity is 9.6 GMAC/s at
 T = 8 (6 units × 2 weights × 8 vectors per clock); the memory feeds a sixth of it, which is the point of the next step
 (the KV cache and the small matrices in M9K, a second memory on the GPIO header, or more reuse).</p>
@@ -235,7 +235,7 @@ right by SHIFT, saturated to int32, and pushed into the unit's lane.</li>
 <li><b>The lanes write back.</b> A lane turns 32-bit results into pairs of 16-bit words and, when it holds WBURST of them (or
 the unit flushes at its end), asks the arbiter for a write burst to its pointer and advances it.</li>
 <li><b>The PC waits for idle</b> (<code>STATUS</code> bit 6: no channel running, no unit busy, no lane holding data), reads the
-counters first (the window closes at that read, gotcha 39), then reads the results back through the loader and compares
+counters first (the window closes at that read, gotcha 46), then reads the results back through the loader and compares
 every int32 with <code>ref_matvec.py</code>: the same arithmetic in numpy (int64 sums, the same shift and saturation).</li>
 </ol>
 
@@ -244,28 +244,28 @@ every int32 with <code>ref_matvec.py</code>: the same arithmetic in numpy (int64
 <li><b>Credits, not backpressure</b> (spec, decision 2). The controller never waits for a consumer: a channel asks for a
 burst only when the whole burst fits, so a granted burst always lands. The bus stays at 98 % with six consumers of any
 speed, and the controller needs no <code>rready</code>. Continuity for one consumer needs <code>DEPTH ≥ 2 × BURST</code>.</li>
-<li><b>An arbiter failed timing by 8 ns at 100 MHz</b> (gotcha 35): a credit subtraction, a six-way round robin and a grant
+<li><b>An arbiter failed timing by 8 ns at 100 MHz</b> (gotcha 42): a credit subtraction, a six-way round robin and a grant
 in one clock. Registered in three steps; the grant queue hides the pipeline from the controller.</li>
-<li><b>Closing 100 MHz on the MAX 10 is a list of six shapes, not a mystery</b> (gotcha 37): registered credits and
+<li><b>Closing 100 MHz on the MAX 10 is a list of six shapes, not a mystery</b> (gotcha 44): registered credits and
 round-robin, M9K outputs registered, a register after every DSP multiply, a register before every dynamic array select,
 one-hot selects, a head register on a show-ahead FIFO that feeds a bus. −8.4 ns to +0.4 ns in three builds, by grouping
 <code>report_timing -npaths 200</code> by shape instead of chasing paths.</li>
-<li><b>Six synchronizers became one M9K</b> (gotcha 38): Quartus' Auto Shift Register Replacement turns any chain of
+<li><b>Six synchronizers became one M9K</b> (gotcha 45): Quartus' Auto Shift Register Replacement turns any chain of
 registers into an <code>altshift_taps</code> block and merges equal ones across instances. The sign: a module with a few
 bits of "memory" and no RAM. <code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> is in every generated <code>.qsf</code> now.</li>
-<li><b>The read window has two edges and wraps around</b> (gotcha 40): a sweep over a whole period must be read circularly;
+<li><b>The read window has two edges and wraps around</b> (gotcha 47): a sweep over a whole period must be read circularly;
 the first build's phase was 300 ps from an edge and still passed. Centre it (6875 ps), then measure the margin (±3.3 ns).
 The JEDEC-exact model wants <code>rd_delay</code> 3 for the bare chip; the board, with its pins and input registers, wants
 4. The testbenches set 3, the RTL defaults to 4.</li>
-<li><b>The counter window is not the job</b> (gotcha 39): BUSY / TOTAL / REFRESHES run from CLEAR until the PC reads them,
+<li><b>The counter window is not the job</b> (gotcha 46): BUSY / TOTAL / REFRESHES run from CLEAR until the PC reads them,
 and a JTAG round trip is 2 ms, so on a 23 µs job the bus looks 105 % busy. Read them first after the idle poll and compute
 rates from the units' own busy counters.</li>
-<li><b>A simulation deadlocked with X</b> (gotcha 36): an <code>always @(*)</code> block whose inputs are all constants never
+<li><b>A simulation deadlocked with X</b> (gotcha 43): an <code>always @(*)</code> block whose inputs are all constants never
 runs in Icarus, so its output stays X forever. <code>always_comb</code> runs once at time 0.</li>
 <li><b>The refresh is 1.6 % of the bus</b> (12 clocks every 7.5 µs) and pauses bursts instead of waiting for them: a
 1,024-word burst is longer than the refresh interval, so forbidding refresh inside bursts would cost more than pausing.</li>
 </ol>
-<p>Full detail: <a href="../../docs/gotchas.md">gotchas 35–40</a>; the design decisions and the review's questions:
+<p>Full detail: <a href="../../docs/gotchas.md">gotchas 42–47</a>; the design decisions and the review's questions:
 <a href="spec.html#decisions">spec, sections 13 and 17</a>.</p>
 
 <h2>Run it</h2>

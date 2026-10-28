@@ -3,9 +3,10 @@ name: read-accelerometer
 description: >
   Read the DE10-Lite's on-board ADXL345 accelerometer (G-sensor) over SPI: X, Y, Z in g, tilt, a bubble level;
   plus the reusable SPI master for other SPI chips. Verified: DEVID E5, |g| = 1.00 at rest.
-  Worked example: examples/07_accelerometer.
+  Worked example: examples/07_accelerometer; a whole design on it (tilting 3D cube, two vectors, calibration,
+  filter, angles): projects/accel_cube.
   TRIGGER: "accelerometer", "G-sensor", "gsensor", "ADXL345", "tilt", "gravity", "bubble level", "orientation",
-  "SPI", "SPI master", "sensor over SPI".
+  "SPI", "SPI master", "sensor over SPI", "pitch", "roll", "calibrate the sensor", "3D cube".
 ---
 
 # Read the accelerometer
@@ -40,3 +41,28 @@ Mode 3, byte by byte, CS held across bytes with `cs_hold`, 3-wire reads with `rd
 2. Read the bits at each rising edge; check MOSI is stable there and CS stays low after the 8th edge.
 3. The chip keeps its registers across FPGA reprogramming: write every register you rely on at start.
 4. Results go to the PC through `bin2bcd_seq` (a `/ 1000` in logic failed timing by 15 ns at 50 MHz).
+
+## Showing the reading: what worked in projects/accel_cube
+
+A tilting 3D cube, the live acceleration as text, bars and an arrow, all from this sensor; proven pixel by pixel
+against a bit-exact Python model. The parts worth reusing:
+
+* **Two vectors from one sensor.** Orientation wants a steady gravity vector; the live number wants the real,
+  unfiltered acceleration. Filter one copy for the cube (`g`), show the raw copy as the numbers (`a`); a shake
+  then moves the arrow and the bars, not the cube.
+* **The filter.** An EMA with 8 fraction bits, `f += ((raw << 8) - f) >>> 3` in 24 bits, settles in about 90
+  samples (0.9 s at 100 Hz). Round the output (`(f + 8) >>> 4`): the shift alone stops 7 LSB short (gotcha 39).
+* **Calibration = offsets in the sensor frame.** On KEY1, store `ox, oy, oz <- fx, fy, fz - 1 g` (the filtered
+  values, after the filter and before any axis remap) and subtract them from both vectors from then on; a second
+  letter clears them. Offsets taken after a remap would turn with the board's heading.
+* **Which way is X on the board.** The sensor's axes are fixed on the PCB; a `HEADING` parameter (0, 90, 180, 270)
+  remaps `(x, y)` once, on the live data only, so presets and tests never depend on it. Decide it by tilting the
+  board while a `de10.py send r` loop prints the vector.
+* **Angles from g, no yaw.** Pitch and roll come from `atan2` of the gravity components (one CORDIC, Q14 trig,
+  16-bit binary angles); hold the last angles when |g| < 0.25 g or the roll's divisor is small (free fall, a shake).
+  An accelerometer cannot give the heading: do not put a YAW row on the screen.
+* **Clock crossing.** The reader runs at 50 MHz, the display at 25 MHz: cross `valid` as a toggle and sample the
+  three values after it (they are held until the next sample, 10 ms later).
+* **Testing without hands.** The testbench feeds samples straight into the filter (120 of them), presses the keys,
+  reads the report line; the board check sends test vectors over USB (`0`..`7`) so the picture does not depend on
+  how the board lies. Only the directions (does the cube tilt like the board) need a person.

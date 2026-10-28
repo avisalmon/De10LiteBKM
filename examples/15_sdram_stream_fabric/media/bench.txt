@@ -52,7 +52,7 @@ burst size (random pattern, 4M words): write / read MB/s, bus use
 read window: rd_delay 4 passes -16..+16 steps of 208 ps (+-3.3 ns); rd_delay 3 passes +19..+27; 5 never (media/memtest_sweep.txt)
 
 --- the build on the page and in sdram_stream_fabric.qar (AUTO_SHIFT_REGISTER_RECOGNITION OFF, 66 M9K, checksum 0x0140F9A8): the same bench, 2026-10-28 11:30 ---
-The table above was measured on the build before that setting (gotcha 38). This build repeats it within 40 clocks per row
+The table above was measured on the build before that setting (gotcha 45). This build repeats it within 40 clocks per row
 (refreshes count the counters' window, which includes the PC's setup time, so they vary from run to run).
 
 units burst     words    clocks      ms   MB/s  bus % starved % bursts refreshes

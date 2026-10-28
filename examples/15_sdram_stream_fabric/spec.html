@@ -403,7 +403,7 @@ sums come from one more register (<code>bank_clr</code>). Every operand is decla
 multiplies to the embedded multipliers (<code>use-dsp-multipliers</code>): 2 × 9 × 9 per vector for the pairs and one
 18 × 18 (two 9 × 9 elements) for the MAC: 20 DSP elements per unit at T_MAX = 8, measured. The first version did the
 M9K read, the products and the sum in one clock and the MAC in three; it ran at 85 MHz
-(<a href="../../docs/gotchas.md">gotcha 37</a> lists the six path shapes that had to change).</p>
+(<a href="../../docs/gotchas.md">gotcha 44</a> lists the six path shapes that had to change).</p>
 <h3>Registers (per unit, also at the broadcast address; broadcast reads return 0)</h3>
 <div class="tablewrap"><table>
 <tr><th>Register</th><th>Meaning</th></tr>
@@ -484,10 +484,10 @@ example 14.</p>
 <tr><th>Resource</th><th>Expected</th><th>Measured (final build of the demo top)</th><th>Of</th><th>Notes</th></tr>
 <tr><td>Logic elements</td><td>≈ 10,500</td><td><b>29,168</b></td><td>49,760 (59 %)</td><td>fabric 5,795 (the two credit arbiters, 6 channels, 6 lanes, 12 FIFOs' logic), each unit ≈ 3,370 (8 vectors × (2 products + 21-bit sum + 48-bit accumulator with saturation) and the x-buffer write path), loader 1,580, controller 326, jtag_regs 197. The estimate missed the per-vector width: 8 × 48-bit accumulators and the saturation alone are ≈ 1,200 LEs a unit</td></tr>
 <tr><td>9 × 9 multipliers</td><td>108 (54 × 18 × 18)</td><td><b>120</b></td><td>288 (42 %)</td><td>per unit 16 for the pair products (2 per vector) and 4 for the 21 × 16 scale MAC</td></tr>
-<tr><td>M9K</td><td>≈ 66</td><td><b>66</b></td><td>182 (37 %)</td><td>exactly the table above. Two earlier builds had 67: Quartus' auto shift-register replacement had folded the top's PLL-lock synchronizer, then the six lanes' flush synchronizers, then the six units' 12-bit × 3 flag pipeline into <code>altshift_taps</code> M9Ks (gotcha 38); <code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> is now in every <code>.qsf</code> that <code>new_project.py</code> writes</td></tr>
+<tr><td>M9K</td><td>≈ 66</td><td><b>66</b></td><td>182 (37 %)</td><td>exactly the table above. Two earlier builds had 67: Quartus' auto shift-register replacement had folded the top's PLL-lock synchronizer, then the six lanes' flush synchronizers, then the six units' 12-bit × 3 flag pipeline into <code>altshift_taps</code> M9Ks (gotcha 45); <code>AUTO_SHIFT_REGISTER_RECOGNITION OFF</code> is now in every <code>.qsf</code> that <code>new_project.py</code> writes</td></tr>
 <tr><td>Registers</td><td></td><td>16,158</td><td></td><td>1,826 a unit, 3,215 in the fabric</td></tr>
 <tr><td>PLL</td><td>1</td><td>1</td><td>4</td><td>c0 100 MHz logic, c1 100 MHz to the SDRAM pin, phase stepped</td></tr>
-<tr><td>Fmax</td><td>≥ 100 MHz on <code>clk</code></td><td><b>104.16 MHz</b> (slow 85 °C), setup slack +0.399 ns at 100 MHz, worst slack of any kind +0.141 ns</td><td></td><td>after the pipeline work of section 7 and gotcha 37; the first build had −8.4 ns, the second −1.8 ns</td></tr>
+<tr><td>Fmax</td><td>≥ 100 MHz on <code>clk</code></td><td><b>104.16 MHz</b> (slow 85 °C), setup slack +0.399 ns at 100 MHz, worst slack of any kind +0.141 ns</td><td></td><td>after the pipeline work of section 7 and gotcha 44; the first build had −8.4 ns, the second −1.8 ns</td></tr>
 </table></div>
 
 <h2 id="numbers">10 · Measured numbers</h2>
@@ -587,7 +587,7 @@ needed anyway.</p>
 <tr><td>N write lanes in one write-back channel</td><td>one shared lane with a mux</td><td>a unit never waits for another's results; each lane is one arbiter requester, one M9K</td></tr>
 <tr><td>Generic <code>jtag_regs</code> in <code>lib</code></td><td>loader-style special-purpose VIRs</td><td>every future design wants PC-visible registers; one Python helper serves them all</td></tr>
 <tr><td>The PLL's phase stepped at run time (<code>pll_phase_step</code>)</td><td>one build per phase</td><td>a 48-point sweep of the capture window in seconds instead of eight hours of builds; the compiled phase is then set once to the window's centre</td></tr>
-<tr><td>Auto shift-register replacement off in every <code>.qsf</code></td><td>an attribute on each affected register</td><td>Quartus folded synchronizers and flag pipelines into M9Ks three times in this example alone (gotcha 38); a 3-flop chain in logic costs nothing, an M9K spent on one is a block a FIFO cannot have</td></tr>
+<tr><td>Auto shift-register replacement off in every <code>.qsf</code></td><td>an attribute on each affected register</td><td>Quartus folded synchronizers and flag pipelines into M9Ks three times in this example alone (gotcha 45); a 3-flop chain in logic costs nothing, an M9K spent on one is a block a FIFO cannot have</td></tr>
 </table></div>
 
 <h2 id="scope">14 · Out of scope, later versions</h2>
@@ -606,9 +606,9 @@ needed anyway.</p>
 <tr><th>Risk</th><th>Was</th><th>Ended</th></tr>
 <tr><td>Read capture window at 100 MHz (board traces, the chip's tAC 5.4 ns at CL 3, the FPGA input setup)</td><td>the main one</td><td><b>Retired by measurement.</b> The window is wide: 33 of 48 phase steps at <code>rd_delay</code> 4 (69 % of the period, ±3.3 ns around the compiled 6875 ps) plus 8 steps at <code>rd_delay</code> 3; 0 errors over 64 MB at every burst size. The 83.3 / 66.7 MHz fallbacks were not needed.</td></tr>
 <tr><td>The loader does not close 100 MHz</td><td>low</td><td>It did: the whole design is on one 100 MHz clock, Fmax 104.16 MHz. The 50 MHz PLL output and the handshake bridge were not needed.</td></tr>
-<tr><td>M9K count with T_MAX = 8</td><td>low (66 of 182)</td><td>66 M9K as planned, after finding Quartus had added one for a shift register, three times (gotcha 38).</td></tr>
+<tr><td>M9K count with T_MAX = 8</td><td>low (66 of 182)</td><td>66 M9K as planned, after finding Quartus had added one for a shift register, three times (gotcha 45).</td></tr>
 <tr><td>Refresh inside bursts has corner cases</td><td>medium</td><td>The model asserts every timing parameter and the testbenches force a refresh every 97 clocks, in every state; no violation in simulation, 0 errors on the board; the refresh counter on the board matches the 7.5 µs interval.</td></tr>
-<tr><td>Timing closure at 100 MHz</td><td>appeared in the first build (−8.4 ns)</td><td>Closed in three builds by fixing six repeated path shapes rather than paths (gotchas 35 and 37): the arbiters' credit and select logic registered a clock early, M9K outputs registered, DSP multiplies and dynamic array selects split by a register, the register-bus clears registered once, one-hot selects, a head register on the show-ahead FIFOs. +0.399 ns setup at 100 MHz.</td></tr>
+<tr><td>Timing closure at 100 MHz</td><td>appeared in the first build (−8.4 ns)</td><td>Closed in three builds by fixing six repeated path shapes rather than paths (gotchas 42 and 44): the arbiters' credit and select logic registered a clock early, M9K outputs registered, DSP multiplies and dynamic array selects split by a register, the register-bus clears registered once, one-hot selects, a head register on the show-ahead FIFOs. +0.399 ns setup at 100 MHz.</td></tr>
 <tr><td>Build path on OneDrive</td><td>known</td><td><code>de10.py</code> mirrors the project to <code>%LOCALAPPDATA%</code>; no trouble.</td></tr>
 </table></div>
 
@@ -624,7 +624,7 @@ needed anyway.</p>
   <li><code>matvec_unit</code> + <code>export_q8.py</code> + <code>ref_matvec.py</code> + <code>tb_matvec_unit</code>; random jobs
   bit-exact on the board ✓; stories260K and stories15M exported, loaded (CRC), every matrix of both run as a job and
   bit-exact, the classifier timed at T 1 and T 8 with 1 and 6 units ✓ (section 10).</li>
-  <li>Package: <code>index.html</code> with the measured numbers, skill <code>stream-from-sdram</code>, gotchas 35–40, portal
+  <li>Package: <code>index.html</code> with the measured numbers, skill <code>stream-from-sdram</code>, gotchas 42–47, portal
   card 15, tests, <code>.qar</code> (restored and recompiled in a clean folder, the same checksum; the bench and the models
   above ran on that build) ✓; the PR when the maintainer says so.</li>
 </ol>

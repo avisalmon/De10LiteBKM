@@ -41,7 +41,7 @@ FAST_OUTPUT_ENABLE_REGISTER, FAST_INPUT_REGISTER on the DRAM pins).
 3. Read delay: the board sweep measured 3 = first that works, use 4. 5-7 also "pass" because the bus keeps its last
    value: do not trust a delay sweep's upper end. The sim model (`lib/sim/sdram_model.sv`, JEDEC-timed since example
    15: it drives data only in the chip's valid window and `$error`s on a timing violation) is the bare chip and passes
-   with `rd_delay` 3; the board's pin, trace and input-pad path adds about 5 ns, hence 4 (gotcha 40 for the 100 MHz
+   with `rd_delay` 3; the board's pin, trace and input-pad path adds about 5 ns, hence 4 (gotcha 47 for the 100 MHz
    picture: two windows, side by side, that wrap around the period).
 4. Start files with `` `default_nettype none `` (end with `` `default_nettype wire ``): a name used before its
    declaration otherwise becomes a silent 1-bit wire.

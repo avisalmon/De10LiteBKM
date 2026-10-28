@@ -1,4 +1,4 @@
 # Everything this BKM needs on the user's computer. Installed into `env` by the chat (setup-my-computer skill).
 # Pin exact versions that have been out at least two weeks.
 pillow==12.3.0      # PNG -> ROM images (scripts/img2rom.py), screen captures
-numpy==2.4.6        # reference FFTs and accuracy checks (examples/11_fft)
+numpy==2.5.4        # reference FFTs and accuracy checks (examples/11_fft)

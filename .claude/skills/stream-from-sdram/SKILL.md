@@ -38,7 +38,7 @@ single-word controller (`use-sdram`, example 06) does
 
 `scripts/new_project.py <dir> <top> --lib dps fabric matvec jtagregs usbloader` pulls them in; `src/extra.qsf` of
 example 15 has the SDRAM pins. Everything runs on one 100 MHz clock from `pll_de10_dps` (c0 logic, c1 `DRAM_CLK`
-at phase 6875 ps); `AUTO_SHIFT_REGISTER_RECOGNITION OFF` is in every generated `.qsf` (gotcha 38).
+at phase 6875 ps); `AUTO_SHIFT_REGISTER_RECOGNITION OFF` is in every generated `.qsf` (gotcha 45).
 
 ## Wire it
 
@@ -81,7 +81,7 @@ python scripts/sdram_memtest.py sweep | run             the memtest/ build: the 
 matrix on a row boundary, 17 words per group of 32) plus a JSON map; `tools/ref_matvec.py` is the bit-exact reference
 and the quantizer. From Python: `with fabric_ctl.Board() as b: r = b.job(fabric_ctl.JobSpec(...))`.
 
-## Lessons (each cost real time; gotchas 35-40)
+## Lessons (each cost real time; gotchas 42-47)
 
 1. **Credits, not backpressure.** A channel asks for a burst only when its FIFO can take all of it; a granted burst
    never stalls, the controller needs no `rready`, and the bus stays 98 % busy with six consumers of any speed.
@@ -89,19 +89,19 @@ and the quantizer. From Python: `with fabric_ctl.Board() as b: r = b.job(fabric_
 2. **One 16-bit SDRAM is 200 MB/s whatever N is.** More units add independence (each starves or stalls on its own)
    and places for compute, not bandwidth. The throughput lever is weight reuse: T vectors per pass (T = 8 makes a
    32-token prefill 8 x cheaper than one token at a time).
-3. **100 MHz on the MAX 10 is a list of path shapes** (gotchas 35, 37): registered credits and round-robin, M9K outputs
+3. **100 MHz on the MAX 10 is a list of path shapes** (gotchas 42, 44): registered credits and round-robin, M9K outputs
    registered, a register after every DSP multiply and before every dynamic array select, one-hot selects, a head
    register on a show-ahead FIFO that feeds a bus. -8.4 ns -> +0.4 ns in three builds; `report_timing -npaths 200`
    grouped by shape, not by path.
-4. **The read window: sweep it, read it circularly, centre it** (gotcha 40). `pll_phase_step` moves `DRAM_CLK` in 208 ps
+4. **The read window: sweep it, read it circularly, centre it** (gotcha 47). `pll_phase_step` moves `DRAM_CLK` in 208 ps
    steps while the memtest runs; `rd_delay` 4 passes over 33 of 48 steps, 3 over the 8 next to them; the compiled phase
    is the centre of the 4-window (6875 ps, +-3.3 ns). The JEDEC-exact model wants 3 for the bare chip: the testbenches
    use 3, the RTL defaults to 4.
-5. **Quartus puts shift registers in M9Ks** (gotcha 38): synchronizers and flag pipelines became `altshift_taps`
+5. **Quartus puts shift registers in M9Ks** (gotcha 45): synchronizers and flag pipelines became `altshift_taps`
    blocks, merged across six instances. The sign: a module with "N bits (1 M9K)" and no memory. Off globally now.
-6. **Counters measure the window, not the job** (gotcha 39): read them first after the idle poll, compute rates from
+6. **Counters measure the window, not the job** (gotcha 46): read them first after the idle poll, compute rates from
    the units' own busy counters; on a job of a few thousand clocks the bus is busy longer than the units.
-7. **`always @(*)` with constant inputs never runs in Icarus** (gotcha 36): X forever. `always_comb`.
+7. **`always @(*)` with constant inputs never runs in Icarus** (gotcha 43): X forever. `always_comb`.
 8. **The refresh is 1.6 % of the bus** (every 7.5 us, 12 clocks each), pausing bursts: a 1024-word burst is longer
    than the interval, so forbidding refresh inside bursts would cost more than pausing.
 

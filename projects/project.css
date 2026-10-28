@@ -1,4 +1,4 @@
-/* Shared style for the project pages (projects/<name>/index.html, spec.html, guide.html) and the portal */
+/* Shared style for the project pages (projects/<name>/index.html, spec.html, guide.html, tutorial.html) and the portal */
 :root {
   --bg: #f7f8fa; --panel: #ffffff; --ink: #1d2330; --muted: #5b6475; --line: #dde2ea;
   --accent: #1f6feb; --accent-ink: #ffffff; --code-bg: #f0f2f6; --ok: #1a7f37; --warn: #9a6700;
@@ -79,3 +79,13 @@ table.res td:last-child { white-space: normal; font-size: 14px; }
 .card p { margin: 0 16px; font-size: 14px; color: var(--muted); }
 .card .tag { display: inline-block; margin: 8px 16px 0; font-size: 12px; color: var(--ok); }
 .card .tag.todo { color: var(--warn); }
+/* tutorial pages: the "Do:" box, the annotated screen tour, quiz answers, number columns */
+.do { border: 1px solid var(--accent); background: var(--panel); padding: 8px 12px; border-radius: 8px; margin: 12px 0; }
+.do > b:first-child { color: var(--accent); }
+.tour { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; overflow-x: auto; }
+.tour svg { display: block; width: 100%; min-width: 640px; height: auto; }
+.tour svg image { image-rendering: pixelated; }
+details { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; margin: 8px 0; }
+details summary { cursor: pointer; }
+details[open] summary { margin-bottom: 6px; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; }
