@@ -51,7 +51,7 @@ against a bit-exact Python model. The parts worth reusing:
   unfiltered acceleration. Filter one copy for the cube (`g`), show the raw copy as the numbers (`a`); a shake
   then moves the arrow and the bars, not the cube.
 * **The filter.** An EMA with 8 fraction bits, `f += ((raw << 8) - f) >>> 3` in 24 bits, settles in about 90
-  samples (0.9 s at 100 Hz). Round the output (`(f + 8) >>> 4`): the shift alone stops 7 LSB short (gotcha 34).
+  samples (0.9 s at 100 Hz). Round the output (`(f + 8) >>> 4`): the shift alone stops 7 LSB short (gotcha 39).
 * **Calibration = offsets in the sensor frame.** On the A button (KEY1 on a bare board), store `ox, oy, oz <- fx, fy, fz - 1 g` (the filtered
   values, after the filter and before any axis remap) and subtract them from both vectors from then on; a second
   letter clears them. Offsets taken after a remap would turn with the board's heading.

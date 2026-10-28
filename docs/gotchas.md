@@ -70,32 +70,98 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     build that reuses `db/` still lists the old ones after the `.qsf` changed: fft_lab's archive held 32 files from
     examples/11. Delete `db/` and `incremental_db/` (for a OneDrive project, in the local copy) and build again.
     `de10.py build` warns and `de10.py pack` refuses such an archive (`make-project`).
-30. **An expected file written with PowerShell's `>` made every line "differ".** PowerShell's `>` writes UTF-16 with
+30. **Every Quartus tool moves data at the JTAG server's pace, not the cable's.** quartus_stp, the memory content
+    editor and the JTAG UART all go through jtagserver: ~525-547 KB/s written and ~350 read however long the scan.
+    The USB-Blaster itself does 583 KB/s; only driving its FTDI driver directly (`scripts/usb_blaster.py`) gets
+    there, and reads stay USB-bus bound at 470-540 KB/s (`load-sdram-usb`).
+31. **quartus_stp said nothing until it quit.** When its stdout is a pipe the tool holds every `puts` back until exit
+    (Tcl `flush` changes nothing), while it reads stdin at once. A script that must answer live writes its answers
+    to a file opened with `-buffering none` and the PC side tails it (`scripts/sdram_load.tcl`). It also drops a
+    `cr_ie_info.json` into the current folder: delete it before committing (`load-sdram-usb`).
+32. **A write that "took 0 seconds".** `device_dr_shift -no_captured_dr_value` only queues the scan; nothing has
+    reached the board until a captured scan follows. End every timed or ordered sequence with one, such as a
+    STATUS read (`load-sdram-usb`).
+33. **One lost byte reprogrammed the board.** The USB-Blaster protocol has no framing: when the stream slips, data
+    bytes become commands. Once an unguarded sweep stalled the cable's answer FIFO (FT_IO_ERROR) and pulsed the
+    FPGA's nCONFIG, which reloaded the flash. Check for unasked-for bytes after every block and at every scan end,
+    reset the TAP and stop on the first one, and have the board CRC what it holds (`load-sdram-usb`).
+34. **Two chats, one board.** Both programmed the board and each spoiled the other's test. A lock file
+    (`%LOCALAPPDATA%\de10lite\board.lock`: who, what, since), checked before every board command, deleted when done
+    with a "board free" message, kept them apart (`load-sdram-usb`).
+35. **An expected file written with PowerShell's `>` made every line "differ".** PowerShell's `>` writes UTF-16 with
     a byte-order mark (bytes `FF FE`, two bytes per character); a testbench reading it with `$fgets` matches nothing.
     Let the script write its own file (Python, ASCII, LF); never make a data file through a PowerShell redirect.
-31. **The frame hash passed, the numbers did not.** The model clamped a bounding box on one side and the RTL on both
+36. **The frame hash passed, the numbers did not.** The model clamped a bounding box on one side and the RTL on both
     (10-bit unsigned, so it never wraps); both boxes were empty, no pixel changed, and only an arrow that left its
     region showed it. Compare the engine's numbers line by line (`model.py dump` against the testbench's dump) as well
     as the picture: a pixel hash is blind to a difference that is off screen (`make-project`).
-32. **`-16'sd32768` gives "constant value overflow" in Quartus 17.1**: write `16'sh8000`. An index made of a
+37. **`-16'sd32768` gives "constant value overflow" in Quartus 17.1**: write `16'sh8000`. An index made of a
     concatenation (`pm[{2'b00, fax}]`) gives "index expression is not wide enough" even when it covers the array:
     declare the index as a wire of the right width first.
-33. **35 lines of blanking after the sync tick, not 45.** `lib/rtl/vga_controller.v` puts the horizontal blanking at
+38. **35 lines of blanking after the sync tick, not 45.** `lib/rtl/vga_controller.v` puts the horizontal blanking at
     the end of each line (`column` holds 639 for 161 clocks) and its vertical sync falls 10 lines into the 45-line
     vertical blanking: from the falling edge of `VGA_VS` to the first visible pixel there are 28,000 clocks at
     25 MHz, not 36,000. A per-frame engine started at the sync must finish in that (`build-arcade-game`).
-34. **A filter that stops 7 counts short.** The EMA `f += (x - f) >>> 3` (8 fraction bits) rounds every step toward
+39. **A filter that stops 7 counts short.** The EMA `f += (x - f) >>> 3` (8 fraction bits) rounds every step toward
     minus infinity: coming from below it settles up to 7 LSB under the target, one count low once shifted to the
     display's scale. Round the output (`(f + 8) >>> 4`) and do the same in the model (`read-accelerometer`).
-35. **`pip install -r requirements.txt` failed at numpy on Python 3.15.** The pinned numpy had no wheel for that
+40. **`pip install -r requirements.txt` failed at numpy on Python 3.15.** The pinned numpy had no wheel for that
     Python yet and pip tried to build it from source ("Encountered error while generating package metadata").
     `pip download numpy==<pin> --only-binary=:all:` shows which versions have one; pin a version that covers
     every Python the setup skill installs (`setup-my-computer`).
-36. **Icarus 12 rejects SystemVerilog it should take.** Unpacked `localparam` arrays with `'{...}` ("localparam must
+41. **Icarus 12 rejects SystemVerilog it should take.** Unpacked `localparam` arrays with `'{...}` ("localparam must
     have a value": use a `case` function), `$fgets` into anything but a `reg`, a `string` variable cast to a vector
     at run time (literals are fine), and a part-select after a variable index into a packed 2-D array (copy the
     element to a temporary first).
-37. **The LCD shield covers KEY0 and KEY1.** A design that takes its controls from the push keys cannot be operated
+42. **An arbiter failed timing by 8 ns at 100 MHz.** Three things in one clock: a credit subtraction chain
+    (`DEPTH - wlevel - inflight >= len`), the round-robin search, and `addr[win*25 +: 25]` with a variable `win`,
+    which Quartus built as a multiplier plus a 290-node barrel mux. Register each requester's "ready" bit and its
+    credit the clock before, choose with a registered round-robin, and select the winner's fields with an N-way
+    equality loop (`if (sel_id == k) sel_addr = ch_addr[k]`) so every part-select is constant (`stream_fabric`).
+43. **A simulation deadlocked with X on a register that had `= 0` written on it.** An `always @(*)` block only runs when
+    an input changes; its inputs (`rr_req`, `sel_id`) stayed 0 from time 0, so its outputs (`win_v`, `sel_addr`) stayed X
+    forever and the first clock after start copied X into `sel_v`, then into every request register. Write
+    combinational blocks as `always_comb` (it runs once at time 0) and expect this whenever a combinational output is X
+    while all its inputs are known. Also: `scripts/sim.py` captures output, so a hung testbench shows nothing until its
+    timeout (40 ms of simulated time was 30 minutes of CPU). To watch a run, call `vvp -n x.vvp` yourself.
+44. **Closing 100 MHz on the MAX 10 is a list of six shapes, not a mystery.** The stream fabric went from -8.4 ns to
+    +0.3 ns by finding each repeated path shape in `report_timing -npaths 200 -detail summary` (strip the `[n]`,
+    `__n` and `~n` from the From/To names and count what is left) and fixing the shape, not the path:
+    (1) `q <= mem[addr]` with a combinational address is an M9K with its output *unregistered* (data appears 2.5 ns
+    after the edge); anything after it in the same clock is expensive: add `q2 <= q` so the M9K's own output
+    register is used. (2) A 9x9 DSP multiply costs ~3.5 ns: registered inputs, a register right after. (3) A dynamic
+    array select feeding a multiply or a wide add (`ghold[i] * s`, `acc[j] + prod`) must be split: register the
+    selected operand first (reading the accumulator one clock ahead is safe when consecutive steps use distinct
+    indices). (4) A register-bus decode must not fan out to hundreds of synchronous clears: register the pulse once.
+    (5) `for ... if (sel == k) out = in[k]` is N mux levels; a one-hot registered select with AND-OR is 2 LUT levels
+    for N <= 8. (6) A show-ahead FIFO's M9K output must not feed a bus: a one-entry head register refills with no
+    bubble, because the FIFO shows the next entry the clock after a pop. Each fix cost a pipeline clock, the
+    testbenches re-proved the hazards, and the count of path families went 6 -> 0 in three builds (`stream_fabric`,
+    `matvec_unit`).
+45. **Six synchronizers became one M9K.** Quartus' Auto Shift Register Replacement (on by default) turns any chain of
+    three or more equal flip-flops with no taps (a CDC synchronizer, a pipeline's flag delay line) into an
+    `altshift_taps` in an M9K, and merges chains of the same shape across module instances into one block: the six
+    lanes' flush synchronizers became one M9K, and the six units' 12-bit x 3 flag pipelines another (36 bits in a
+    9,216-bit block). The sign in `de10.py report`: a module with "54 bits (1 M9K)" and no memory, or one instance of
+    six with 9 M9K where its siblings have 8; the proof is `altshift_taps:<reg>_rtl_0` in the fit report's RAM
+    Summary. A synchronizer in a RAM is wrong twice: a block wasted and the M9K's clock-to-output added to a CDC
+    path. `scripts/new_project.py` now writes `AUTO_SHIFT_REGISTER_RECOGNITION OFF` into every `.qsf`; for one
+    register: `(* altera_attribute = "-name AUTO_SHIFT_REGISTER_RECOGNITION OFF" *)` (`stream_fabric`, `matvec_unit`).
+46. **The counter window is not the job.** BUSY / TOTAL / REFRESHES count from CLEAR until the PC reads them, and
+    one JTAG register transaction is about 2 ms: reading 23 registers before the counters made a 10 ms job show 62 ms
+    of refreshes. Read the counters first, right after the "idle" poll, and compute rates from the units' own busy
+    counters, which start and stop with the work. On a job of a few thousand clocks the bus is busy longer than the
+    units (the FIFO fill before, the write-back tail after): ratios mean something from a millisecond up
+    (`fabric_ctl.py`).
+47. **The read window has two edges and wraps around.** Sweeping DRAM_CLK's phase over one period (48 steps of 208 ps
+    at 100 MHz) gives a pass window for `rd_delay` 4 that wrapped past the period's end (+17..+49 = -31..+1 for a
+    compiled phase of 0), so "first fail .. last fail" read linearly put the centre on the wrong side. Treat the sweep
+    as circular (`sdram_memtest.py windows()`), and expect the `rd_delay` 3 window right next to it: the same word
+    caught one clock earlier. The compiled phase goes to the centre of the `rd_delay` 4 window (6875 ps): +-16 steps
+    = +-3.3 ns of margin on both sides. The JEDEC-exact model says `rd_delay` 3 for the bare chip; the board says 4:
+    the pin, trace and I/O register path adds about a clock's worth at 100 MHz (`use-sdram`).
+
+48. **The LCD shield covers KEY0 and KEY1.** A design that takes its controls from the push keys cannot be operated
     with the shield on; the first Accelerometer Cube image needed KEY1 to calibrate and nobody could press it. A shield
     design takes its buttons from the game pad (`read-gamepad`) and keeps the keys as the bare-board fallback. The same
     hand check found the LED bubble sliding the wrong way: the LEDs are outside the model and the testbenches, so a

@@ -98,8 +98,10 @@ request-address register set together with <code>req</code>.</li>
 which turns that into a compile error.</li>
 </ol>
 <p>The simulation (<code>lib/sim/tb_sdram_ctrl.sv</code> with the SDRAM model <code>lib/sim/sdram_model.sv</code>, which drives read data only in the
-datasheet's valid window) passed all along: it fails with read delay 3 or 5, so it checks the timing, but it could not see
-bugs that lived in how the test talked to the controller. The board and Signal Tap could.</p>
+datasheet's valid window) passed all along, so it checks the timing, but it could not see
+bugs that lived in how the test talked to the controller. The board and Signal Tap could. (Since example 15 the model is
+JEDEC-timed and checks every command's timing; the testbench runs it with read delay 3, the bare chip's number, where the
+board needs 4: the pin, trace and input-pad path adds about 5 ns.)</p>
 
 <h2>Run it</h2>
 <pre><code>python scripts/de10.py build examples/06_sdram
@@ -110,6 +112,11 @@ python scripts/de10.py log 40</code></pre>
 python scripts/de10.py build examples/06_sdram</code></pre>
 <h3>Test without the board</h3>
 <pre><code>python scripts/sim.py lib/sim/tb_sdram_ctrl.sv      → 300 words, 0 read errors, 0 protocol errors   PASS</code></pre>
+
+<h2>Next: fill it from the PC</h2>
+<p>To put your own data in this memory (parameters, tables, a file) and read it back, see
+<a href="../14_usb_sdram_loader/index.html">example 14, Fill the SDRAM from the PC</a>: the same controller behind a
+virtual JTAG loader, 64 MB over the USB-Blaster in 112 s, CRC-checked on the board.</p>
 
 <h2>Files</h2>
 <div class="tablewrap"><table>

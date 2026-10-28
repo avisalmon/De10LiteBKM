@@ -39,6 +39,8 @@ rebuild it inside your own project.</p>
 <a class="card" href="11_fft/index.html"><span class="num">11</span><h3>FFT: IP vs our own</h3><p>256 points both ways, scored against numpy: accuracy, speed and area.</p><span class="tag">verified</span></a>
 <a class="card" href="12_dsp_multipliers/index.html"><span class="num">12</span><h3>DSP multipliers</h3><p>The same engine in hardware multipliers and in logic: 0 vs 368 logic cells.</p><span class="tag">verified</span></a>
 <a class="card" href="13_flash/index.html"><span class="num">13</span><h3>Keep a design after power-off</h3><p>Write it into the MAX 10's own flash; it starts by itself.</p><span class="tag">flashed and verified (power cycle: by hand)</span></a>
+<a class="card" href="14_usb_sdram_loader/index.html"><span class="num">14</span><h3>Fill the SDRAM from the PC</h3><p>64 MB over the USB-Blaster at the cable's limit (583 KB/s), CRC-checked on the board, read back; three routes measured.</p><span class="tag">verified: 64 MB, 0 errors</span></a>
+<a class="card" href="15_sdram_stream_fabric/index.html"><span class="num">15</span><h3>Stream the SDRAM into compute units</h3><p>A 100 MHz burst controller and a fabric of FIFO channels feed six int8 matrix-vector units at 195 MB/s (98 % of the bus) and write the results back; a whole LLM's matrices bit-exact.</p><span class="tag">verified: 196 MB/s, jobs bit-exact</span></a>
 </div>
 
 <h2>How every example is made</h2>

@@ -14,6 +14,16 @@
     print     jtag_uart + line_printer (text lines to the PC)
     bcd       bin2bcd
     freq      freq_counter
+    sdram     sdram_ctrl (the 64 MB SDRAM)
+    loader    sdram_ctrl + sdram_loader (PC <-> SDRAM over the USB-Blaster cable: scripts/sdram_load.py)
+    burst     sdram_burst_ctrl (the 100 MHz burst SDRAM controller, example 15)
+    memtest   sdram_burst_ctrl + sdram_memtest (the register-driven SDRAM memory test)
+    jtagregs  jtag_regs (a 32-bit register bus driven from the PC over JTAG)
+    dps       pll_de10_dps + pll_phase_step (the PLL with a run-time phase shift on c1)
+    fifo      async_fifo (two-clock FIFO in M9K, show-ahead)
+    fabric    sdram_burst_ctrl + async_fifo + stream_fabric (N read channels + N write lanes on one SDRAM, example 15)
+    matvec    matvec_unit (int8 matrix-vector compute unit fed by a fabric channel)
+    usbloader sdram_loader alone (the PC <-> SDRAM link on another controller's port, e.g. the fabric's)
 * Device: 10M50DAF484C7G (the production DE10-Lite part). Every RAM goes into M9K (resource-aware inference off).
 Re-running it overwrites the three files; keep project-specific settings in src/extra.qsf (appended if present).
 """
@@ -46,6 +56,15 @@ LIB_PARTS = {
     "accel": ["spi_master.sv", "adxl345.sv"],
     "bcdseq": ["bin2bcd_seq.sv"],
     "sdram": ["sdram_ctrl.sv"],
+    "loader": ["sdram_ctrl.sv", "sdram_loader.sv"],
+    "burst": ["sdram_burst_ctrl.sv"],
+    "memtest": ["sdram_burst_ctrl.sv", "sdram_memtest.sv"],
+    "jtagregs": ["jtag_regs.sv"],
+    "dps": ["pll_de10_dps.v", "pll_phase_step.sv"],
+    "fifo": ["async_fifo.sv"],
+    "fabric": ["sdram_burst_ctrl.sv", "async_fifo.sv", "stream_fabric.sv"],
+    "matvec": ["matvec_unit.sv"],
+    "usbloader": ["sdram_loader.sv"],
 }
 KIND = {".v": "VERILOG_FILE", ".sv": "SYSTEMVERILOG_FILE", ".vhd": "VHDL_FILE", ".qip": "QIP_FILE",
         ".sdc": "SDC_FILE", ".mif": "MIF_FILE", ".hex": "HEX_FILE"}
@@ -54,7 +73,11 @@ KIND = {".v": "VERILOG_FILE", ".sv": "SYSTEMVERILOG_FILE", ".vhd": "VHDL_FILE", 
 def top_ports(path, top):
     text = open(path, encoding="utf-8").read()
     text = re.sub(r"//.*", "", text)
-    m = re.search(r"\bmodule\s+" + re.escape(top) + r"\b[^(]*\((.*?)\);", text, re.S)
+    # what synthesis sees: no macro is defined, so an `ifdef branch is gone and an `ifndef branch stays
+    text = re.sub(r"`ifdef\s+\w+(.*?)(?:`else(.*?))?`endif", lambda m: m.group(2) or "", text, flags=re.S)
+    text = re.sub(r"`ifndef\s+\w+(.*?)(?:`else(.*?))?`endif", lambda m: m.group(1), text, flags=re.S)
+    m = re.search(r"\bmodule\s+" + re.escape(top) + r"\b\s*(?:#\s*\((?:[^()]|\([^()]*\))*\))?\s*\((.*?)\);",
+                  text, re.S)
     if not m:
         sys.exit(f"FAIL: module {top} not found in {path}")
     ports = []
@@ -117,6 +140,10 @@ def main():
         "# flip-flops: fft_lab used 19,381 LEs instead of about 8,100. A design that really needs too many M9Ks",
         "# now stops in the fitter with a clear error.",
         "set_global_assignment -name SYNTH_RESOURCE_AWARE_INFERENCE_FOR_BLOCK_RAM OFF",
+        "# a chain of 3 or more registers (a pipeline's flags, a synchronizer) is otherwise folded into an M9K as an",
+        "# altshift_taps, merged across modules: example 15's six CDC synchronizers and six units' pipeline flags",
+        "# each became one M9K. Memories are written as memories here; a shift register stays flip-flops.",
+        "set_global_assignment -name AUTO_SHIFT_REGISTER_RECOGNITION OFF",
         f"set_global_assignment -name SDC_FILE {rev}.sdc",
     ]
     lines += [f"set_global_assignment -name {KIND[os.path.splitext(f)[1]]} {f}" for f in files]

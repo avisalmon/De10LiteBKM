@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FFT Lab: tutorial</title>
+<meta name="description" content="A guided tour of FFT Lab on the DE10-Lite: experiments with a sine, a square, a triangle, a saw, spikes and noise, what you should see on the screen and the DSP behind each picture: bins, leakage, decibels, windows, harmonics, combs, noise, aliasing, and our FFT against Altera's.">
+<link rel="stylesheet" href="../project.css">
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">FFT Lab</a> / Tutorial</nav>
+<h1>FFT Lab: tutorial</h1>
+<p class="lead">A guided tour of the lab, one experiment at a time. Each one says what to do, shows what you should see (a real
+picture read back from the board) and explains the signal processing behind it: bins, leakage, decibels, windows, harmonics,
+combs, noise and aliasing, and how our small FFT compares with Altera's.</p>
+<nav class="pages"><a href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a><a class="here" href="tutorial.html">Tutorial</a></nav>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li><a href="#start">Before you start</a></li>
+  <li><a href="#tour">A tour of the screen</a></li>
+  <li><a href="#numbers">The numbers behind the picture</a></li>
+  <li><a href="#sine">One sine, one bar</a></li>
+  <li><a href="#leak">Between two bins: leakage</a></li>
+  <li><a href="#scale">Decibels or linear</a></li>
+  <li><a href="#window">The Hann window</a></li>
+  <li><a href="#harmonics">Square, triangle, saw: harmonics</a></li>
+  <li><a href="#spikes">Spikes: a comb</a></li>
+  <li><a href="#noise">Noise</a></li>
+  <li><a href="#alias">Aliasing: above half the sample rate</a></li>
+  <li><a href="#two">Two FFTs side by side</a></li>
+  <li><a href="#listen">Listen to it</a></li>
+  <li><a href="#quiz">Test yourself</a></li>
+  <li><a href="#words">Words</a></li>
+  <li><a href="#pictures">About the pictures</a></li>
+</ol>
+
+<h2 id="start">Before you start</h2>
+<ul>
+  <li>Build and load the lab as in the <a href="guide.html#build">user guide</a>, and leave <code>program</code> running: the
+  IP's panel needs that connection.</li>
+  <li>Start every experiment from the defaults: press <b>KEY0</b>, or send <code>D</code>. That is a 1 kHz sine, no window,
+  the dB scale, no hold, no sound.</li>
+  <li>Each experiment gives the controls and the same settings as USB letters, for example
+  <code>python scripts/de10.py send S1N80</code>: <code>S</code> the shape, <code>N</code> the frequency in steps of 12.5 Hz,
+  <code>W</code> the window, <code>L</code> the scale (the <a href="guide.html#usb">guide</a> has the whole list). Or ask the
+  chat: "set the lab to a 1,050 Hz sine".</li>
+  <li>Heights are in the lab's own pixels (the screen is 320 × 240; the pictures here show it twice that size). On the dB scale
+  the top of a panel, 90 pixels, is a full-scale sine. <code>python scripts/de10.py send R</code> reports the tallest bar of
+  each FFT, so you can read heights without a ruler.</li>
+</ul>
+
+<h2 id="tour">A tour of the screen</h2>
+<p>The lab right after loading, read back from the board over USB:</p>
+<div class="tour">
+<svg viewBox="-56 -6 752 494" role="img" aria-label="The lab's screen right after loading with six zones marked: 1 the two text lines, 2 the green scope, 3 the titles and times of both FFTs, 4 our spectrum in cyan, 5 the IP's spectrum in orange, 6 the frequency axis.">
+  <image href="media/screen_default.png" x="0" y="0" width="640" height="480"/>
+  <g fill="none" stroke="#ff4fd8" stroke-width="2.5" stroke-dasharray="8 5">
+    <rect x="1" y="1" width="638" height="30"/>
+    <rect x="64" y="32" width="512" height="192"/>
+    <rect x="1" y="238" width="638" height="34"/>
+    <rect x="30" y="274" width="260" height="184"/>
+    <rect x="350" y="274" width="260" height="184"/>
+    <rect x="1" y="462" width="638" height="17"/>
+  </g>
+  <g stroke="#ff4fd8" stroke-width="2">
+    <line x1="-14" y1="16" x2="1" y2="16"/>
+    <line x1="-14" y1="128" x2="64" y2="128"/>
+    <line x1="-14" y1="255" x2="1" y2="255"/>
+    <line x1="-14" y1="366" x2="30" y2="366"/>
+    <line x1="610" y1="366" x2="654" y2="366"/>
+    <line x1="639" y1="471" x2="654" y2="471"/>
+  </g>
+  <g fill="#ff4fd8">
+    <circle cx="-28" cy="16" r="14"/><circle cx="-28" cy="128" r="14"/><circle cx="-28" cy="255" r="14"/>
+    <circle cx="-28" cy="366" r="14"/><circle cx="668" cy="366" r="14"/><circle cx="668" cy="471" r="14"/>
+  </g>
+  <g fill="#ffffff" font-family="system-ui, sans-serif" font-size="17" font-weight="700" text-anchor="middle">
+    <text x="-28" y="22">1</text><text x="-28" y="134">2</text><text x="-28" y="261">3</text>
+    <text x="-28" y="372">4</text><text x="668" y="372">5</text><text x="668" y="477">6</text>
+  </g>
+</svg>
+</div>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Zone</th><th>Shows</th></tr>
+<tr><td>1</td><td>Text</td><td>The shape and its frequency, in Hz and in bins: <code>SINE 1000.0 HZ BIN 10.000</code>. Under it the
+window, the scale, the sound and the scope's time scale: <code>WIN RECT 10DB/DIV SOUND OFF 1.25MS/DIV</code>.</td></tr>
+<tr><td>2</td><td>Scope (green)</td><td>The 256 samples both FFTs get, after the window: 10 ms. A dotted line every 32 samples
+(1.25 ms). Across: the outer lines are where the lab's waves peak (¾ of full scale), the inner lines half of that, zero in the
+middle.</td></tr>
+<tr><td>3</td><td>Titles and times</td><td><code>OUR RTL FFT</code> and <code>ALTERA FFT IP</code>, each with the clocks its FFT
+took and the time that is at 25 MHz: <code>6145 CLK 245.80US</code> and <code>1637 CLK 65.48US</code>.</td></tr>
+<tr><td>4</td><td>Our spectrum (cyan)</td><td>128 bars, one per bin of 100 Hz, from our own FFT, <code>fft_r2</code>. In dB a
+line every 10 dB; in linear a line every 20 %.</td></tr>
+<tr><td>5</td><td>The IP's spectrum (orange)</td><td>The same 256 samples through Altera's FFT II, on the same scale.</td></tr>
+<tr><td>6</td><td>Axis</td><td>0, 6.4 kHz and 12.8 kHz. The faint vertical lines in both panels are 3.2, 6.4 and 9.6 kHz
+(bins 32, 64, 96).</td></tr>
+</table></div>
+<p>Off the screen: LEDR0 … LEDR5 show the shape, LEDR6 … LEDR9 the window, the linear scale, hold and sound; the 7-segment
+digits show the frequency in Hz; the shield's status LED lights while the IP is not running (<a href="guide.html#use">guide</a>).</p>
+
+<h2 id="numbers">The numbers behind the picture</h2>
+<p>Everything on the screen follows from a few numbers; the experiments below use them.</p>
+<div class="tablewrap"><table class="kv">
+<tr><td>Sample rate, f<sub>s</sub></td><td>25.6 kHz. The lab computes its samples (there is no ADC), as if it had sampled a signal
+at this rate.</td></tr>
+<tr><td>Record</td><td>256 samples = 10 ms. A new one every frame of the screen (59.5 a second), through both FFTs.</td></tr>
+<tr><td>Bin</td><td>f<sub>s</sub> / 256 = 100 Hz, the spacing of the frequencies an FFT reports. Bin k is k × 100 Hz.</td></tr>
+<tr><td>Bars</td><td>128: bins 0 … 127, from 0 to 12.7 kHz. Bins 128 … 255 mirror these for a real signal, so they are not
+drawn.</td></tr>
+<tr><td>Nyquist frequency</td><td>f<sub>s</sub> / 2 = 12.8 kHz, the highest frequency the samples can describe.</td></tr>
+<tr><td>Generator</td><td>A DDS (direct digital synthesis): an 11-bit phase gains <code>N</code> every sample, so
+f = N × 25,600 / 2,048 = N × 12.5 Hz, and the bin is N / 8. <code>N</code> runs from 0 to 1023 (0 to 12,787.5 Hz). The phase
+starts from zero every frame, so the trace stands still, like a triggered oscilloscope.</td></tr>
+<tr><td>Amplitude</td><td>¾ of full scale (24,576 of 32,767): a sine on a bin is 2.5 dB under the top, 87.5 px.</td></tr>
+<tr><td>dB scale</td><td>1 px per dB, 90 px tall, a line every 10 dB. The top (0 dBFS) is a full-scale sine exactly on a bin,
+the bottom 90 dB below it.</td></tr>
+<tr><td>Linear scale</td><td>90 px for a full-scale sine on a bin, a line every 20 %.</td></tr>
+<tr><td>Our FFT</td><td>256 points, radix 2: 8 stages of 128 butterflies, one butterfly every 5 clocks. 6,145 clocks,
+245.8 µs at 25 MHz.</td></tr>
+<tr><td>The IP</td><td>Altera's FFT II, 256 points, block floating point: 1,637 clocks, 65.5 µs.</td></tr>
+<tr><td>Time budget</td><td>Both FFTs run in the screen's vertical blanking, 28,000 clocks per frame, so a half-finished
+spectrum is never shown.</td></tr>
+</table></div>
+
+<h2 id="sine">One sine, one bar</h2>
+<div class="do"><b>Do:</b> press KEY0 (<code>D</code>). Then push the joystick up a step at a time and watch the top line.</div>
+<div class="two">
+  <figure><img src="media/screen_default.png" alt="A 1 kHz sine: ten green cycles on the scope and one tall bar at bin 10 in both spectra."><figcaption>The defaults: a 1 kHz sine, exactly on bin 10.</figcaption></figure>
+  <div>
+    <p><b>You should see</b></p>
+    <ul>
+      <li>ten cycles on the scope: 1 kHz for 10 ms;</li>
+      <li>one bar at bin 10 in each panel, 87 px in ours and 88 in the IP's (<code>R</code> reports
+      <code>OUR_PK=010/087</code> and <code>IP_PK=010/088</code>);</li>
+      <li>a sprinkle of low bars, 6 or 9 px, in our panel only;</li>
+      <li>each joystick step adds 12.5 Hz, an eighth of a bin (<code>BIN 10.125</code>, <code>10.250</code> …), and the single bar
+      grows a skirt; it is one clean bar again only on the next whole bin (next experiment).</li>
+    </ul>
+  </div>
+</div>
+<p><b>Why one bar.</b> An FFT measures how much the record looks like each of 256 test waves, the bins: a cosine and a sine
+that fit a whole number of cycles into the 10 ms (0, 1, 2 … cycles, that is 0, 100, 200 … Hz). For each bin it multiplies the
+256 samples by the test wave and adds the products up. Ten cycles of a sine match bin 10; against every other bin the products
+cancel to exactly zero over the record (the test waves are <i>orthogonal</i>). One frequency on a bin: one bar.</p>
+<p><b>Why it is fast.</b> Done one bin at a time, that is 256 × 256 = 65,536 multiply-adds. The FFT gets the same 256 answers
+by splitting the job in halves, again and again: 8 stages of 128 <i>butterflies</i> (one complex multiply each), 1,024
+multiplies, 64 times fewer. Our <code>fft_r2</code> does a butterfly every 5 clocks, 5,120 of its 6,145 clocks; the rest is
+loading the samples in and reading the answers out.</p>
+<p><b>Why the low bars.</b> Rounding. Our FFT halves its numbers at every stage so they can never overflow (÷256 in all) and keeps
+16 bits. One unit in the last place is then 84 dB under a full-scale sine: a bar of 6 px, or 9 px when both the real and the
+imaginary part are one unit off. The IP rounds less on the way, so its floor stays empty (<a href="#two">Two FFTs</a>).</p>
+
+<h2 id="leak">Between two bins: leakage</h2>
+<div class="do"><b>Do:</b> from the defaults, push the joystick up 4 steps, to <code>1050.0 HZ BIN 10.500</code>
+(<code>S0N84</code>). Then step on to 1,100 Hz and back.</div>
+<div class="two">
+  <figure><img src="media/screen_sine_rect.png" alt="A 1,050 Hz sine: two tall bars at bins 10 and 11 and a skirt over the whole panel in both spectra."><figcaption>1,050 Hz, half way between bins 10 and 11, no window.</figcaption></figure>
+  <div>
+    <p><b>You should see</b></p>
+    <ul>
+      <li>two tall bars, bins 10 and 11, at 84 and 83 px: 3.9 dB lower than the sine on a bin;</li>
+      <li>a skirt over the whole panel, falling slowly away from the peak;</li>
+      <li>even the far end, bins 100 to 127, at 27 to 29 px: still only about 60 dB down;</li>
+      <li>both FFTs agree within a pixel;</li>
+      <li>stepping on, the skirt shrinks again, and at 1,100 Hz there is one clean bar at bin 11.</li>
+    </ul>
+  </div>
+</div>
+<div class="tablewrap"><table>
+<tr><th>Bin</th><td class="n">5</td><td class="n">6</td><td class="n">7</td><td class="n">8</td><td class="n">9</td><td class="n">10</td><td class="n">11</td><td class="n">12</td><td class="n">13</td><td class="n">14</td><td class="n">15</td><td class="n">16</td></tr>
+<tr><th>Height, px</th><td class="n">65</td><td class="n">67</td><td class="n">68</td><td class="n">71</td><td class="n">75</td><td class="n">84</td><td class="n">83</td><td class="n">73</td><td class="n">69</td><td class="n">65</td><td class="n">63</td><td class="n">61</td></tr>
+</table></div>
+<p><b>Why.</b> 1,050 Hz puts 10.5 cycles into the record. The FFT sees only these 10 ms and treats them as one period of a wave
+that repeats forever. Put copies of the record end to end: each copy starts going up from zero, but the one before it ended
+going down, so every seam has a corner. That repeated wave is not a pure sine any more, and it takes every bin to describe it:
+the energy <i>leaks</i> out of the peak into all of them. That is <b>leakage</b>.</p>
+<p>Near the peak the skirt falls as 1 / (distance in bins): 6 dB each time the distance doubles. Further out it falls faster, about
+12 dB per doubling, because the seam has a corner but no jump (a jump would leak more). The two sides are not equal: bin 9
+stands higher than bin 12. The spectrum of a real signal also has a mirror image at the negative frequencies, and its skirt adds a
+little more on the low side.</p>
+<p>The dip of the peak half way between bins (3.9 dB here) is called the <b>scalloping loss</b>: the height of a tone depends on
+where it falls between the bins. The Hann window, two experiments on, makes both effects smaller.</p>
+
+<h2 id="scale">Decibels or linear</h2>
+<div class="do"><b>Do:</b> stay at 1,050 Hz and press <b>B</b> (<code>S0N84L1</code>). B again goes back to dB.</div>
+<div class="two">
+  <figure><img src="media/tutorial_between_lin.png" alt="The 1,050 Hz sine on the linear scale: two bars of about half height at bins 10 and 11 with a small foot, and nothing else."><figcaption>The same 1,050 Hz sine on the linear scale.</figcaption></figure>
+  <div>
+    <p><b>You should see</b></p>
+    <ul>
+      <li><code>LINEAR</code> on the second line, and the grid now a line every 18 px (20 %);</li>
+      <li>in both panels a bar of 44 px at bin 10 and one of 42 px at bin 11, with a small foot on each side;</li>
+      <li>the skirt that filled the panel in dB is gone: the far bars are less than a pixel tall.</li>
+    </ul>
+  </div>
+</div>
+<p><b>Why.</b> A decibel is a ratio on a log scale: 20 × log<sub>10</sub> of the ratio of two amplitudes. 6 dB is a factor of 2,
+20 dB a factor of 10, 60 dB a factor of 1,000. The dB scale's 90 dB span a ratio of 31,600 to 1 (about 15 bits), so a
+skirt at −60 dB is a third of the panel high. On the linear scale that same skirt is 1/1,000 of 67.5 px: less than a pixel.</p>
+<p>Use dB to see small things next to big ones: leakage, harmonics, noise, rounding. Use linear to compare sizes directly: here
+the peak is 0.75 × 2/π × 90 ≈ 43 px, so the tone half way between bins reads at 64 % of its true amplitude. That is the
+3.9 dB scalloping loss again.</p>
+
+<h2 id="window">The Hann window</h2>
+<div class="do"><b>Do:</b> back at 1,050 Hz in dB (<code>S0N84W0L0</code>), press <b>A</b> (<code>W1</code>). Then, with the
+window still on, step down to 1,000 Hz (<code>S0N80W1</code>).</div>
+<div class="two">
+  <figure><img src="media/screen_sine_hann.png" alt="The 1,050 Hz sine with the Hann window: a tapered burst on the scope and narrow peaks in both spectra."><figcaption>1,050 Hz with the Hann window.</figcaption></figure>
+  <figure><img src="media/tutorial_hann_on_bin.png" alt="A 1,000 Hz sine with the Hann window: a tapered burst on the scope and three bars at bins 9, 10 and 11 in each spectrum."><figcaption>1,000 Hz with the Hann window: three bars.</figcaption></figure>
+</div>
+<p><b>You should see</b></p>
+<ul>
+  <li><code>WIN HANN</code> on the second line, and a burst on the scope: the wave fades in from zero and out to zero;</li>
+  <li>at 1,050 Hz the peak at 86 px, only 1.4 dB under a tone on a bin, and a skirt that drops fast (table below);</li>
+  <li>the IP's skirt falling on towards the bottom (29, 25, 21, 20, 18, 15, 12 px at bins 17 to 23), while ours stops at its
+  rounding floor, now 12 to 15 px;</li>
+  <li>at 1,000 Hz, three bars instead of one: 82, 87, 82 px at bins 9, 10, 11.</li>
+</ul>
+<p>The skirt with and without the window, by distance from the tone in bins. "Theory" is the window's formula; the two numbers on
+the screen are the bars just below and just above the tone, in our panel:</p>
+<div class="tablewrap"><table>
+<tr><th>Distance</th><th>No window: theory</th><th>On the screen</th><th>Hann: theory</th><th>On the screen</th></tr>
+<tr><td>0.5</td><td>−3.9 dB (84 px)</td><td>84, 83</td><td>−1.4 dB (86 px)</td><td>86, 86</td></tr>
+<tr><td>1.5</td><td>−13.5 dB (74 px)</td><td>75, 73</td><td>−15.4 dB (72 px)</td><td>72, 72</td></tr>
+<tr><td>2.5</td><td>−17.9 dB (70 px)</td><td>71, 69</td><td>−32.3 dB (55 px)</td><td>55, 55</td></tr>
+<tr><td>3.5</td><td>−20.8 dB (67 px)</td><td>68, 65</td><td>−41.9 dB (46 px)</td><td>46, 46</td></tr>
+<tr><td>4.5</td><td>−23.0 dB (65 px)</td><td>67, 63</td><td>−48.7 dB (39 px)</td><td>39, 39</td></tr>
+</table></div>
+<p><b>Why.</b> Leakage comes from the seam where the record's end meets its start. The Hann window multiplies the record by a
+smooth hump, one cycle of 1 − cos: zero at both ends, one in the middle. Now every record starts and ends at zero, gently, so the
+seam is smooth and the skirt falls fast. Hann's first side lobe is 31 dB down (no window: 13 dB), and its far skirt falls 18 dB
+for every doubling of the distance (no window: 6 dB). The far skirt is still there, about 68 dB down at bin 20, which only the
+IP's panel is clean enough to show.</p>
+<p>The price: the peak is wider. A tone exactly on a bin now lights three bars, its neighbours 6 dB down, because the window
+itself is a mix of three bins. The window also halves the signal's amplitude on average (−6 dB); the lab adds those 6 dB back, so
+a tone keeps its height. The scalloping loss shrinks from 3.9 dB to 1.4 dB. Windows are a trade between a narrow peak and a low
+skirt; Hann is the usual first choice.</p>
+
+<h2 id="harmonics">Square, triangle, saw: harmonics</h2>
+<div class="do"><b>Do:</b> from the defaults, push the joystick right once for the square (<code>S1N80</code>); press B for
+linear (<code>L1</code>) and B again. Then right again for the triangle (<code>S2N80</code>), and again for the saw
+(<code>S3N80</code>).</div>
+<div class="two">
+  <figure><img src="media/screen_square.png" alt="A 1 kHz square wave: tall bars at 1, 3, 5, 7, 9 and 11 kHz and smaller bars on every fourth bin."><figcaption>1 kHz square, dB.</figcaption></figure>
+  <figure><img src="media/tutorial_square_lin.png" alt="The same square on the linear scale: bars of 86, 29, 17, 12, 10 and 8 px at 1, 3, 5, 7, 9 and 11 kHz."><figcaption>The same square, linear.</figcaption></figure>
+  <figure><img src="media/tutorial_triangle.png" alt="A 1 kHz triangle: bars on every fourth bin, falling fast with frequency."><figcaption>1 kHz triangle, dB.</figcaption></figure>
+  <figure><img src="media/tutorial_saw.png" alt="A 1 kHz saw: rising ramps on the scope, a tall bar every 10 bins and a dense row of bars on the even bins."><figcaption>1 kHz saw, dB.</figcaption></figure>
+</div>
+<p><b>You should see</b> tall bars at 1 kHz and its whole multiples, the <b>harmonics</b>, with heights set by the shape:</p>
+<div class="tablewrap"><table>
+<tr><th>Harmonic</th><th>Bin</th><th>Square: dB</th><th>linear</th><th>Triangle: dB</th><th>linear</th><th>Saw: dB</th><th>linear</th></tr>
+<tr><td>1st (1 kHz)</td><td>10</td><td>90</td><td>86</td><td>86</td><td>55</td><td>84</td><td>43</td></tr>
+<tr><td>2nd</td><td>20</td><td>none</td><td></td><td>none</td><td></td><td>78</td><td>22</td></tr>
+<tr><td>3rd</td><td>30</td><td>80</td><td>29</td><td>67</td><td>6</td><td>74</td><td>14</td></tr>
+<tr><td>4th</td><td>40</td><td>none</td><td></td><td>none</td><td></td><td>72</td><td>11</td></tr>
+<tr><td>5th</td><td>50</td><td>76</td><td>17</td><td>58</td><td>2</td><td>70</td><td>9</td></tr>
+<tr><td>7th</td><td>70</td><td>73</td><td>12</td><td>52</td><td>1</td><td>…</td><td></td></tr>
+<tr><td>9th</td><td>90</td><td>71</td><td>10</td><td>48</td><td></td><td>…</td><td></td></tr>
+<tr><td>11th</td><td>110</td><td>69</td><td>8</td><td>44</td><td></td><td>…</td><td></td></tr>
+</table></div>
+<ul>
+  <li>The square and the triangle have odd harmonics only; the saw has all of them (bins 10, 20 … 120).</li>
+  <li>Between the harmonics there are smaller bars, 58 to 67 px for the square, 21 to 41 px for the triangle, about 51 to 59 px
+  for the saw: harmonics above 12.8 kHz, folded back (<a href="#alias">Aliasing</a>). The saw's 13th lands on bin 126 at
+  61 px.</li>
+  <li>Every bar of the square and the triangle sits on bins 2, 6, 10, 14 …, every fourth bin; the saw's on the even bins; the
+  odd bins stay empty.</li>
+  <li>The square's pulses on the scope are not all the same width.</li>
+  <li>The saw has a bar at bin 0 too, 51 px.</li>
+</ul>
+<p><b>Why harmonics.</b> Any wave that repeats every 1 ms is a sum of sines at 1 kHz and its whole multiples: its Fourier series.
+The shape decides the mix. A square has the odd harmonics at 1, 1/3, 1/5 … of the first; a saw has every harmonic at 1/n; a
+triangle has the odd ones at 1/n², so they fall twice as fast in dB. The rule behind it: a wave with jumps (square, saw) has
+harmonics falling as 1/n, 6 dB for every doubling of frequency; a wave with corners but no jumps (triangle) as 1/n², 12 dB per
+doubling. It is the same rule as the seam in <a href="#leak">leakage</a>: the smoother the wave, the faster its spectrum falls.
+A sine has nothing to smooth, so it is one bar.</p>
+<p>The first harmonics are taller than the wave itself would suggest: a square of height ¾ has a fundamental of 4/π × ¾ = 0.95 of
+full scale (−0.4 dB, 90 px); the triangle's is 8/π² × ¾ (−4.3 dB), the saw's 2/π × ¾ (−6.4 dB).</p>
+<p><b>Why every fourth bin.</b> At 25.6 kHz a 1 kHz period is 25.6 samples, not a whole number, so the square's pulses come out 12
+or 13 samples wide (that is the uneven scope). But 5 periods are exactly 128 samples, so the record repeats after 128 samples:
+only even bins can be in it. For the square and the triangle, the second 64 samples are also the first 64 upside down, and that
+leaves only bins 2, 6, 10 … The saw has no upside-down half, so it fills all the even bins.</p>
+<p><b>The saw's bar at bin 0</b> is its average. The DDS's ramp climbs in steps and stops one step short of the top, so the samples
+average −192 instead of 0: 39 dB under a full-scale sine, 51 px. Bin 0 is the record's average (DC).</p>
+
+<h2 id="spikes">Spikes: a comb</h2>
+<div class="do"><b>Do:</b> choose the spikes (joystick right four times from the sine, <code>S4</code>). Set 800 Hz
+(<code>S4N64</code>), then 3,200 Hz (<code>S4N256</code>), then 1 kHz (<code>S4N80</code>).</div>
+<div class="two">
+  <figure><img src="media/tutorial_spikes_p32.png" alt="Spikes at 800 Hz: eight spikes on the scope and sixteen equal teeth every 8 bins."><figcaption>800 Hz: a spike every 32 samples.</figcaption></figure>
+  <figure><img src="media/tutorial_spikes_p8.png" alt="Spikes at 3,200 Hz: 32 spikes on the scope and four taller teeth at bins 0, 32, 64 and 96."><figcaption>3,200 Hz: a spike every 8 samples.</figcaption></figure>
+  <figure><img src="media/tutorial_spikes_jitter.png" alt="Spikes at 1 kHz: ten unevenly spaced spikes and teeth every 10 bins with smaller bars rising between them."><figcaption>1 kHz: a spike every 25.6 samples, rounded to whole samples.</figcaption></figure>
+  <div>
+    <p><b>You should see</b></p>
+    <ul>
+      <li>at 800 Hz, 8 spikes rising from the zero line, and 16 equal teeth of 63 px at bins 0, 8, 16 … 120: a comb;</li>
+      <li>at 3,200 Hz, 32 spikes, and only 4 teeth, at bins 0, 32, 64, 96, taller: 76 px;</li>
+      <li>at 1 kHz, 10 spikes not quite evenly spaced; teeth every 10 bins (65 px, easing to 62) and smaller bars between them on
+      the even bins, rising from about 20 px to about 61 px towards the top;</li>
+      <li>in our panel, a thick band of rounding bars.</li>
+    </ul>
+  </div>
+</div>
+<div class="tablewrap"><table>
+<tr><th>Setting</th><th>Frequency</th><th>A spike every</th><th>Teeth every</th><th>Tooth height</th></tr>
+<tr><td><code>S4N32</code></td><td>400 Hz</td><td>64 samples</td><td>4 bins</td><td>57 px</td></tr>
+<tr><td><code>S4N64</code></td><td>800 Hz</td><td>32 samples</td><td>8 bins</td><td>63 px</td></tr>
+<tr><td><code>S4N128</code></td><td>1.6 kHz</td><td>16 samples</td><td>16 bins</td><td>69 px</td></tr>
+<tr><td><code>S4N256</code></td><td>3.2 kHz</td><td>8 samples</td><td>32 bins</td><td>76 px</td></tr>
+<tr><td><code>S4N512</code></td><td>6.4 kHz</td><td>4 samples</td><td>64 bins (0 and 64)</td><td>82 px</td></tr>
+</table></div>
+<p><b>Why.</b> A single spike contains every frequency equally: it is what you get when you add up equal cosines at every bin. A
+train of spikes every P samples repeats every P samples, so it can hold only the frequencies that repeat with it: f<sub>s</sub>/P
+and its multiples, a comb of equal teeth 256/P bins apart. The spikes rise from zero, so they have an average too, and bin 0 is
+one of the teeth. Halve P: twice as many spikes, half as many teeth, so each tooth carries more, +6 dB (each tooth is 2 × ¾ / P of
+full scale). Short in time, wide in frequency; repeating in time, lines in frequency: a pair of rules that holds for every
+signal.</p>
+<p><b>Why the 1 kHz comb is messy.</b> 25.6 samples is not a whole number, so the spikes land on whole samples: gaps of 26, 26,
+25, 26, 25 samples, each spike up to half a sample early or late. That is <b>jitter</b>. A timing error δt shifts the phase of
+frequency f by 2π f δt, so the higher the frequency, the bigger the error: the teeth lose a little height towards the top
+and the lost energy shows up as the bars between them. The pattern repeats every 128 samples, so they still sit on even bins
+only. Jitter in a real ADC's clock does the same to a real spectrum.</p>
+
+<h2 id="noise">Noise</h2>
+<div class="do"><b>Do:</b> choose the noise (joystick left once from the sine, <code>S5</code>) and turn the window on with A
+(<code>W1</code>). Watch for a few seconds. Press Start to hold one frame (<code>H1</code>), Start again to go on
+(<code>H0</code>).</div>
+<div class="two">
+  <figure><img src="media/screen_noise.png" alt="Noise: random samples on the scope and a ragged spectrum of bars of every height in both panels."><figcaption>Noise with the Hann window: one frame.</figcaption></figure>
+  <div>
+    <p><b>You should see</b></p>
+    <ul>
+      <li>random samples filling the scope, different in every frame;</li>
+      <li>a bar at every bin, jumping up and down from frame to frame: most near 65 px, single bars from about 24 to 77 px;</li>
+      <li>the same pattern in both panels: both FFTs get the same samples;</li>
+      <li>with HOLD, one frame stands still, so you can look at it.</li>
+    </ul>
+  </div>
+</div>
+<p><b>Why.</b> <i>White</i> noise has its power spread evenly over all frequencies. The lab's noise is uniform between −¾ and +¾
+of full scale: the same power as a sine of 0.61 of full scale (−4.3 dB). Shared out over 128 bars, each gets 1/128 of it
+(−21.1 dB): on average −25.3 dB, 64.7 px.</p>
+<p>That is the average. One frame's bar is a random draw: its power follows an exponential distribution, so bars scatter widely,
+and the middle value (the median) is 1.6 dB under the average. Without the window that gives a median of 63 px (20 frames of the
+model: from 9 to 74 px). With the window the median is 65 px: the lab's +6 dB correction is right for a tone, but the window
+widens every bar to 1.5 bins of noise, so noise reads 1.76 dB higher.</p>
+<p>Why a long FFT finds weak tones: a tone on a bin keeps its height whatever the FFT's length, but every doubling of the length
+halves the noise in each bar (−3 dB). That is the FFT's <b>processing gain</b>: 256 points put each bar 21 dB under the total
+noise.</p>
+<p>Why the noise moves while a sine stands still: the generator starts the sine's phase from zero every frame, but the noise
+generator just runs on.</p>
+
+<h2 id="alias">Aliasing: above half the sample rate</h2>
+<div class="do"><b>Do:</b> from the defaults, send <code>N1000</code> (12,500 Hz), or hold the joystick up until the top line
+says <code>12500.0 HZ</code>. Then a 3 kHz square: <code>S1N240</code>.</div>
+<div class="two">
+  <figure><img src="media/tutorial_nyquist.png" alt="A 12.5 kHz sine: the scope shows six filled lobes instead of a fast wave, and one bar at the right edge, bin 125."><figcaption>A 12.5 kHz sine, 300 Hz under the Nyquist frequency.</figcaption></figure>
+  <figure><img src="media/tutorial_square_3k.png" alt="A 3 kHz square: thirty cycles on the scope and bars nearly as tall as the fundamental all over the spectrum."><figcaption>A 3 kHz square: harmonics folded back.</figcaption></figure>
+</div>
+<p><b>You should see</b></p>
+<ul>
+  <li>at 12.5 kHz: <code>SINE 12500.0 HZ BIN 125.000</code> on the top line and one bar at bin 125, 87 px, at the right edge;
+  but on the scope no fast wave, only 6 filled green lobes: a slow beat;</li>
+  <li>for the 3 kHz square: 30 cycles on the scope, the tallest bar at bin 30 (90 px), and bars nearly as tall all over the
+  panel, in no harmonic order.</li>
+</ul>
+<p><b>Why the beat.</b> 12.5 kHz is 300 Hz under half the sample rate. Each sample comes almost exactly half a cycle after the one
+before, so the samples flip sign, and what is left over drifts slowly: x[n] = −(−1)<sup>n</sup> sin(2π × 300 n / f<sub>s</sub>).
+The scope draws a line between the flipping samples, so it shows their 300 Hz envelope: 3 cycles, 6 lobes in 10 ms. The FFT is
+not fooled and puts the tone at bin 125.</p>
+<p><b>Why the forest.</b> The samples cannot tell f from f<sub>s</sub> − f: a 13 kHz sine and a 12.6 kHz sine give the same
+samples (one upside down). So every frequency above 12.8 kHz folds back into the band, like paper folded at the Nyquist frequency,
+again and again. The square's harmonics go on forever, and most of them fold back:</p>
+<div class="tablewrap"><table>
+<tr><th>Harmonic</th><th>True</th><th>Lands at</th><th>Bin</th><th>Bar</th></tr>
+<tr><td>1st</td><td>3 kHz</td><td>3 kHz</td><td>30</td><td>90 px</td></tr>
+<tr><td>3rd</td><td>9 kHz</td><td>9 kHz</td><td>90</td><td>80 px</td></tr>
+<tr><td>5th</td><td>15 kHz</td><td>25.6 − 15 = 10.6 kHz</td><td>106</td><td>76 px</td></tr>
+<tr><td>7th</td><td>21 kHz</td><td>25.6 − 21 = 4.6 kHz</td><td>46</td><td>73 px</td></tr>
+<tr><td>9th</td><td>27 kHz</td><td>27 − 25.6 = 1.4 kHz</td><td>14</td><td>71 px</td></tr>
+<tr><td>11th</td><td>33 kHz</td><td>33 − 25.6 = 7.4 kHz</td><td>74</td><td>69 px</td></tr>
+<tr><td>13th</td><td>39 kHz</td><td>51.2 − 39 = 12.2 kHz</td><td>122</td><td>67 px</td></tr>
+<tr><td>15th</td><td>45 kHz</td><td>51.2 − 45 = 6.2 kHz</td><td>62</td><td>66 px</td></tr>
+<tr><td>17th</td><td>51 kHz</td><td>51.2 − 51 = 0.2 kHz</td><td>2</td><td>65 px</td></tr>
+<tr><td>19th</td><td>57 kHz</td><td>57 − 51.2 = 5.8 kHz</td><td>58</td><td>64 px</td></tr>
+</table></div>
+<p>The folded bars keep their 1/n heights; only their places are wrong. Once a signal is sampled, nothing can sort them out again.
+That is why a real system puts an <b>anti-alias filter</b> in front of its ADC, to remove everything above half the sample rate
+before sampling. The lab computes its samples directly, so nothing filters its square, and the 1 kHz square above has the same
+folded bars, only lower.</p>
+
+<h2 id="two">Two FFTs: ours and the IP</h2>
+<div class="do"><b>Do:</b> send <code>R</code> for the report line, at the defaults and after each experiment. Compare the two
+panels at the same settings: the window on (<code>W1</code>), the noise (<code>S5</code>), the 1,050 Hz sine (<code>N84</code>).</div>
+<p><b>You should see</b> the same tall bars in both panels, within a pixel, but a different floor. At the defaults our panel
+has a scatter of small rounding bars, 6 to 9 px, and the IP's floor is empty; with the window ours has a band of 12 to 15 px and the IP's
+bars reach at most 6 px. The report line gives both FFTs' clocks and peaks:</p>
+<pre>FFTLAB SHAPE=0 N=0080 HZ=01000.0 WIN=0 LIN=0 HOLD=0 OUR_CLK=06145 OUR_PK=010/087 IP_CLK=01637 IP_PK=010/088 IP_EXP=-08 IP_OK=1</pre>
+<div class="tablewrap"><table>
+<tr><th></th><th>Ours (<code>fft_r2</code>)</th><th>The IP (FFT II)</th></tr>
+<tr><td>Clocks for 256 points</td><td class="n">6,145 = 256 load + 5,120 compute + 768 unload + 1: 245.8 µs</td><td class="n">1,637 = 1,381 to the first result + 256 results: 65.48 µs, 3.75× faster</td></tr>
+<tr><td>How</td><td>in place in one RAM: one butterfly every 5 clocks</td><td>pipelined: takes a sample and gives a result every clock</td></tr>
+<tr><td>Scaling</td><td>fixed: halves every stage, ÷256 in all</td><td>block floating point: true value = output × 2<sup>−exp</sup></td></tr>
+<tr><td>Accuracy (SNR, measured in <a href="../../examples/11_fft/index.html">example 11</a>)</td><td class="n">56.3 dB</td><td class="n">66.9 dB</td></tr>
+<tr><td>Size</td><td class="n">398 LEs, 189 registers, 8 nine-bit multipliers</td><td class="n">1,734 LEs, 1,425 registers, 8 nine-bit multipliers</td></tr>
+<tr><td>License</td><td>free; can be written to flash</td><td>evaluation in Quartus Lite: runs while the cable is connected (or about an hour); cannot be written to flash</td></tr>
+</table></div>
+<p><b>Why the floors differ.</b> Every stage of an FFT adds numbers, and the sum can grow. Ours plays safe: it halves every stage,
+8 stages, ÷256 whatever the signal, and rounds after every halving; those rounding errors add up to the small bars. The IP rounds
+less: even at the defaults, where it scales by 256 too, its floor is empty. It also looks at the data: <b>block floating
+point</b> keeps one shared exponent for the whole block and scales only as much as the numbers need. <code>IP_EXP</code> reports
+it:</p>
+<div class="tablewrap"><table>
+<tr><th>Signal</th><th><code>IP_EXP</code></th><th>Means</th></tr>
+<tr><td>1 kHz sine (the defaults)</td><td class="n">−8</td><td>÷256, like ours</td></tr>
+<tr><td>1,050 Hz sine, saw</td><td class="n">−7</td><td>one bit kept: 6 dB less rounding</td></tr>
+<tr><td>Spikes, 800 Hz</td><td class="n">−6</td><td>two bits kept</td></tr>
+<tr><td>Spikes, 1 kHz</td><td class="n">−5</td><td>three bits kept</td></tr>
+</table></div>
+<p>A tone on a bin piles all its energy into one bar, the biggest numbers, and the IP scaled it by the full 256. When the
+energy spreads over many bins (leakage, a saw's harmonics, spikes) the numbers stay smaller and the IP keeps the bits it can. The
+lab undoes the IP's scaling, 2<sup>−exp</sup>, when it draws the IP's bars (<code>lab_engine.sv</code>), so both panels share one
+scale.</p>
+<p><b>Time.</b> The lab runs both FFTs in each frame's vertical blanking, while the screen is not being drawn: 35 lines of 800
+clocks = 28,000 clocks. A frame needs about 6,400 of them (23 %). Even real time is easy: a new 256-sample record arrives every
+10 ms = 250,000 clocks at 25 MHz, and ours needs 2.5 % of that.</p>
+<div class="tablewrap"><table>
+<tr><th>If you need</th><th>Choose</th></tr>
+<tr><td>a design that runs alone or from flash, small</td><td><code>fft_r2</code></td></tr>
+<tr><td>the best accuracy, a stream of records, the speed</td><td>the FFT II IP, if its license is acceptable</td></tr>
+<tr><td>better accuracy without the IP</td><td><code>fft_r2</code> with block floating point added</td></tr>
+</table></div>
+
+<h2 id="listen">Listen</h2>
+<div class="do"><b>Do:</b> press Select (<code>M1</code>) and move the frequency with the joystick or the wheel. Press Select
+again (<code>M0</code>) for silence.</div>
+<p><b>You should hear</b> a tone that follows the frequency on the top line, the same sound whatever the shape on the screen.</p>
+<p><b>Why.</b> The shield's buzzer can only be on or off, so it always plays a square wave at the lab's frequency. A second DDS makes
+it: a 32-bit phase accumulator adds <code>N</code> × 2,147 every clock at 25 MHz, and its top bit drives the buzzer:
+<code>N</code> × 12.497 Hz, 0.022 % under the number on the screen. What you hear is a square, so it carries the odd harmonics of
+<a href="#harmonics">the square's spectrum</a>. (The tone was checked in simulation; the sound itself is for your ears.)</p>
+
+<h2 id="quiz">Check yourself</h2>
+<p>Work each one out first, then try it on the board (or with <code>lab_model.py</code>), then open the answer.</p>
+<ol>
+  <li>You send <code>N200</code>. Which bin holds the bar?
+    <details><summary>Answer</summary><p>200 × 12.5 = 2,500 Hz; a bin is 100 Hz wide, so bin 25 (the top line says
+    <code>BIN 25.000</code>).</p></details></li>
+  <li>You send <code>N83</code>. Where are the tallest bars, and why does neither reach 87 px?
+    <details><summary>Answer</summary><p>1,037.5 Hz is bin 10.375, between bins 10 and 11 and nearer to 10: bin 10 shows 86 px
+    and bin 11 81 px, with a skirt of 67, 70, 74 px on bins 7, 8, 9 and 72, 68 px on bins 12, 13. Off a bin, the tone is shared out
+    and leaks (<a href="#leak">Leakage</a>).</p></details></li>
+  <li>A 2 kHz square (<code>S1N160</code>): where do its harmonics land?
+    <details><summary>Answer</summary><p>Bin 20 (90 px), 60 (80), 100 (76); then they fold: the 7th, 14 kHz, lands at
+    25.6 − 14 = 11.6 kHz, bin 116 (73); the 9th at bin 76 (71), the 11th at 36 (69), the 13th at 4 (68), the 15th at 44 (67).
+    </p></details></li>
+  <li>Spikes at 400 Hz (<code>S4N32</code>): how far apart are the teeth, and how tall?
+    <details><summary>Answer</summary><p>A spike every 2,048 / 32 = 64 samples, so teeth every 256 / 64 = 4 bins. The spikes are
+    twice as far apart as at 800 Hz, so there are twice as many teeth, each 6 dB lower: 57 px.</p></details></li>
+  <li>Why does the noise jump from frame to frame while a sine stands still?
+    <details><summary>Answer</summary><p>The generator restarts the sine's phase at zero every frame, so every record is the same;
+    the noise generator runs on, so every record is new.</p></details></li>
+  <li>Where does the saw's 13th harmonic land at 1 kHz?
+    <details><summary>Answer</summary><p>13 kHz is 200 Hz above the Nyquist frequency; it folds to 25.6 − 13 = 12.6 kHz, bin 126,
+    61 px.</p></details></li>
+  <li>A microphone ADC samples at 25.6 kHz with no filter in front. A 22.6 kHz whistle reaches it. Where does it show?
+    <details><summary>Answer</summary><p>At 25.6 − 22.6 = 3 kHz, bin 30: a tone nobody can hear shows up as one everyone can.
+    That is what the anti-alias filter is for.</p></details></li>
+  <li>You look for a weak tone 80 dB under full scale, 10 px tall. Which panel do you trust?
+    <details><summary>Answer</summary><p>The IP's. Ours has rounding bars up to 9 px (12 to 15 with the window), as tall as the
+    tone; the IP's floor stays between 0 and 6 px (<a href="#two">Two FFTs</a>).</p></details></li>
+</ol>
+
+<h2 id="words">Words</h2>
+<div class="tablewrap"><table class="kv">
+<tr><td>Sample</td><td>One number measured (or computed) at one moment. The lab makes 25,600 a second.</td></tr>
+<tr><td>Sample rate, f<sub>s</sub></td><td>Samples per second: 25.6 kHz here.</td></tr>
+<tr><td>Record</td><td>The block the FFT takes at once: 256 samples, 10 ms.</td></tr>
+<tr><td>Bin</td><td>One output of the FFT: the amount of one frequency, k × f<sub>s</sub> / 256 = k × 100 Hz.</td></tr>
+<tr><td>Nyquist frequency</td><td>Half the sample rate, 12.8 kHz: the highest frequency the samples can tell apart.</td></tr>
+<tr><td>DFT, FFT</td><td>The discrete Fourier transform turns a record into its bins; the fast Fourier transform is a quick way to
+compute it (256 × 8 / 2 = 1,024 butterflies instead of 65,536 multiply-adds).</td></tr>
+<tr><td>Butterfly</td><td>The FFT's step: two numbers in, their sum and their twiddled difference out.</td></tr>
+<tr><td>Leakage</td><td>A tone that does not fit the record a whole number of times spreads into the bins around it.</td></tr>
+<tr><td>Scalloping loss</td><td>The drop of a tone's peak between bins: 3.9 dB at worst, 1.4 dB with Hann.</td></tr>
+<tr><td>Window (Hann)</td><td>A curve the record is multiplied by so its ends fade to zero: less leakage far away, a wider peak.</td></tr>
+<tr><td>dB, dBFS</td><td>Decibels: 20 × log<sub>10</sub> of an amplitude ratio; 6 dB is twice. dBFS measures from full scale.</td></tr>
+<tr><td>Harmonic</td><td>A whole multiple of a wave's repeat frequency.</td></tr>
+<tr><td>Aliasing</td><td>Frequencies above the Nyquist frequency folding back into the band after sampling.</td></tr>
+<tr><td>Comb</td><td>Equal lines at even spacing: the spectrum of a regular train of spikes.</td></tr>
+<tr><td>Jitter</td><td>Timing error of samples or events; it costs more at high frequencies.</td></tr>
+<tr><td>White noise</td><td>Random samples with power spread evenly over all frequencies.</td></tr>
+<tr><td>Processing gain</td><td>A longer FFT puts less noise in each bin while a tone keeps its height: 3 dB per doubling.</td></tr>
+<tr><td>Block floating point</td><td>One shared exponent for a block of numbers, so they keep as many bits as the block allows.</td></tr>
+<tr><td>DDS</td><td>Direct digital synthesis: a phase counter adds a step every sample; its value makes the wave.</td></tr>
+</table></div>
+
+<h2 id="pictures">About the pictures</h2>
+<p>Every picture on this page is the real screen, read back over the USB cable with <code>python scripts/de10.py screen</code>, and
+compared pixel by pixel with <code>sim/lab_model.py</code>'s picture for the same settings.</p>
+<ul>
+  <li>Compared whole, both panels, every pixel equal: <code>screen_default</code>, <code>screen_square</code>,
+  <code>screen_sine_rect</code>, <code>screen_sine_hann</code> (from <code>sim/board_check.py</code>),
+  <code>tutorial_triangle</code>, <code>tutorial_saw</code>, <code>tutorial_spikes_jitter</code> (from
+  <code>sim/tutorial_shots.py</code>).</li>
+  <li>Compared except the IP's panel, every other pixel equal: <code>tutorial_between_lin</code>, <code>tutorial_hann_on_bin</code>,
+  <code>tutorial_square_lin</code>, <code>tutorial_spikes_p32</code>, <code>tutorial_spikes_p8</code>,
+  <code>tutorial_nyquist</code>, <code>tutorial_square_3k</code>. The model has a recording of the IP only for some settings;
+  for these the IP's panel and its numbers are the board's alone.</li>
+  <li><code>screen_noise</code> is random, so no picture can match it; its clocks and <code>IP_OK</code> were checked.</li>
+</ul>
+<p>To take them again: <code>python projects/fft_lab/sim/tutorial_shots.py</code> (about 3 minutes; the lab must be loaded,
+hands off the board).</p>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite FPGA BKM</a>. Companion pages: <a href="index.html">overview</a>,
+<a href="spec.html">architecture spec</a>, <a href="guide.html">user guide</a>.</footer>
+</main>
+</body>
+</html>

@@ -48,7 +48,7 @@ Loop: `python scripts/sim.py projects/<game>/sim/tb_<game>.sv` -> look at the PP
 ## Game logic: one update per frame
 
 * `tick` = the falling edge of `VGA_VS` in the 25 MHz domain (inside the vertical blank: 28,000 clocks before
-  the first visible pixel, 35 of the 45 blank lines; the other 10 are before the sync, gotcha 33. A whole Pac-Man
+  the first visible pixel, 35 of the 45 blank lines; the other 10 are before the sync, gotcha 38. A whole Pac-Man
   frame update takes a few hundred; the accelerometer cube's 3D math takes under 950).
 * A design with no frame buffer that draws from numbers (lines, a shaded cube, an arrow) is the same idea taken
   further: one sequential math engine in the blank (one shared multiplier, divider, square root, CORDIC) writes the

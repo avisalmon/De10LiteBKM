@@ -325,8 +325,9 @@ def _fmt(u, unit=""):
     return f"{n:,}{unit}" + (f" / {total:,} ({pct} %)" if total else "")
 
 
-def resources_html(r):
+def resources_html(r, project_dir=None):
     """The 'Resources' table the project pages start with (make-project skill). Paste it, then add the notes."""
+    made_by = (project_dir or f"projects/{r['rev']}").replace(os.sep, "/").rstrip("/")
     plls = "; ".join(f"{c['label']} {c['freq']}" for c in r["clocks"] if "clk[" in c["name"])
     row = lambda name, u, note="": (f"<tr><td>{name}</td><td>{u[0]:,}</td><td>{u[1]:,} ({u[2]} %)</td><td>{note}</td></tr>"
                                     if u and u[1] else f"<tr><td>{name}</td><td>{u[0] if u else 0:,}</td><td>-</td><td>{note}</td></tr>")
@@ -342,7 +343,7 @@ def resources_html(r):
     return "\n".join([
         f'<h2 id="resources">Resources</h2>',
         f'<p class="note">The last build: {r["family"]} {r["device"]}, Quartus Prime {r["version"].split(" Build")[0]} Lite, '
-        f'{r["build_time"] or "?"} to build. Made by <code>python scripts/de10.py report projects/{r["rev"]} --html</code>.</p>',
+        f'{r["build_time"] or "?"} to build. Made by <code>python scripts/de10.py report {made_by} --html</code>.</p>',
         '<div class="tablewrap"><table class="res">',
         "<tr><th>Resource</th><th>Used</th><th>Of the device</th><th>What uses it</th></tr>", *rows, "</table></div>",
         '<div class="tablewrap"><table class="res">',
@@ -375,7 +376,7 @@ def report(project_dir, html=False):
         path = os.path.join(project_dir, "logs", "resources.html")
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as f:
-            f.write(resources_html(r) + "\n")
+            f.write(resources_html(r, project_dir) + "\n")
         print(f"  HTML for the page's Resources section: {path}")
     return 0 if w is None or w >= 0 else 1
 

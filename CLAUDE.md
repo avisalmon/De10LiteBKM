@@ -26,13 +26,17 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
 * The shield's joystick, A/B/Select/Start, the wheel, the buzzer -> `read-gamepad` (04).
 * "What is on the screen?", screenshot, test the graphics, a log or commands over USB -> `read-screen` (05).
 * Lots of memory, the 64 MB SDRAM -> `use-sdram` (06).
+* A file from the PC into the SDRAM (weights, parameters, tables) or back, as fast as the USB cable allows ->
+  `load-sdram-usb` (14).
+* The SDRAM streamed at full speed into several compute units (FIFOs, bursts, write-back, int8 matrix-vector,
+  PC registers over JTAG): the data-flow layer for an LLM on the board -> `stream-from-sdram` (15).
 * Tilt, gravity, the accelerometer, any SPI chip -> `read-accelerometer` (07).
 * Switches, keys, LEDs, the 7-segment display -> `use-board-io` (08).
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).
 * A spectrum, an FFT -> `compute-fft` (11). Multiply, MAC, filters, Fmax -> `use-dsp-multipliers` (12).
 * Keep the design after power-off, write the flash -> `flash-design` (13).
-* A whole design to publish: a new project, its pages (overview, spec, guide), its review, the portal -> `make-project`
-  (`projects/`, standard folder; Pac-Man is the model).
+* A whole design to publish: a new project, its pages (overview, spec, guide, a tutorial), its review, the portal ->
+  `make-project` (`projects/`, standard folder; Pac-Man is the model).
 * A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (`projects/pacman`).
 * A CPU, a processor, RISC-V, running C or assembly on the FPGA, a text screen, memory-mapped I/O, an assembler or
   compiler -> `build-soft-cpu` (`projects/riscv_tetris`).
@@ -81,5 +85,6 @@ Domain toolkit: `examples/NN_name/` (one verified example per capability: page, 
 `lib/rtl/` shared tested Verilog · `lib/sim/` its unit tests and models · `lib/board/de10_lite_pins.csv` the pins ·
 `scripts/new_project.py` (Quartus project from a top module) · `scripts/de10.py` (build, program, flash, pack, log,
 send, screen, cam) · `scripts/sim.py` (Icarus or ModelSim) · `scripts/make_stp.py` + `stp_capture.tcl` +
-`vcd_dump.py` (Signal Tap without the GUI) · `scripts/mem_edit.tcl` (memory contents over JTAG).
+`vcd_dump.py` (Signal Tap without the GUI) · `scripts/mem_edit.tcl` (memory contents over JTAG) ·
+`scripts/sdram_load.py` + `usb_blaster.py` (files into the SDRAM over the USB-Blaster at the cable's limit).
 Tools: Quartus Prime Lite 17.1 in `C:\intelFPGA_lite\17.1` (ModelSim Starter included), OSS CAD Suite for Icarus.

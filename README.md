@@ -3,7 +3,7 @@
 ### Design real hardware on an FPGA, with an AI beside you
 
 <!-- last-updated:start -->
-**Last updated 28 October 2026** · 3 new lessons · [See what's new](docs/lessons_log.md)
+**Last updated 28 October 2026** · 6 new lessons · [See what's new](docs/lessons_log.md)
 <!-- last-updated:end -->
 
 **Start page (Hebrew / English): https://avisalmon.github.io/De10LiteBKM/**
