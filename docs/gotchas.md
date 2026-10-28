@@ -87,7 +87,10 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     reset the TAP and stop on the first one, and have the board CRC what it holds (`load-sdram-usb`).
 34. **Two chats, one board.** Both programmed the board and each spoiled the other's test. A lock file
     (`%LOCALAPPDATA%\de10lite\board.lock`: who, what, since), checked before every board command, deleted when done
-    with a "board free" message, kept them apart (`load-sdram-usb`).
+    with a "board free" message, kept them apart (`load-sdram-usb`). It does not protect a hand check: a chat that
+    judged an old lock stale, or programmed in the gap between its "board free" and the other's lock, swapped the
+    design while the user pressed a button for the other. Program your design and read it back (`de10.py send r`)
+    right before asking a person to act, and say which design the FPGA holds in every hand-off.
 35. **An expected file written with PowerShell's `>` made every line "differ".** PowerShell's `>` writes UTF-16 with
     a byte-order mark (bytes `FF FE`, two bytes per character); a testbench reading it with `$fgets` matches nothing.
     Let the script write its own file (Python, ASCII, LF); never make a data file through a PowerShell redirect.
@@ -160,7 +163,6 @@ Skills point at these numbers: add new ones at the end, never renumber. Only tra
     caught one clock earlier. The compiled phase goes to the centre of the `rd_delay` 4 window (6875 ps): +-16 steps
     = +-3.3 ns of margin on both sides. The JEDEC-exact model says `rd_delay` 3 for the bare chip; the board says 4:
     the pin, trace and I/O register path adds about a clock's worth at 100 MHz (`use-sdram`).
-
 48. **The LCD shield covers KEY0 and KEY1.** A design that takes its controls from the push keys cannot be operated
     with the shield on; the first Accelerometer Cube image needed KEY1 to calibrate and nobody could press it. A shield
     design takes its buttons from the game pad (`read-gamepad`) and keeps the keys as the bare-board fallback. The same

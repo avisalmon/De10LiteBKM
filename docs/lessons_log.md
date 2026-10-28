@@ -14,6 +14,7 @@ They come from real sessions; most of them came from something going wrong.
 - **Two chats, one board: a lock file is not enough.** The other chat judged a 12-hour-old lock stale and loaded its
   design while the user pressed A for mine; a second time it programmed in the gap between its "board free" and my
   lock. Reprogram and re-read before trusting any hand check, and say which design the FPGA holds in every hand-off.
+  [gotcha 34](gotchas.md)
 - **The SDRAM streamed at its own speed into six compute units at once.** A 100 MHz burst controller (98 % of the
   bus, 196 MB/s over 64 MB with 0 errors), a fabric of N credit-based read channels and N write-back lanes behind a
   round-robin burst arbiter, int8 matrix-vector units with T-vector weight reuse, a generic register file over JTAG
