@@ -15,6 +15,12 @@
 - [ ] FFT Lab, by a person: the wheel, joystick, A / B / Start / Select and the keys by hand, the buzzer, the LEDs and the
       7-segment. On the board: how long the evaluation IP runs once the programmer disconnects (Intel says one hour; it
       still ran after 32 minutes), and whether KEY0 or `D` brings an expired IP back.
+- [ ] Space Invaders, by a person: the game pad (joystick feel, A / B fire, Select coin, Start), the buzzer's
+      sounds, a wave played by hand, the LEDs and the 7-segment, KEY0 / KEY1 on a board without the shield, the
+      DIP switches (SW0..SW2) other than all down, and a photo of the board (the webcam failed). Not flashed: the
+      flash holds the Accelerometer Cube.
+- [ ] Space Invaders, not built by choice: two players (the arcade's cocktail mode), the high score kept in the
+      user flash.
 - [ ] RISC-V Tetris, not built by choice: interrupts and a timer, the M extension on the MAX 10 multipliers, structs /
       typedef in the compiler, a bigger RAM without the debug capture.
 - [ ] Pac-Man and RISC-V Tetris, made before two rules: regenerate their project files (`scripts/new_project.py` turns

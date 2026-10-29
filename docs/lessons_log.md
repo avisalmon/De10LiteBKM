@@ -3,6 +3,24 @@
 The short version of every lesson added to this guide, newest first. Each line points to where the full rule lives.
 They come from real sessions; most of them came from something going wrong.
 
+## 2026-10-29
+
+- **Space Invaders, remade from the arcade's own program, in pure Verilog.** 55 invaders marching one per frame,
+  shields bitten pixel by pixel, three kinds of bomb, the saucer, the attract mode with its demo game and the DIP
+  switches; no CPU and no frame buffer, 7,170 LEs (14 %). A self-playing testbench (89 checks over 89,600 game
+  steps, the rules checked after every step) and ten board presets equal to the simulation: 0 of 76,800 pixels
+  differ. [projects/invaders](../projects/invaders/index.html),
+  [build-arcade-game](../.claude/skills/build-arcade-game/SKILL.md)
+- **A bot that predicts clears the wave.** Shooting the nearest invader let the rack land with 7 alive; playing
+  the rack forward and aiming where each invader will be hit 45 of 45 as predicted. [gotcha 51](gotchas.md)
+- **Read the code and the emulator's own files, not the comments or a guess.** The demo table uses 10 of its 12
+  bytes; the red band was 2 lines too tall until it came from MAME's `invaders.lay`. [gotchas 52, 55](gotchas.md)
+- **Bytes wrap in y too.** A low rack's top rows vanished when its reference passed line 255, and the testbench's
+  models had to wrap the same way or they would hide it. Preset 7 on the board showed it; with the old
+  comparison 1,631 checks of the new section fail. [gotcha 53](gotchas.md)
+- **`dist` is a keyword, a monitor read one step late, slack versus Fmax, log redirects, a restored `.qar`, CRLF
+  line ends.** [gotchas 49-58](gotchas.md), [make-project](../.claude/skills/make-project/SKILL.md)
+
 ## 2026-10-28
 
 - **The shield covers KEY0 and KEY1: a shield design takes its buttons from the game pad.** The cube's KEY1
@@ -14,6 +32,7 @@ They come from real sessions; most of them came from something going wrong.
 - **Two chats, one board: a lock file is not enough.** The other chat judged a 12-hour-old lock stale and loaded its
   design while the user pressed A for mine; a second time it programmed in the gap between its "board free" and my
   lock. Reprogram and re-read before trusting any hand check, and say which design the FPGA holds in every hand-off.
+  [gotcha 34](gotchas.md)
 - **The SDRAM streamed at its own speed into six compute units at once.** A 100 MHz burst controller (98 % of the
   bus, 196 MB/s over 64 MB with 0 errors), a fabric of N credit-based read channels and N write-back lanes behind a
   round-robin burst arbiter, int8 matrix-vector units with T-vector weight reuse, a generic register file over JTAG
