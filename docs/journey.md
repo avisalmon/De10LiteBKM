@@ -30,6 +30,10 @@ The start page and [get_started.md](get_started.md). No terminal experience need
 
 ## Phase 4 - Build anything (the chat with you, the domain skills)
 
+The pieces are in [../examples/index.html](../examples/index.html), one verified example per board capability. The
+whole designs in [../projects/index.html](../projects/index.html) (Pac-Man, RISC-V Tetris, FFT Lab, the Accelerometer
+Cube, Space Invaders) show the road from an idea to a reviewed, tested, documented design (`make-project`).
+
 - [ ] Your own idea runs on the board, built from the examples' pieces, proven with the screen read-back or the log
 - [ ] (optional) It is in the flash and starts by itself (`flash-design`)
 

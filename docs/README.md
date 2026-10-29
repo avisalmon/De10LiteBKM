@@ -12,7 +12,9 @@
 * [../examples/index.html](../examples/index.html): every board capability as a verified example (page, project).
 * [../projects/index.html](../projects/index.html): whole designs, each with an overview, an architecture spec, a user guide
   (a tutorial when there is something to try) and the Quartus archive; the standard is the `make-project` skill and
-  `projects/_template/`.
+  `projects/_template/`. The projects: [Pac-Man](../projects/pacman/index.html),
+  [RISC-V Tetris](../projects/riscv_tetris/index.html), [FFT Lab](../projects/fft_lab/index.html),
+  [Accelerometer Cube](../projects/accel_cube/index.html), [Space Invaders](../projects/invaders/index.html).
 * [stage2_lessons.md](stage2_lessons.md): the course outline (nand2tetris on the DE10-Lite).
 * `../lib/board/de10_lite_pins.csv`: every pin of the board; `../lib/rtl/`: the shared Verilog.
 

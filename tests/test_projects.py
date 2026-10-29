@@ -16,8 +16,6 @@ PAGES = ("index.html", "spec.html", "guide.html")
 TUTORIAL = "tutorial.html"  # the optional fourth page
 TUTORIAL_PARTS = ('class="do"', "You should see", "<b>Why")  # every experiment: Do, You should see, Why
 PROJECT_DIRS = sorted(p for p in PROJECTS.iterdir() if p.is_dir() and not p.name.startswith("_"))
-# Made before the "Resources first" rule; adding their section needs a rebuild each (follow-up in docs/backlog.md).
-RESOURCES_LATER = {"pacman", "riscv_tetris"}
 RESOURCE_WORDS = ("Logic elements", "Memory bits", "M9K", "PLLs", "Fmax", "Timing")
 CODE_TYPES = {".sv", ".v", ".svh", ".vh", ".py", ".tcl", ".qsf", ".qip", ".sdc", ".c", ".h", ".s"}
 
@@ -44,8 +42,6 @@ def test_the_template_starts_with_resources():
 @pytest.mark.parametrize("project", [p.name for p in PROJECT_DIRS])
 def test_project_overview_starts_with_resources(project):
     """Every project page opens with what it uses: area, memory, multipliers, PLLs, clocks with Fmax, timing."""
-    if project in RESOURCES_LATER:
-        pytest.skip(f"{project} was made before the Resources rule (follow-up)")
     title, body = first_section((PROJECTS / project / "index.html").read_text(encoding="utf-8"))
     assert title == "Resources", (f"{project}/index.html: the first section must be Resources "
                                   f"(python scripts/de10.py report projects/{project} --html)")

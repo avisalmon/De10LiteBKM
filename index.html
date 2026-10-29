@@ -180,17 +180,34 @@
   a.chip { color: var(--ink); text-decoration: none; }
   a.chip:hover { border-color: var(--accent); }
   .card a.more { display: inline-block; margin-top: 10px; font-weight: 600; text-decoration: none; }
+  /* laid out for five tiles: 5 in a row, then 2 + 3, then 1 + 2 + 2 */
+  .projects { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; margin-top: 12px; }
+  .proj {
+    display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    overflow: hidden; box-shadow: var(--shadow); color: var(--ink); text-decoration: none;
+  }
+  .proj:hover { border-color: var(--accent); }
+  .proj:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .proj img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-bottom: 1px solid var(--line); }
+  .proj b { padding: 10px 12px 0; font-size: 15px; line-height: 1.35; }
+  .proj span { padding: 2px 12px 12px; font-size: 14px; line-height: 1.45; color: var(--muted); }
   footer { padding: 32px 0 48px; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 20px; justify-content: space-between; }
 
   @media (max-width: 860px) {
     .hero .wrap, .g2 { grid-template-columns: minmax(0, 1fr); }
     .g4, .g3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .projects { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .proj { grid-column: span 2; }
+    .proj:nth-child(-n+2) { grid-column: span 3; }
   }
   @media (max-width: 520px) {
     body { font-size: 16px; }
     .wrap { padding: 0 16px; }
     .g4, .g3 { grid-template-columns: minmax(0, 1fr); }
+    .projects { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .proj, .proj:nth-child(-n+2) { grid-column: auto; }
+    .proj:first-child { grid-column: 1 / -1; }
     .step { grid-template-columns: 36px minmax(0, 1fr); gap: 12px; }
     .num { width: 34px; height: 34px; font-size: 17px; }
     .say { font-size: 19px; }
@@ -366,9 +383,10 @@ code De10LiteBKM</code></pre>
   <div class="wrap">
     <span class="stage-tag">Stage 3 · Build anything</span>
     <h2>Ask for it, and the AI builds it on your board</h2>
-    <p class="sub">Every capability of the board is a verified example and a skill the AI knows: a page that explains it,
-    the full Quartus project and a bitstream you can load right away. The AI combines them into what you ask for, tests it in
-    simulation, and proves it on the board: it reads the screen and the board's messages back over the USB cable.</p>
+    <p class="sub">Every capability of the board is a verified example and a skill the AI knows: a page that explains it
+    and the full Quartus project, which one build turns into the bitstream you load. The AI combines them into what
+    you ask for, tests it in simulation, and proves it on the board: it reads the screen and the board's messages back
+    over the USB cable.</p>
     <div class="chips">
       <a class="chip" href="examples/01_pll_clocks/index.html">01 PLL and clocks</a>
       <a class="chip" href="examples/02_rom/index.html">02 ROM</a>
@@ -385,17 +403,18 @@ code De10LiteBKM</code></pre>
       <a class="chip" href="examples/14_usb_sdram_loader/index.html">14 Fill the SDRAM from the PC</a>
       <a class="chip" href="examples/15_sdram_stream_fabric/index.html">15 Stream the SDRAM into compute units</a>
     </div>
-    <p style="margin-top:16px"><a class="btn primary" href="examples/index.html">All examples</a> <a class="btn" href="projects/index.html">Projects: whole designs</a></p>
-    <p>From these pieces the AI builds whole designs: <a href="projects/pacman/index.html">Pac-Man</a> (the arcade maze, four
-    ghosts with the arcade AI, sound, levels), <a href="projects/riscv_tetris/index.html">RISC-V Tetris</a> (a RISC-V CPU
-    in Verilog, a C compiler and a simulator written for it, and Tetris in C running on it),
-    <a href="projects/fft_lab/index.html">FFT Lab</a> (a wave generator, a scope, and our own FFT beside Altera's FFT IP on
-    the same samples), the <a href="projects/accel_cube/index.html">Accelerometer Cube</a> (the board's tilt as a shaded
-    3D cube on the screen, from the on-board accelerometer, with the live acceleration as numbers, bars and an arrow)
-    and <a href="projects/invaders/index.html">Space Invaders</a> (the 1978 arcade game with no CPU and no frame buffer,
-    its rules taken from the arcade's own program).
-    Each project comes with an overview, an architecture spec, a user guide and the full Quartus
-    project.</p>
+    <p style="margin-top:16px"><a class="btn primary" href="examples/index.html">All examples</a></p>
+    <h3 class="block-title">Whole designs built from these pieces</h3>
+    <div class="projects">
+      <a class="proj" href="projects/invaders/index.html"><img src="projects/invaders/media/screen_play.png" alt="" width="640" height="480" loading="lazy"><b>Space Invaders</b><span>The 1978 arcade game with no CPU and no frame buffer</span></a>
+      <a class="proj" href="projects/accel_cube/index.html"><img src="projects/accel_cube/media/screen_spin.png" alt="" width="640" height="480" loading="lazy"><b>Accelerometer Cube</b><span>The board's tilt as a shaded 3D cube</span></a>
+      <a class="proj" href="projects/fft_lab/index.html"><img src="projects/fft_lab/media/screen_default.png" alt="" width="640" height="480" loading="lazy"><b>FFT Lab</b><span>A wave generator, a scope, our FFT beside Altera's</span></a>
+      <a class="proj" href="projects/riscv_tetris/index.html"><img src="projects/riscv_tetris/media/screen_play.png" alt="" width="640" height="480" loading="lazy"><b>RISC-V Tetris</b><span>A RISC-V CPU, a C compiler for it, Tetris in C</span></a>
+      <a class="proj" href="projects/pacman/index.html"><img src="projects/pacman/media/screen_attract.png" alt="" width="640" height="480" loading="lazy"><b>Pac-Man</b><span>The arcade maze, four ghosts with the arcade AI, sound, levels</span></a>
+    </div>
+    <p class="sub" style="margin:16px 0 12px">Each project comes with an overview, an architecture spec, a user guide and the
+    full Quartus project.</p>
+    <p><a class="btn primary" href="projects/index.html">All projects</a></p>
   </div>
 </section>
 

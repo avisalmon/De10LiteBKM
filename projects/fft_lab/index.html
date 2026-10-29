@@ -8,14 +8,14 @@
 <link rel="stylesheet" href="../project.css">
 </head>
 <body>
+<header class="top"><div class="wrap"><a class="brand" href="../../index.html"><span class="brand-dot" aria-hidden="true"></span><span class="brand-name">DE10-Lite FPGA BKM</span></a><nav class="nav" aria-label="Site"><a href="../../examples/index.html">Examples</a><a href="../index.html">Projects</a><a href="https://github.com/avisalmon/De10LiteBKM/tree/main/projects/fft_lab">GitHub</a></nav></div></header>
 <main>
+<header class="cover"><div class="cover-text">
 <nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / FFT Lab</nav>
 <h1>FFT Lab</h1>
 <p class="lead">A small signal lab on one screen. A wave generator makes six shapes at a frequency you set with the shield's
 wheel; the top half of the screen is a scope, the bottom half shows the spectrum twice: our own 256-point FFT on the left,
-Altera's FFT IP on the right. Both get the same samples in the same clocks, and each shows how long it took: 6,145 clocks
-for ours, 1,637 for the IP. Every pixel was checked against a bit-exact Python model, in simulation and on the board.</p>
-<nav class="pages"><a class="here" href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a><a href="tutorial.html">Tutorial</a></nav>
+Altera's FFT IP on the right.</p>
 <div class="badges">
   <span class="badge ok">Runs on the board</span>
   <span class="badge">Quartus Prime Lite 17.1</span>
@@ -29,6 +29,10 @@ for ours, 1,637 for the IP. Every pixel was checked against a bit-exact Python m
   <a class="btn alt" href="guide.html#build">Build and load it</a>
   <a class="btn alt" href="tutorial.html">Tutorial: what you see and why</a>
 </div>
+</div><figure class="cover-img"><img src="media/screen_default.png" alt="The lab right after loading: SINE 1000.0 HZ at the top, ten cycles of a green sine, one tall cyan bar in our spectrum and one orange bar in the IP's, with their times 6145 CLK 245.80US and 1637 CLK 65.48US." width="640" height="480"></figure></header>
+<nav class="pages"><a aria-current="page" class="here" href="index.html">Overview</a><a href="spec.html">Architecture spec</a><a href="guide.html">User guide</a><a href="tutorial.html">Tutorial</a></nav>
+<p>Both get the same samples in the same clocks, and each shows how long it took: 6,145 clocks
+for ours, 1,637 for the IP. Every pixel was checked against a bit-exact Python model, in simulation and on the board.</p>
 <p class="note">No bitstream in the repo (a <code>.sof</code> is 3 MB per project): restore the <code>.qar</code> or use the sources here,
 one build makes it in about 4 minutes. The Altera FFT IP runs in evaluation mode in Quartus Lite (free, no license):
 the build writes only a time-limited <code>fft_lab_time_limited.sof</code>, which keeps running while the programmer stays
