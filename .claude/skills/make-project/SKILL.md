@@ -28,7 +28,8 @@ a predictive bot, a mutation test, 10 board presets 0 pixels different).
 
 ```text
 projects/<name>/
-  index.html          overview: lead, badges, downloads, RESOURCES (always the first section), contents, what you will
+  index.html          overview: the cover (title, the lead's first sentence, badges, downloads, beside the project's one
+                      picture), the rest of the lead, RESOURCES (always the first section), contents, what you will
                       see (2 pictures), block diagram (inline SVG), how it flows, numbers, how it was tested, review log,
                       status, files, footer
   spec.html           architecture spec: requirements, modules and ports, clock domains and crossings, memories,
@@ -40,8 +41,10 @@ projects/<name>/
   <name>.qpf/.qsf/.sdc   python scripts/new_project.py projects/<name> <top> --lib ...
   src/ sim/ assets/ media/        sources, testbench(es), generated data + generators, pictures (< 600 kB each)
   ip/                 generated Altera IP (ip-generate output and its generator script), added with --file ip/<x>/<x>.qip
-projects/index.html   the portal: one card per project (picture, one line, status tag)
-projects/project.css  the shared style; projects/_template/ the pages with FILL IN marks (tutorial.html optional)
+projects/index.html   the portal: a gallery, one card per project (its picture, what it is, status pills, what is
+                      still to check by hand); the newest project gets the wide card
+projects/project.css  the shared style: the start page's look (top bar, colours, light and dark); projects/_template/
+                      the pages with FILL IN marks (tutorial.html optional)
 ```
 `tests/test_projects.py` checks all of it (files, sections, Resources first, links, no bitstreams, portal card,
 start-page link, and that the project stands on its own).
@@ -82,7 +85,8 @@ and a fix in an example never silently changes a published project. The test che
    reserved words as names, every warning that comes from your files (`grep Warning logs/build.log | grep <file>`;
    the library's and "pin stuck at" ones are known). Re-simulate and rebuild after the review; keep the numbers.
 4. **Pictures**: `media/screen_*.png` from `de10.py screen`, `media/board.jpg` from `de10.py cam` (crop if it helps),
-   a preview or waveform if it explains something. Under 600 kB each. A tutorial's pictures come from a script that
+   a preview or waveform if it explains something. Under 600 kB each. Choose one of them as the project's picture: the
+   overview's cover, the small picture on the other pages, the portal card and the start page's strip all use it. A tutorial's pictures come from a script that
    checks each one against the model (below).
 5. **Pages**: copy `projects/_template/*.html`, replace every `FILL IN` (delete `tutorial.html` when there is nothing to
    try). The overview answers "what will I see and why does it work"; the spec answers "where does every bit live and
@@ -90,11 +94,12 @@ and a fix in an example never silently changes a published project. The test che
    "what can I try, what will I see, and why". Resources first, from `de10.py report --html` (above); the "Numbers" section
    keeps only what is not a resource (speed, latency, build time, warnings). The review log from step 3; the status table
    says what was verified by the machine, what only a person can check, and what was left out on purpose.
-6. **Pack and link**: `de10.py pack projects/<name>` (the `.qar`), a card on `projects/index.html`, the start page's
-   projects chip if the project is a headline, `README.md` if it changes the pitch. Quartus archives every file the
-   last build read, so `pack` refuses when that includes files from outside the project and `lib/` (`build` warns):
-   after moving sources, delete `db/` and `incremental_db/` in the build folder (the local copy, for a OneDrive
-   project) and build again (gotcha 29). Prove the archive once: copy it to a path without spaces,
+6. **Pack and link**: `de10.py pack projects/<name>` (the `.qar`), a card on `projects/index.html` (it takes over the
+   wide card), a tile in the start page's project strip (`#stage3`, `div.projects`; its grid is laid out for five tiles, so a sixth
+   means rebalancing it or choosing five), `README.md` if it changes the
+   pitch. Quartus archives every file the last build read, so `pack` refuses when that includes files from outside
+   the project and `lib/` (`build` warns): after moving sources, delete `db/` and `incremental_db/` in the build
+   folder (the local copy, for a OneDrive project) and build again (gotcha 29). Prove the archive once: copy it to a path without spaces,
    `quartus_sh --restore <name>.qar -output out`, compile in `out\projects\<name>` with
    `quartus_sh --flow compile <name>` (the archive keeps the repo's layout, gotcha 57) and compare the Checksum in
    `output_files/<name>.asm.rpt` with your build's.

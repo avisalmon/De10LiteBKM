@@ -1,7 +1,9 @@
 # Project template
 
 Copy this folder to `projects/<name>/` (the `make-project` skill does it), replace every `FILL IN` in the three pages,
-and keep the sections: `tests/test_projects.py` checks them. The pages share `../project.css`. `tutorial.html` is the
+and keep the sections: `tests/test_projects.py` checks them. The pages share `../project.css`. Each page opens with
+the project's one picture (`media/screen_*.png`): the cover on the overview, a small one on the other pages; the
+portal card and the start page's strip use the same picture. `tutorial.html` is the
 optional fourth page: keep it when the design has things to try and ideas to learn from it, or delete it.
 
 ```text

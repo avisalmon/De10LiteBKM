@@ -8,12 +8,15 @@
 <link rel="stylesheet" href="../project.css">
 </head>
 <body>
+<header class="top"><div class="wrap"><a class="brand" href="../../index.html"><span class="brand-dot" aria-hidden="true"></span><span class="brand-name">DE10-Lite FPGA BKM</span></a><nav class="nav" aria-label="Site"><a href="../../examples/index.html">Examples</a><a href="../index.html">Projects</a><a href="https://github.com/avisalmon/De10LiteBKM/tree/main/projects/pacman">GitHub</a></nav></div></header>
 <main>
+<header class="cover compact"><div class="cover-text">
 <nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Projects</a> / <a href="index.html">Pac-Man</a> / Architecture spec</nav>
 <h1>Pac-Man: architecture spec</h1>
 <p class="lead">What each module is, what crosses between them, where every bit of state lives, and the budgets (clocks per
 frame, memory, logic). Written for someone who will change the design or build the next game on it.</p>
-<nav class="pages"><a href="index.html">Overview</a><a class="here" href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
+</div><img class="cover-thumb" src="media/screen_attract.png" alt="" width="640" height="480"></header>
+<nav class="pages"><a href="index.html">Overview</a><a aria-current="page" class="here" href="spec.html">Architecture spec</a><a href="guide.html">User guide</a></nav>
 
 <h2>Contents</h2>
 <ol class="toc">
@@ -205,7 +208,7 @@ The output drives <code>ARDUINO_IO[12]</code>, the shield's buzzer line.</p>
 <h2 id="budget">Budgets</h2>
 <div class="tablewrap"><table class="kv">
 <tr><td>Logic</td><td>9,504 / 49,760 LEs (19 %); 5,016 registers; 8 of 288 9-bit multipliers</td></tr>
-<tr><td>Memory</td><td>1,063,680 / 1,677,312 bits (63 %), of which the game is 124,928 + 2,048 and the rest is the debug capture, the LCD command ROM and the ADC sample store</td></tr>
+<tr><td>Memory</td><td>1,063,680 / 1,677,312 bits (63 %), of which the game is 124,928 (the wall picture 122,880, the dots 2,048) and the rest is the debug capture, the LCD command ROM and the ADC sample store</td></tr>
 <tr><td>Clocks per frame</td><td>≈ 130 used of 36,000 available in vertical blank (0.4 %)</td></tr>
 <tr><td>Timing</td><td>met on all three clocks with the generated .sdc (<code>create_clock</code> on the 50 MHz input, <code>derive_pll_clocks</code>)</td></tr>
 <tr><td>Headroom</td><td>room for fruit, pop-up scores, a second maze, or dropping the capture buffer (frees 55 % of memory)</td></tr>

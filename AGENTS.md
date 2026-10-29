@@ -40,14 +40,16 @@ board (stage 3). You install, build, simulate, program, read the board back (scr
   `load-sdram-usb` (14).
 * The SDRAM streamed at full speed into several compute units (FIFOs, bursts, write-back, int8 matrix-vector,
   PC registers over JTAG): the data-flow layer for an LLM on the board -> `stream-from-sdram` (15).
-* Tilt, gravity, the accelerometer, any SPI chip -> `read-accelerometer` (07).
+* Tilt, gravity, the accelerometer, any SPI chip -> `read-accelerometer` (07; a whole design: `projects/accel_cube`).
 * Switches, keys, LEDs, the 7-segment display -> `use-board-io` (08).
 * An Altera IP core, a megafunction, FIFO / divider / square root, licensing -> `use-ip-library` (10, 11).
-* A spectrum, an FFT -> `compute-fft` (11). Multiply, MAC, filters, Fmax -> `use-dsp-multipliers` (12).
+* A spectrum, an FFT -> `compute-fft` (11; a whole design: `projects/fft_lab`). Multiply, MAC, filters, Fmax ->
+  `use-dsp-multipliers` (12).
 * Keep the design after power-off, write the flash -> `flash-design` (13).
 * A whole design to publish: a new project, its pages (overview, spec, guide, a tutorial), its review, the portal ->
   `make-project` (`projects/`, standard folder; Pac-Man is the model).
-* A game: Pac-Man, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game` (`projects/pacman`).
+* A game: Pac-Man, Space Invaders, Snake, Breakout, a maze, sprites, enemies, score, sound -> `build-arcade-game`
+  (`projects/pacman`, `projects/invaders`).
 * A CPU, a processor, RISC-V, running C or assembly on the FPGA, a text screen, memory-mapped I/O, an assembler or
   compiler -> `build-soft-cpu` (`projects/riscv_tetris`).
 
