@@ -76,7 +76,7 @@ wire	[31:0]	wdata;
 wire				we, jbusy;
 reg	[31:0]	rdata;
 jtag_regs #(.INSTANCE(1), .ID(32'h4D54_1501)) regs(.clk(clk), .rst_n(rst_n), .addr(addr), .wdata(wdata),
-	.we(we), .rdata(rdata), .busy(jbusy));
+	.we(we), .rdata(rdata), .hold(1'b0), .fetch(), .busy(jbusy));
 
 wire				sel_test = (addr[15:5] == 11'd0);
 wire				sel_top  = (addr[15:5] == 11'd1);

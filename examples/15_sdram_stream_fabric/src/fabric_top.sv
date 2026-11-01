@@ -111,7 +111,7 @@ wire	[31:0]	wdata;
 wire				we, jbusy;
 wire	[31:0]	rdata;
 jtag_regs #(.INSTANCE(1), .ID(ID)) regs(.clk(clk), .rst_n(rst_n), .addr(addr), .wdata(wdata),
-	.we(we), .rdata(rdata), .busy(jbusy)
+	.we(we), .rdata(rdata), .hold(1'b0), .fetch(), .busy(jbusy)
 `ifdef FABRIC_TOP_SIM
 	, .sim_tck(sim_tck), .sim_tdi(sim_tdi_regs), .sim_ir_in(sim_ir_regs), .sim_cdr(sim_cdr_regs),
 	.sim_sdr(sim_sdr_regs), .sim_udr(sim_udr_regs), .sim_uir(sim_uir_regs), .sim_tdo(sim_tdo_regs)

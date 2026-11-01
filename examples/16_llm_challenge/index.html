@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>16 The TinyStories LLM challenge</title>
+<meta name="description" content="An open challenge: run a 15-million-parameter TinyStories language model on the DE10-Lite FPGA, any way you like, and tell the same stories as the float32 Python reference, faster than the organizer. The model, how it works, the reference code, the rules, the scoreboard.">
+<link rel="stylesheet" href="../example.css">
+<style>
+.video{position:relative;width:100%;max-width:720px;aspect-ratio:16/9;margin:18px auto}
+.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:10px}
+table.kv td:first-child{white-space:nowrap;font-weight:600}
+.small{font-size:12px;color:var(--muted)}
+.rules li{margin:8px 0}
+.story{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 18px;margin:12px 0;
+  font-family:Georgia,"Times New Roman",serif;font-size:17px;line-height:1.5}
+.story b{font-family:inherit;color:var(--accent)}
+</style>
+</head>
+<body>
+<main>
+<nav class="crumbs"><a href="../../index.html">DE10-Lite BKM</a> / <a href="../index.html">Examples</a> / 16</nav>
+<h1>16 · The TinyStories LLM challenge</h1>
+<p class="lead">A language model with <b>15 million parameters</b> runs on the DE10-Lite and tells children's stories on the
+shield's screen. It is the real thing: Karpathy's <code>stories15M</code>, a small Llama-2-style transformer trained on the
+TinyStories dataset, computed token by token on the board; with the temperature at zero, every story comes out word for
+word as the float32 reference in Python. The current record is <b>26.16 tokens per second</b> over the official set of six
+stories (192 tokens in 7.34 s), measured on the board on 2026-10-31. <b>This page is a challenge, not a recipe:</b> it gives
+you the model, the Python reference that defines the right answer, the rules and the scoreboard, and nothing about how
+the record was built. Beat it on a DE10-Lite, any way you like.</p>
+<div class="badges">
+  <span class="badge ok">Record 26.16 tok/s on the board, 2026-10-31, six official stories identical to the reference</span>
+  <span class="badge">Open to anyone with a DE10-Lite</span>
+  <span class="badge">Shield optional: VGA or USB text are fine</span>
+  <span class="badge">Model: stories15M, 15,191,712 parameters, MIT</span>
+</div>
+<div class="downloads">
+  <a class="btn" href="ref/tinystories_ref.py" download>tinystories_ref.py (the float32 reference and the checker)</a>
+  <a class="btn" href="ref/reference_stories.json" download>reference_stories.json (the six official stories)</a>
+  <a class="btn alt" href="#rules">The rules</a>
+  <a class="btn alt" href="#score">The scoreboard</a>
+</div>
+<p class="note">Everything on this page is public and free: the model and tokenizer files come from the open
+<a href="https://github.com/karpathy/llama2.c">llama2.c</a> project (MIT), the dataset is
+<a href="https://arxiv.org/abs/2305.07759">TinyStories</a> (Eldan and Li, 2023), and the reference script here needs only Python
+and numpy. The hardware design that holds the record is deliberately not published, so that everyone starts from the same
+place: the model, a board, and the reference.</p>
+
+<h2 id="see">What you see</h2>
+<div class="video"><iframe src="https://www.youtube.com/embed/3uAi1w1iltc" title="The TinyStories model telling a story on the DE10-Lite"
+  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></div>
+<p>The board is a Terasic DE10-Lite (a MAX 10 FPGA with 50k logic elements, 64 MB of SDRAM and nothing else that computes)
+with its LCD and game-pad shield. The pad picks a prompt and a length, <b>Start</b> tells the story: the words appear on the
+screen as the model produces them, and the bottom line counts the tokens and the speed. There is no computer in the loop
+while the story is told; the PC is only used before the run, to put the model's parameters into the board's memory and to
+read the results back for checking.</p>
+<div class="story"><b>Once upon a</b> time, there was a little girl named Lily. She loved to play outside in the sunshine.
+One day, she saw a big, red ball</div>
+<p class="note">That is the official story number 2: the prompt in bold, then exactly 32 new tokens (a token is a word or a
+piece of one; 32 tokens are about 25 words). The float32 reference in Python produces these words, and so must your board.</p>
+
+<h2 id="model">The model, every number</h2>
+<p><code>stories15M</code> is one of the "tinyllamas" Andrej Karpathy trained for <a href="https://github.com/karpathy/llama2.c">llama2.c</a>
+on the TinyStories dataset: 2.1 million short stories written in the vocabulary of a four-year-old, made to let very small
+models learn to tell coherent stories. The architecture is Llama 2's, shrunk: the same blocks (RMSNorm, rotary position
+embeddings, multi-head attention with a key-value cache, a SwiGLU feed-forward network, a shared classifier), six layers deep,
+288 wide.</p>
+<div class="tablewrap"><table class="kv">
+<tr><th>Quantity</th><th>Value</th><th>Meaning</th></tr>
+<tr><td>dim</td><td>288</td><td>the width of the residual stream: every token is a vector of 288 numbers between the layers</td></tr>
+<tr><td>hidden_dim</td><td>768</td><td>the width inside the feed-forward network (288 &rarr; 768 &rarr; 288)</td></tr>
+<tr><td>n_layers</td><td>6</td><td>transformer blocks, one after the other</td></tr>
+<tr><td>n_heads</td><td>6</td><td>attention heads per layer, each 48 wide (6 &times; 48 = 288)</td></tr>
+<tr><td>n_kv_heads</td><td>6</td><td>key/value heads: the same number, so there is no grouped-query sharing</td></tr>
+<tr><td>head_size</td><td>48</td><td>dim / n_heads; RoPE rotates 24 pairs per head</td></tr>
+<tr><td>vocab_size</td><td>32,000</td><td>tokens the model knows (Llama 2's SentencePiece vocabulary)</td></tr>
+<tr><td>seq_len</td><td>256</td><td>the longest sequence it was trained on, prompt included: a story stops there</td></tr>
+<tr><td>shared classifier</td><td>yes</td><td>the output layer reuses the token-embedding matrix (no separate 32,000 &times; 288 weights)</td></tr>
+<tr><td>parameters</td><td>15,191,712</td><td>counted below; the "15M" of the name</td></tr>
+<tr><td>numbers in the file</td><td>15,204,000</td><td>the parameters plus two RoPE tables of 256 &times; 24 (not learned, so not parameters)</td></tr>
+<tr><td>file size</td><td>60,816,028 bytes</td><td>a 28-byte header + 15,204,000 float32 values, little-endian</td></tr>
+<tr><td>multiply-adds per token</td><td>15,187,968 + attention</td><td>the matrices alone; attention adds 6 &times; 2 &times; (position + 1) &times; 288, at most 884,736 at position 255</td></tr>
+<tr><td>weights touched per token</td><td>57.9 MB as float32</td><td>every parameter is used for every token, once</td></tr>
+<tr><td>sampling in this challenge</td><td>temperature 0</td><td>always the most probable token (argmax; the lowest id on a tie), so the story is fully determined</td></tr>
+</table></div>
+
+<h3>The tensors, in file order</h3>
+<p>The file is the llama2.c "version 0" checkpoint: seven <code>int32</code> header fields
+(<code>dim, hidden_dim, n_layers, n_heads, n_kv_heads, vocab_size, seq_len</code>; a positive <code>vocab_size</code> means the
+classifier is shared), then the tensors below, one after the other, as <code>float32</code>.</p>
+<div class="tablewrap"><table>
+<tr><th>Tensor</th><th>Shape</th><th>Numbers</th><th>Parameters?</th><th>Role</th></tr>
+<tr><td><code>tok_embeddings</code></td><td>32000 &times; 288</td><td>9,216,000</td><td>yes</td><td>token id &rarr; vector; reused as the classifier (vector &rarr; 32,000 scores)</td></tr>
+<tr><td><code>rms_att_weight</code></td><td>6 &times; 288</td><td>1,728</td><td>yes</td><td>the scale of the norm before attention, per layer</td></tr>
+<tr><td><code>wq</code></td><td>6 &times; 288 &times; 288</td><td>497,664</td><td>yes</td><td>queries</td></tr>
+<tr><td><code>wk</code></td><td>6 &times; 288 &times; 288</td><td>497,664</td><td>yes</td><td>keys</td></tr>
+<tr><td><code>wv</code></td><td>6 &times; 288 &times; 288</td><td>497,664</td><td>yes</td><td>values</td></tr>
+<tr><td><code>wo</code></td><td>6 &times; 288 &times; 288</td><td>497,664</td><td>yes</td><td>the attention output projection</td></tr>
+<tr><td><code>rms_ffn_weight</code></td><td>6 &times; 288</td><td>1,728</td><td>yes</td><td>the scale of the norm before the feed-forward network</td></tr>
+<tr><td><code>w1</code></td><td>6 &times; 768 &times; 288</td><td>1,327,104</td><td>yes</td><td>feed-forward "gate" (goes through SiLU)</td></tr>
+<tr><td><code>w2</code></td><td>6 &times; 288 &times; 768</td><td>1,327,104</td><td>yes</td><td>feed-forward "down" (768 &rarr; 288)</td></tr>
+<tr><td><code>w3</code></td><td>6 &times; 768 &times; 288</td><td>1,327,104</td><td>yes</td><td>feed-forward "up" (multiplied with the gate)</td></tr>
+<tr><td><code>rms_final_weight</code></td><td>288</td><td>288</td><td>yes</td><td>the scale of the last norm, before the classifier</td></tr>
+<tr><td><code>freq_cis_real</code></td><td>256 &times; 24</td><td>6,144</td><td>no</td><td>cos table for RoPE (a function of position, derivable)</td></tr>
+<tr><td><code>freq_cis_imag</code></td><td>256 &times; 24</td><td>6,144</td><td>no</td><td>sin table for RoPE</td></tr>
+<tr><td><b>total</b></td><td></td><td><b>15,204,000</b></td><td><b>15,191,712</b></td><td>60,816,028 bytes with the header</td></tr>
+</table></div>
+<p>A layer's matrices come to 4 &times; 288 &times; 288 + 3 &times; 768 &times; 288 = 995,328 multiply-adds per token; six layers
+and the 32,000 &times; 288 classifier give the 15,187,968 above. The classifier is 61 % of all the work and 61 % of all the
+weights: one token's score for every word the model knows.</p>
+
+<h3>The tokenizer</h3>
+<p><code>tokenizer.bin</code> is Llama 2's SentencePiece vocabulary in llama2.c's flat form: an <code>int32</code> with the
+longest piece (27 bytes), then 32,000 entries of <code>float32 score, int32 length, bytes</code>. Pieces starting with
+<code>&#9601;</code> (U+2581) carry a leading space. Encoding is byte-pair merging: the text is split into bytes, then the pair
+with the best score is merged, again and again, until no pair is a known piece. A story starts with <b>BOS</b> (id 1); the model
+may end one with <b>EOS</b> (id 2). <code>"Once upon a"</code> encodes to <code>[1, 9038, 2501, 263]</code>; the reference script's
+<code>tell --ids</code> shows the ids of any text.</p>
+
+<h3>Where it comes from</h3>
+<div class="tablewrap"><table>
+<tr><th>File</th><th>Source</th><th>Bytes</th><th>SHA-256</th></tr>
+<tr><td><code>stories15M.bin</code></td><td><a href="https://huggingface.co/karpathy/tinyllamas">huggingface.co/karpathy/tinyllamas</a></td><td>60,816,028</td><td><code>cd590644 d963867a 2b6e5a11 07f51fad 663c41d7 9c149fbe cbbb1f95 fa81f49a</code></td></tr>
+<tr><td><code>tokenizer.bin</code></td><td><a href="https://github.com/karpathy/llama2.c">github.com/karpathy/llama2.c</a></td><td>433,869</td><td><code>50a52ef8 22ee9e83 de5ce9d0 be0a025a 773d0194 37f58b5f f9dcafb0 63ece361</code></td></tr>
+</table></div>
+<p>Both are MIT-licensed (llama2.c). The dataset is <a href="https://huggingface.co/datasets/roneneldan/TinyStories">roneneldan/TinyStories</a>,
+described in <a href="https://arxiv.org/abs/2305.07759">"TinyStories: How Small Can Language Models Be and Still Speak Coherent
+English?"</a> (Ronen Eldan and Yuanzhi Li, 2023). <code>tinystories_ref.py download</code> fetches both files and checks the
+hashes: a different hash is a different model, and a different model is a different challenge.</p>
+
+<h2 id="how">How the model works: one token's journey</h2>
+<p>A language model does one thing: given the tokens so far, it scores every token of the vocabulary as the next one. Telling
+a story is doing that again and again, feeding each chosen token back in. Here is what happens to one token in
+<code>stories15M</code>; the Python reference below does exactly this, in about 150 lines.</p>
+<div class="diagram"><svg viewBox="0 0 920 330" role="img" aria-label="One token flows through the embedding table, six identical layers of attention and feed-forward blocks with residual additions, a final norm, the shared classifier and argmax; the chosen token feeds back to the input.">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--d-stroke)"/></marker></defs>
+<rect class="pin" x="10" y="24" width="100" height="34" rx="6"/><text x="60" y="40" text-anchor="middle">token id</text><text class="small" x="60" y="53" text-anchor="middle">e.g. 2501 "upon"</text>
+<line class="wire" x1="110" y1="41" x2="138" y2="41" marker-end="url(#ah)"/>
+<rect class="ip" x="140" y="24" width="150" height="34" rx="6"/><text x="215" y="40" text-anchor="middle">embedding table</text><text class="small" x="215" y="53" text-anchor="middle">32000 x 288: take one row</text>
+<line class="wire" x1="290" y1="41" x2="318" y2="41" marker-end="url(#ah)"/><text class="small" x="304" y="70" text-anchor="middle">x: 288</text>
+<rect x="320" y="8" width="590" height="190" rx="10" fill="none" stroke="var(--d-stroke)" stroke-dasharray="6 4"/><text class="small" x="330" y="190">one layer, repeated 6 times (the output of one is the input of the next)</text>
+<line class="wire" x1="320" y1="41" x2="320" y2="20"/><line class="wire" x1="320" y1="20" x2="805" y2="20"/><line class="wire" x1="805" y1="20" x2="805" y2="42" marker-end="url(#ah)"/><text class="small" x="560" y="17" text-anchor="middle">residual: x is carried past the block and added back</text>
+<line class="wire" x1="320" y1="41" x2="333" y2="41" marker-end="url(#ah)"/>
+<rect class="blk" x="335" y="30" width="78" height="30" rx="6"/><text x="374" y="49" text-anchor="middle">RMSNorm</text>
+<line class="wire" x1="413" y1="45" x2="423" y2="45" marker-end="url(#ah)"/>
+<rect class="ip" x="425" y="30" width="92" height="30" rx="6"/><text x="471" y="44" text-anchor="middle">Wq Wk Wv</text><text class="small" x="471" y="56" text-anchor="middle">3 x 288x288</text>
+<line class="wire" x1="517" y1="45" x2="527" y2="45" marker-end="url(#ah)"/>
+<rect class="blk" x="529" y="30" width="58" height="30" rx="6"/><text x="558" y="49" text-anchor="middle">RoPE</text>
+<line class="wire" x1="587" y1="45" x2="597" y2="45" marker-end="url(#ah)"/>
+<rect class="blk" x="599" y="30" width="110" height="30" rx="6"/><text x="654" y="44" text-anchor="middle">attention</text><text class="small" x="654" y="56" text-anchor="middle">6 heads x 48</text>
+<rect class="ip" x="599" y="70" width="110" height="24" rx="6"/><text class="small" x="654" y="86" text-anchor="middle">KV cache: 256 positions</text>
+<line class="wire" x1="654" y1="70" x2="654" y2="62" marker-end="url(#ah)"/>
+<line class="wire" x1="709" y1="45" x2="719" y2="45" marker-end="url(#ah)"/>
+<rect class="ip" x="721" y="30" width="60" height="30" rx="6"/><text x="751" y="44" text-anchor="middle">Wo</text><text class="small" x="751" y="56" text-anchor="middle">288x288</text>
+<line class="wire" x1="781" y1="45" x2="792" y2="45" marker-end="url(#ah)"/>
+<circle cx="805" cy="55" r="11" fill="var(--d-block)" stroke="var(--d-stroke)"/><text x="805" y="60" text-anchor="middle">+</text>
+<line class="wire" x1="805" y1="66" x2="805" y2="134"/>
+<line class="wire" x1="805" y1="100" x2="374" y2="100"/><line class="wire" x1="374" y1="100" x2="374" y2="118" marker-end="url(#ah)"/>
+<rect class="blk" x="335" y="120" width="78" height="30" rx="6"/><text x="374" y="139" text-anchor="middle">RMSNorm</text>
+<line class="wire" x1="413" y1="135" x2="423" y2="135" marker-end="url(#ah)"/>
+<rect class="ip" x="425" y="120" width="92" height="30" rx="6"/><text x="471" y="134" text-anchor="middle">W1, W3</text><text class="small" x="471" y="146" text-anchor="middle">2 x 768x288</text>
+<line class="wire" x1="517" y1="135" x2="527" y2="135" marker-end="url(#ah)"/>
+<rect class="blk" x="529" y="120" width="120" height="30" rx="6"/><text x="589" y="134" text-anchor="middle">SiLU(h1) * h3</text><text class="small" x="589" y="146" text-anchor="middle">768 numbers</text>
+<line class="wire" x1="649" y1="135" x2="659" y2="135" marker-end="url(#ah)"/>
+<rect class="ip" x="661" y="120" width="60" height="30" rx="6"/><text x="691" y="134" text-anchor="middle">W2</text><text class="small" x="691" y="146" text-anchor="middle">288x768</text>
+<line class="wire" x1="721" y1="135" x2="792" y2="135" marker-end="url(#ah)"/>
+<circle cx="805" cy="145" r="11" fill="var(--d-block)" stroke="var(--d-stroke)"/><text x="805" y="150" text-anchor="middle">+</text>
+<line class="wire" x1="805" y1="156" x2="805" y2="248" marker-end="url(#ah)"/>
+<rect class="blk" x="740" y="250" width="130" height="34" rx="6"/><text x="805" y="266" text-anchor="middle">final RMSNorm</text><text class="small" x="805" y="279" text-anchor="middle">288</text>
+<line class="wire" x1="740" y1="267" x2="717" y2="267" marker-end="url(#ah)"/>
+<rect class="ip" x="500" y="250" width="215" height="34" rx="6"/><text x="607" y="266" text-anchor="middle">classifier = the embedding table</text><text class="small" x="607" y="279" text-anchor="middle">288 -> 32,000 scores (9,216,000 MACs)</text>
+<line class="wire" x1="500" y1="267" x2="482" y2="267" marker-end="url(#ah)"/>
+<rect class="blk" x="400" y="250" width="80" height="34" rx="6"/><text x="440" y="266" text-anchor="middle">argmax</text><text class="small" x="440" y="279" text-anchor="middle">temperature 0</text>
+<line class="wire" x1="400" y1="267" x2="372" y2="267" marker-end="url(#ah)"/>
+<rect class="pin" x="240" y="250" width="130" height="34" rx="6"/><text x="305" y="266" text-anchor="middle">next token id</text><text class="small" x="305" y="279" text-anchor="middle">to the screen, and back up</text>
+<line class="wire" x1="240" y1="267" x2="60" y2="267" stroke-dasharray="5 4"/><line class="wire" x1="60" y1="267" x2="60" y2="60" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+<text class="small" x="150" y="300" text-anchor="middle">a story is this loop, once per token</text>
+</svg></div>
+
+<h3>The steps, with their sizes</h3>
+<ol>
+<li><b>Embedding.</b> The token id selects one row of the 32,000 &times; 288 table: the token becomes a vector <i>x</i> of 288
+numbers. No arithmetic, one lookup.</li>
+<li><b>RMSNorm.</b> Before each block the vector is normalized: <i>x</i> &middot; 1/&radic;(mean(<i>x</i><sup>2</sup>) + 10<sup>-5</sup>),
+then multiplied element by element by a learned 288-vector. It keeps the numbers in a steady range.</li>
+<li><b>Queries, keys, values.</b> Three 288 &times; 288 matrices turn the normalized vector into <i>q</i>, <i>k</i>, <i>v</i>:
+3 &times; 82,944 multiply-adds. Each is seen as 6 heads of 48 numbers.</li>
+<li><b>RoPE</b> (rotary position embedding) tells attention <em>where</em> this token is: in each head the 48 numbers of
+<i>q</i> and of <i>k</i> are taken as 24 pairs, and pair <i>i</i> is rotated by the angle pos &middot; 10000<sup>-2<i>i</i>/48</sup>.
+The two 256 &times; 24 tables in the file are the cos and sin of those angles.</li>
+<li><b>The KV cache.</b> The rotated <i>k</i> and the <i>v</i> of this position are stored (per layer: 2 &times; 288 numbers per
+position, 256 positions) so that attention can look back without recomputing the past.</li>
+<li><b>Attention.</b> Per head: the score of each earlier position <i>t</i> is <i>q</i> &middot; <i>k<sub>t</sub></i> / &radic;48;
+softmax turns the scores into weights that sum to 1; the output is the weighted sum of the <i>v<sub>t</sub></i>. That is
+2 &times; 48 &times; (pos + 1) multiply-adds per head: the only work that grows with the length of the story.</li>
+<li><b>Output projection and residual.</b> The six heads' outputs (288 together) go through <code>Wo</code> (288 &times; 288) and
+are <em>added</em> to the vector that entered the block. The residual stream is why six layers can be stacked: each one adds
+a correction instead of replacing everything.</li>
+<li><b>The feed-forward network (SwiGLU).</b> RMSNorm again, then <i>h1</i> = <code>W1</code>&middot;<i>x</i> and
+<i>h3</i> = <code>W3</code>&middot;<i>x</i> (768 each), <i>h</i> = SiLU(<i>h1</i>) &middot; <i>h3</i> element by element with
+SiLU(<i>z</i>) = <i>z</i> / (1 + e<sup>-<i>z</i></sup>), then <code>W2</code>&middot;<i>h</i> back to 288, added to the stream.
+3 &times; 221,184 = 663,552 multiply-adds: two thirds of a layer.</li>
+<li><b>Six times.</b> Steps 2 to 8 are one layer; the vector goes through six of them with their own weights.</li>
+<li><b>The classifier.</b> A last RMSNorm, then the vector is dotted with every row of the embedding table: 32,000 scores
+(logits), 9,216,000 multiply-adds, 61 % of the token's work.</li>
+<li><b>Choosing.</b> At temperature 0 the next token is simply the highest score (on a tie, the lowest id). With a temperature
+above 0 the scores would be divided by it and sampled from; the challenge uses 0 so that there is exactly one right story.</li>
+<li><b>Prompt and generation.</b> The prompt's tokens (BOS first) are pushed through one by one just to fill the caches; from
+the last prompt token on, every output is appended and fed back. A story ends at EOS or at the length asked for; the
+caches hold 256 positions, so a story is never longer than that.</li>
+</ol>
+<div class="tablewrap"><table class="kv">
+<tr><th>Per generated token</th><th>Count</th></tr>
+<tr><td>multiply-adds in the matrices</td><td>15,187,968 (6 &times; 995,328 + 9,216,000)</td></tr>
+<tr><td>multiply-adds in attention</td><td>6 layers &times; 6 heads &times; 2 &times; 48 &times; (pos + 1) = 3,456 &times; (pos + 1); 124,416 at position 35</td></tr>
+<tr><td>weights read</td><td>all 15,191,712, once; as float32 that is 57.9 MB, which is why memory, not arithmetic, is the usual limit</td></tr>
+<tr><td>numbers written to the caches</td><td>6 &times; 2 &times; 288 = 3,456</td></tr>
+<tr><td>softmax, SiLU, RMSNorm</td><td>a few thousand non-linear operations: small, but exact enough to matter for the argmax</td></tr>
+<tr><td>a laptop, numpy float32</td><td>about 100 to 150 tokens per second with the reference script</td></tr>
+</table></div>
+
+<h2 id="reference">The reference: what "the same story" means</h2>
+<p><a href="ref/tinystories_ref.py"><code>ref/tinystories_ref.py</code></a> is the whole definition of a right answer. It is
+llama2.c's <code>run.c</code> written in plain numpy, float32, in the same order of operations, with the temperature fixed at 0.
+It needs Python 3.8 or newer and numpy, nothing else. It downloads the model, tells stories, prints every fact used on this page,
+writes the official set and checks a challenger's stories against it.</p>
+<pre><code>pip install numpy
+cd examples/16_llm_challenge/ref
+python tinystories_ref.py download            # stories15M.bin (58 MB) + tokenizer.bin, hashed
+python tinystories_ref.py selftest            # tokenizer and model against known answers: PASS
+python tinystories_ref.py info                # the header, every tensor, the counts, the hashes
+python tinystories_ref.py tell "Once upon a"  # a story of 32 new tokens (--new 100 for more, --ids)
+python tinystories_ref.py official --check    # reference_stories.json equals a fresh float32 run</code></pre>
+<p><code>tell</code> streams the words as they are chosen and ends with the speed, for example
+<code>32 new tokens in 0.3 s on this PC (126.0 tok/s, numpy float32)</code>: that is the number your board competes with the
+organizer on, not with the PC. <code>tell --temperature 0.8</code> shows what sampling does to the same prompt; the challenge
+does not use it.</p>
+
+<h3 id="official">The official set</h3>
+<p>Six prompts, <b>32 new tokens each, 192 in all</b>, temperature 0, generated by the reference and stored in
+<a href="ref/reference_stories.json"><code>ref/reference_stories.json</code></a> with the prompt ids and the new ids of each.
+These, and only these, are scored. The ids are what is compared, so a design that prints its tokens as numbers is as good as
+one that prints words.</p>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Prompt (and its ids, BOS first)</th><th>The story: prompt + 32 tokens (&#9166; is a newline the model wrote)</th></tr>
+<tr><td>1</td><td><code>Once</code><br><span class="small"><code>[1, 9038]</code></span></td><td>Once upon a time, there was a little girl named Lily. She loved to play outside in the sunshine. One day, she saw a big,</td></tr>
+<tr><td>2</td><td><code>Once upon a</code><br><span class="small"><code>[1, 9038, 2501, 263]</code></span></td><td>Once upon a time, there was a little girl named Lily. She loved to play outside in the sunshine. One day, she saw a big, red ball</td></tr>
+<tr><td>3</td><td><code>Lily was a</code><br><span class="small"><code>[1, 365, 2354, 471, 263]</code></span></td><td>Lily was a little girl who liked to play with her toys. She had a doll, a ball, a car and a bear. She liked to make them talk and</td></tr>
+<tr><td>4</td><td><code>One night, a magic</code><br><span class="small"><code>[1, 3118, 4646, 29892, 263, 15709]</code></span></td><td>One night, a magic fairy flew into the sky. She had a special power. She could make things shrink. She was very good at making things shrink.<span class="small">&#9166;</span></td></tr>
+<tr><td>5</td><td><code>Tom and his mom</code><br><span class="small"><code>[1, 4335, 322, 670, 16823]</code></span></td><td>Tom and his mom went to the park. They saw a big pond with many ducks. Tom liked the ducks. He wanted to feed them some bread.<span class="small">&#9166;</span>&quot;</td></tr>
+<tr><td>6</td><td><code>The robot said</code><br><span class="small"><code>[1, 450, 19964, 1497]</code></span></td><td>The robot said to a little girl, &quot;I want to go on an adventure!&quot; The little girl was so excited and said, &quot;Yes, let&#x27;s go!&quot;</td></tr>
+</table></div>
+<p class="note">Why 32 tokens and not whole stories: 32 tokens per prompt is enough to make guessing impossible (six specific
+sequences of 32 choices out of 32,000) and short enough that an entry can be verified in seconds on any design, including
+one that reads the results out over USB by hand. The organizer's record was measured on exactly this set.</p>
+
+<h3 id="submit">Submitting an entry</h3>
+<p>Write your six stories and their times into a JSON file and let the checker score it:</p>
+<pre><code>{
+  "entrant": "your name, and a link if you like",
+  "stories": [
+    {"prompt": "Once", "new_tokens": [2501, 263, 931, 29892, ...32 ids...], "seconds": 1.159},
+    {"prompt": "Once upon a", "generated_text": " time, there was a ...", "seconds": 1.214},
+    ...one entry per official prompt...
+  ]
+}</code></pre>
+<pre><code>python tinystories_ref.py check my_entry.json
+  'Once': same as the reference
+  ...
+your name: 192 tokens in 7.340 s = 26.16 tok/s
+PASS: every official story equals the reference</code></pre>
+<p>Give the new tokens as ids (<code>new_tokens</code>) or as text (<code>generated_text</code>: the story minus the prompt,
+so it starts with the space before the first new word; a missing leading space is forgiven); ids are safer.
+<code>seconds</code> is the time of that story as defined in the rules.
+The score is the 192 tokens divided by the sum of the six times. Send the file, your video and a short description of what
+you built to the address at the end of the page.</p>
+
+<h2 id="rules">The rules</h2>
+<ol class="rules">
+<li><b>The board is a DE10-Lite.</b> A Terasic DE10-Lite as sold (MAX 10 10M50DAF484C7G, 64 MB SDRAM, 50 MHz oscillator).
+The model is stored and computed on it: its FPGA, its SDRAM, its flash. The LCD / game-pad shield is welcome but not
+required; show the story on the LCD, on a VGA monitor, or send it as text over the USB-Blaster cable. The PC may put the
+model into the board before the run and read the results after it; while a story is told, nothing outside the board
+computes.</li>
+<li><b>It is this model.</b> <code>stories15M</code> as published (the hashes above), all 15,191,712 parameters, the same
+tokenizer. How you build it, how you store the model and how you compute is entirely up to you: the only judge is the
+output.</li>
+<li><b>Temperature 0.</b> Greedy decoding: the most probable token every time, the lowest id on a tie, exactly as
+<code>tinystories_ref.py</code> does. There is one right story per prompt.</li>
+<li><b>The stories are the reference's.</b> The six official prompts, 32 new tokens each, must come out identical to
+<code>reference_stories.json</code>, token for token. <code>check</code> is the judge.</li>
+<li><b>Real, and measured.</b> A story's time runs from the moment the prompt is complete and the board is told to start
+to the moment the last of its 32 new tokens is out; the prompt's own processing is inside it. Loading the model before the
+run is not. Each of the six stories runs from a clean start (no state kept from an earlier story), and every token is
+computed by the board from the model during the run: no stored answers. Your design must take any prompt, not only the
+six; when the organizer verifies an entry he also tries prompts of his own, which are not scored but must be stories.</li>
+<li><b>The score</b> is 192 tokens divided by the sum of the six times, in tokens per second, two decimals. Measure with the
+board's own clock or with the PC's, and say which; the organizer re-measures.</li>
+<li><b>An entry</b> is the JSON above, a video of the board telling at least one official story with the time visible, and a
+few lines about what you built, as many as you care to reveal. The scoreboard lists an entry after the organizer has seen
+it run: on your board at a meeting, on a board he lends you, or from a bitstream and loading procedure you send.</li>
+<li><b>No hints.</b> The organizer's design is not published while the challenge runs and no implementation advice is given:
+everyone starts from this page. Questions about the rules are welcome by mail and the answers are added here for all.</li>
+</ol>
+<p class="note">Why the rules are shaped like this: a language model is a deterministic machine once the temperature is 0, so
+"the same story" is a sharp test that anyone can run in a minute, while "nothing outside the board computes" and "any prompt"
+keep it a real machine and not a recording. The time includes the prompt because a design that is slow to start should
+not hide it.</p>
+
+<h2 id="score">The scoreboard</h2>
+<div class="tablewrap"><table>
+<tr><th>#</th><th>Who</th><th>tok/s</th><th>Date</th><th>Verified</th><th>Notes</th></tr>
+<tr><td>1</td><td>Avi Salmon (the organizer)</td><td><b>26.16</b></td><td style="white-space:nowrap">2026-10-31</td>
+<td>on the board: six official stories identical to the reference, 192 tokens in 7.340 s; the board's clock, the PC's wall
+clock within 2 %</td>
+<td>DE10-Lite with the LCD / game-pad shield, the story on the LCD (the video above); between the prompts the board
+generates at 28.2 tok/s</td></tr>
+<tr><td>2</td><td colspan="5">your name here</td></tr>
+</table></div>
+<p>The organizer's number is the one to beat; it will be updated when his own design gets faster, with the date, so the bar
+moves for everyone at once. An entry that ties the reference's stories but not the speed still gets a line: a second
+working LLM on this board is an achievement in itself.</p>
+
+<h2 id="contact">Take up the challenge</h2>
+<p>Write to <a href="mailto:avi.salmon@intel.com">avi.salmon@intel.com</a>: to enter, to ask about the rules, or to <b>borrow a
+DE10-Lite with the shield</b> for the fight if you do not have one. Say in a line what you plan and roughly when; the boards go
+out one at a time. Bring the JSON and the video when you are done, and the stories will be checked within days.</p>
+<p>What you need to start: a DE10-Lite (about 85 USD at Terasic, the academic price lower), Quartus Prime Lite (free) or any
+other flow that programs a MAX 10, Python with numpy for the reference, and this page.</p>
+
+<footer>Part of the <a href="../../index.html">DE10-Lite BKM</a>. The model and tokenizer are from
+<a href="https://github.com/karpathy/llama2.c">llama2.c</a> (MIT), trained on <a href="https://arxiv.org/abs/2305.07759">TinyStories</a>
+(Eldan and Li, 2023); the reference script is this repository's and free to copy. Record and page: 2026-10-31. This page says
+nothing about how the record was built, on purpose.</footer>
+</main>
+</body>
+</html>
