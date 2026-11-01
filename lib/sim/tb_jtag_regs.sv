@@ -27,8 +27,8 @@ wire				tdo;
 always @(posedge tck) if (uir) ir_in <= ir_next;
 
 jtag_regs #(.INSTANCE(1), .ID(ID)) dut(.clk(clk), .rst_n(rst_n), .addr(addr), .wdata(wdata), .we(we), .rdata(rdata),
-	.busy(busy), .sim_tck(tck), .sim_tdi(tdi), .sim_ir_in(ir_in), .sim_cdr(cdr), .sim_sdr(sdr), .sim_udr(udr),
-	.sim_uir(uir), .sim_tdo(tdo));
+	.hold(1'b0), .fetch(), .busy(busy), .sim_tck(tck), .sim_tdi(tdi), .sim_ir_in(ir_in), .sim_cdr(cdr), .sim_sdr(sdr),
+	.sim_udr(udr), .sim_uir(uir), .sim_tdo(tdo));
 
 // ---- the design behind the node ----
 reg	[31:0]	file [0:15];

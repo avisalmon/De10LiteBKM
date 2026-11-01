@@ -9,11 +9,14 @@
 //   4 ID      32 out   the ID parameter: which design is on the board, which register map to expect
 //   other     1        bypass
 // So a block read is one ADDR scan and n READ scans; a block write one ADDR scan and n WRITE scans.
-// A scan must come at least 4 clk clocks after the previous update (a cable needs a thousand times that).
+// A scan must come at least 4 clk clocks (plus any hold) after the previous update (a cable needs a thousand
+// times that).
 //
 // The bus: addr changes, then rdata is sampled 2 clocks later, so rdata may be a combinational mux of addr or a
 // register loaded from addr one clock later. we is one clock wide with wdata and addr valid; writes to unknown
-// addresses are the design's business to ignore.
+// addresses are the design's business to ignore. A slave that needs longer (a register behind a bridge into
+// another clock domain) raises hold while fetch is high: the sample waits, busy stays high (the bus stays this
+// master's), and rdata is taken in the first clock hold is low. Designs without such a slave tie hold to 0.
 // Clocks: the JTAG side runs on TCK (asynchronous; it ticks only while the cable shifts); commands cross to clk
 // through a toggle and a 2-FF synchronizer, the read word crosses back as a register the TCK side reads while it
 // holds still (the same pattern as lib/rtl/sdram_loader.sv).
@@ -31,6 +34,8 @@ module jtag_regs #(
 	output	reg	[31:0]	wdata = 0,
 	output	reg				we = 0,
 	input		wire	[31:0]	rdata,
+	input		wire				hold,							// 1 = rdata is not ready yet: keep fetching (see the header)
+	output	wire				fetch,						// the clk side wants rdata for addr now (its fetch phase)
 	output	wire				busy							// a command is being executed on the clk side
 `ifdef JTAG_REGS_SIM
 	,
@@ -128,6 +133,7 @@ reg	[1:0]		ph = 0;						// 0 idle; 1 increment; 2 settle; 3 fetch
 reg	[1:0]		op = 0;
 wire				new_cmd = cmd_s[2] ^ cmd_s[1];
 assign busy = new_cmd || ph != 0;
+assign fetch = (ph == 2'd3);
 
 always @(posedge clk) begin
 	cmd_s <= {cmd_s[1:0], cmd_t};
@@ -151,7 +157,7 @@ always @(posedge clk) begin
 				ph <= 2'd2;
 			end
 			2'd2: ph <= 2'd3;
-			2'd3: begin
+			2'd3: if (!hold) begin
 				rbox <= rdata;
 				ph <= 2'd0;
 			end

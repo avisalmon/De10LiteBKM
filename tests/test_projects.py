@@ -15,9 +15,21 @@ TEMPLATE = PROJECTS / "_template"
 PAGES = ("index.html", "spec.html", "guide.html")
 TUTORIAL = "tutorial.html"  # the optional fourth page
 TUTORIAL_PARTS = ('class="do"', "You should see", "<b>Why")  # every experiment: Do, You should see, Why
-PROJECT_DIRS = sorted(p for p in PROJECTS.iterdir() if p.is_dir() and not p.name.startswith("_"))
+
+
+def git_ignored(path):
+    """A git-ignored project folder is private (listed in .git/info/exclude): not part of the public contract."""
+    try:
+        return subprocess.run(["git", "check-ignore", "-q", str(path)], cwd=ROOT, capture_output=True).returncode == 0
+    except OSError:
+        return False
+
+
+PROJECT_DIRS = sorted(p for p in PROJECTS.iterdir() if p.is_dir() and not p.name.startswith("_") and not git_ignored(p))
 RESOURCE_WORDS = ("Logic elements", "Memory bits", "M9K", "PLLs", "Fmax", "Timing")
 CODE_TYPES = {".sv", ".v", ".svh", ".vh", ".py", ".tcl", ".qsf", ".qip", ".sdc", ".c", ".h", ".s"}
+# Git-ignored outputs: a stale build/ carries old comments; the sources it came from are what the checks are about.
+GENERATED = {"build", "logs", "db", "incremental_db", "output_files", "__pycache__"}
 
 
 def first_section(html):
@@ -68,7 +80,7 @@ def test_project_stands_on_its_own(project):
     others = "|".join(re.escape(p.name) for p in PROJECT_DIRS if p.name != project) or "(?!)"
     reach = re.compile(r"\bexamples[/\\]|[\"']examples[\"']|\bprojects[/\\](?:" + others + r")\b")
     for f in folder.rglob("*"):
-        if f.suffix.lower() in CODE_TYPES and f.is_file():
+        if f.suffix.lower() in CODE_TYPES and f.is_file() and not GENERATED & set(f.relative_to(folder).parts[:-1]):
             m = reach.search(f.read_text(encoding="utf-8", errors="replace"))
             assert not m, f"{f.relative_to(ROOT)} reaches outside the project: '{m.group(0)}'"
 

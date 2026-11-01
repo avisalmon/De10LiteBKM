@@ -190,3 +190,29 @@ to try, what you will see and why. The model is `projects/fft_lab/tutorial.html`
   phone photo of the board instead of leaving `media/board.jpg` out silently.
 * Checking the 100-character page rule without reading every page: a few lines of Python that pull each `<pre>`
   block, strip the tags, unescape `&gt; &lt; &amp;` and print the lines longer than 100.
+* Every command the guide prints must work as printed: check each one against the tool's own argparse (`-h`, or
+  `grep add_parser / add_argument`) and the testbench's `` `ifdef``s before the page is done. A project's tools may
+  resolve a given path from the shell's current directory (only their defaults are project-relative), and a
+  testbench's file defines are quoted strings relative to `sim/` (`-D PROG='"../build/x.hex"'`): use the defaults
+  or paths from the repo root, and say where to stand before each block.
+* `de10.py report` prints "worst slack over all corners"; on a design with a tight clock that number can be a
+  **hold** check of the fast corner, not the setup slack of the clock you tuned. On the pages quote the setup slack
+  per clock from `*.sta.rpt` (Slow 85C) and Fmax, and name hold separately; one number for "timing" is a conflation.
+* Design-level gotchas written from memory drift: a number, a clock count, a flag. Before the page or the gotcha is
+  final, read the fact in its source (the report, the checkpoint, the code), not in your recollection of it.
+* The `.qar` proof in numbers: say in the status table how long the restored archive took to compile and that its
+  Checksum (`output_files/<name>.asm.rpt`) equals the build's, so the reader knows the archive is the design, not a
+  copy of some files.
+* Two projects, one module name: two project tests that both do `sys.path.insert(0, TOOLS); import memmap` pass
+  alone, but in the full run the second gets the first's module from Python's cache and compares the wrong memory
+  map. A project test loads the project's own file by path
+  (`importlib.util.spec_from_file_location("<project>_memmap", TOOLS / "memmap.py")`), never by bare name.
+* The "stands on its own" test scans the project's code files for `examples/` and other projects' names: a
+  git-ignored `build/` with stale generated `.s` files, or a dictionary key spelled `"examples"`, trips it as well
+  as a real reach. Generated folders are skipped now; name a key something else.
+* A private project (one that must never reach GitHub) lives in `projects/<name>/` like the others but is listed,
+  with its `tests/test_<name>.py`, in `.git/info/exclude`: git's ignore file that is itself not in the repo, so not
+  even the name is public. `tests/test_projects.py` skips git-ignored project folders, so the public tests do not
+  ask for its portal card. The exclusion is per clone (repeat the two lines on another computer), and a worktree is
+  disposable: keep the folder somewhere that outlives the session. Nothing public may mention it: no card, no
+  gotcha, no skill paragraph, no line in the lessons log.
